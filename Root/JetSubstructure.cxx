@@ -443,33 +443,33 @@ EL::StatusCode JetSubstructure :: execute ()
 
 		for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr )
 		{
-			xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
-
-			double pt     = (jet_truth_4mom.pt() * 0.001 );
-			double eta    = (jet_truth_4mom.eta());
-			double phi    = (jet_truth_4mom.phi());
-		
-
-                        if (pt > max_pt) 
-			  {
-			    event_weight = jetcorr->GetJetWeight(pt, eta, phi);
-			    max_pt = pt;
+		  xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
+		  
+		  double pt     = (jet_truth_4mom.pt() * 0.001 );
+		  double eta    = (jet_truth_4mom.eta());
+		  double phi    = (jet_truth_4mom.phi());
+			
+		  
+		  if (pt > max_pt) 
+		    {
+		      event_weight = jetcorr->GetJetWeight(pt, eta, phi);
+		      max_pt = pt;
 			    //			    if (_isMC && isHIJING) event_weight = 1;
-			  }
+		    }
+		  
+		  //Not filling truth map here because don't know event weight yet
 			
-			//Not filling truth map here because don't know event weight yet
-			
-			if (pt < _truthpTjetCut) continue;
-			
-			truth_jet_pt_vector.push_back(pt);
-			truth_jet_eta_vector.push_back(eta);
-			truth_jet_phi_vector.push_back(phi);
+		  if (pt < _truthpTjetCut) continue;
+		  
+		  truth_jet_pt_vector.push_back(pt);
+		  truth_jet_eta_vector.push_back(eta);
+		  truth_jet_phi_vector.push_back(phi);
 		}
 		truth_jet_isolation_vector = GetIsolation(truth_jet_pt_vector,truth_jet_eta_vector,truth_jet_phi_vector, 1.0, _pt_iso); // -1 is for pT_iso == jet 
 	}
-
-
-
+	
+	
+	
 	event_weight = event_weight*event_weight_fcal; //event weight is only set if MC. Otherwise default is 1.
 	
 	//cout << "event_weight " << event_weight << endl;
@@ -491,26 +491,13 @@ EL::StatusCode JetSubstructure :: execute ()
 
 
 	for( ; jet_itr != jet_end; ++jet_itr )
-	{
+	  {
 	  xAOD::Jet newjet;
 	  newjet.makePrivateStore( **jet_itr );
 	  
-
+	  
 	  xAOD::JetFourMom_t jet_4mom = newjet.jetP4("JetSubtractedScaleMomentum");
-	  if (_indexCali == 0)  
-	    jet_4mom = newjet.jetP4("JetSubtractedScaleMomentum");
-	  if (_indexCali == 1)  
-	    jet_4mom = newjet.jetP4();
-	  
-	  
-	  
-	  const xAOD::JetFourMom_t jet_4mom_unsubtracted  = newjet.jetP4("JetUnsubtractedScaleMomentum");
-	  if (_indexCali == 0) {
-	    newjet.setJetP4("JetPileupScaleMomentum",jet_4mom); //Setting PileupScale and ConstitScale because they are not in DFAntiKt4HI
-	    newjet.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted);
-	    newjet.setJetP4("JetEMScaleMomentum",jet_4mom);
-	    ANA_CHECK(m_jetCalibration->applyCalibration( newjet ) );
-	  }
+	  jet_4mom = newjet.jetP4();
 	  
 	  const xAOD::JetFourMom_t jet_4mom_xcalib = newjet.jetP4();
 	  
@@ -555,64 +542,64 @@ EL::StatusCode JetSubstructure :: execute ()
 	      h_truth_jet_cent.at(nCentbins-1)->Fill(truth_pt,truth_eta, truth_phi, event_weight);
 	      
 	      hPtGenRaw->Fill( truth_pt);
-			hPtGenWgt->Fill( truth_pt, event_weight);
-			
-			double d_R_min = 9999;
-			double d_R_itr = 0;
-
-			double matched_reco_pt = 0;
-			double matched_reco_eta = 0;
-			double matched_reco_phi = 0;
-			double weight = 0;
-
-			for (int j = 0; j<reco_jet_pt_vector.size(); j++)
-			{
-				double reco_pt  = reco_jet_pt_vector.at(j);
-				double reco_eta = reco_jet_eta_vector.at(j);
-				double reco_phi = reco_jet_phi_vector.at(j);
-
-				if (_reco_iso) { if (!reco_jet_isolation_vector.at(j)) continue;}
-
-				double d_R_itr = DeltaR(reco_phi, reco_eta, truth_phi, truth_eta);
-
-				if (d_R_itr < d_R_min)
-				{
-					matched_reco_pt = reco_pt;
-					matched_reco_eta = reco_eta;
-					matched_reco_phi = reco_phi;
-					d_R_min = d_R_itr;
-					reco_jet_TM_vector.at(j)=true;
-				}
-			}
-
-			if(d_R_min < _dR_truth_matching) {
-
-			  //Fill plots
-			  h_resp_cent.at(cent_bin)->Fill(truth_pt,(matched_reco_pt - truth_pt)/truth_pt,truth_eta, event_weight);
-			  h_resp_cent.at(nCentbins-1)->Fill(truth_pt,(matched_reco_pt - truth_pt)/truth_pt,truth_eta, event_weight);
-			  
-			  h_truth_jet_cent_matched.at(cent_bin)->Fill(truth_pt,truth_eta, truth_phi, event_weight);
-			  h_truth_jet_cent_matched.at(nCentbins-1)->Fill(truth_pt,truth_eta, truth_phi, event_weight);
-			}	
+	      hPtGenWgt->Fill( truth_pt, event_weight);
+	      
+	      double d_R_min = 9999;
+	      double d_R_itr = 0;
+	      
+	      double matched_reco_pt = 0;
+	      double matched_reco_eta = 0;
+	      double matched_reco_phi = 0;
+	      double weight = 0;
+	      
+	      for (int j = 0; j<reco_jet_pt_vector.size(); j++)
+		{
+		  double reco_pt  = reco_jet_pt_vector.at(j);
+		  double reco_eta = reco_jet_eta_vector.at(j);
+		  double reco_phi = reco_jet_phi_vector.at(j);
+		  
+		  if (_reco_iso) { if (!reco_jet_isolation_vector.at(j)) continue;}
+		  
+		  double d_R_itr = DeltaR(reco_phi, reco_eta, truth_phi, truth_eta);
+		  
+		  if (d_R_itr < d_R_min)
+		    {
+		      matched_reco_pt = reco_pt;
+		      matched_reco_eta = reco_eta;
+		      matched_reco_phi = reco_phi;
+		      d_R_min = d_R_itr;
+		      reco_jet_TM_vector.at(j)=true;
+		    }
 		}
+	      
+	      if(d_R_min < _dR_truth_matching) {
+		
+		//Fill plots
+		h_resp_cent.at(cent_bin)->Fill(truth_pt,(matched_reco_pt - truth_pt)/truth_pt,truth_eta, event_weight);
+		h_resp_cent.at(nCentbins-1)->Fill(truth_pt,(matched_reco_pt - truth_pt)/truth_pt,truth_eta, event_weight);
+		
+		h_truth_jet_cent_matched.at(cent_bin)->Fill(truth_pt,truth_eta, truth_phi, event_weight);
+		h_truth_jet_cent_matched.at(nCentbins-1)->Fill(truth_pt,truth_eta, truth_phi, event_weight);
+	      }	
+	    }
 	}	
 	
 	for (int j = 0; j<reco_jet_pt_vector.size(); j++){
-		double reco_pt  = reco_jet_pt_vector.at(j);
-		double reco_eta = reco_jet_eta_vector.at(j);
+	  double reco_pt  = reco_jet_pt_vector.at(j);
+	  double reco_eta = reco_jet_eta_vector.at(j);
 		double reco_phi = reco_jet_phi_vector.at(j);
 		if (_reco_iso) { if (!reco_jet_isolation_vector.at(j)) continue;}
 		if (_isMC){	
-			if (!reco_jet_TM_vector.at(j)) {
-				h_reco_jet_cent_unmatched.at(cent_bin)->Fill(reco_pt,reco_eta, reco_phi, event_weight);
-			}
-			else{
-				h_reco_jet_cent_matched.at(cent_bin)->Fill(reco_pt,reco_eta, reco_phi, event_weight);
+		  if (!reco_jet_TM_vector.at(j)) {
+		    h_reco_jet_cent_unmatched.at(cent_bin)->Fill(reco_pt,reco_eta, reco_phi, event_weight);
+		  }
+		  else{
+		    h_reco_jet_cent_matched.at(cent_bin)->Fill(reco_pt,reco_eta, reco_phi, event_weight);
 			}
 		}	
 		h_reco_jet_cent.at(cent_bin)->Fill(reco_pt,reco_eta, reco_phi, event_weight);
 	}
-
+	
 	// Clear vectors
 	reco_jet_pt_vector.clear();
 	reco_jet_eta_vector.clear();

@@ -43,7 +43,6 @@ int main(int argc, char *argv[])
 	int num_evt;
 	int jet_radius = 4;
 	int DxAODMode;
-	int indexCali=0;
 	string reco_jet_collection;
 	string test_reco_jet_collection;
 	string truth_jet_collection;
@@ -66,7 +65,6 @@ int main(int argc, char *argv[])
 	bool reco_iso;
 	std::string output_file_name="ntuple";
 	bool applyReweighting;
-	bool ReclusterTruthJets;
 	
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
@@ -101,7 +99,6 @@ int main(int argc, char *argv[])
 	("dR_truth_matching",boost::program_options::value<float>(&dR_truth_matching)->default_value(0.2),"dR truth matching parameter")
 	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
 	("jet_radius",boost::program_options::value<int>(&jet_radius)->default_value(4),"Jet radius")
-	("indexCali",boost::program_options::value<int>(&indexCali)->default_value(0),"Jet calibration index")
 	("centrality_scheme,s",boost::program_options::value<int>(&centrality_scheme)->default_value(1),"Centrality scheme")
 	("jet_pT_cut",boost::program_options::value<float>(&pTjetCut)->default_value(10.),"Jet pT cut")
 	("truth_jet_pT_cut",boost::program_options::value<float>(&truthpTjetCut)->default_value(10.),"Truth jet pT cut")
@@ -110,8 +107,7 @@ int main(int argc, char *argv[])
 	("reco_iso",boost::program_options::value<bool>(&reco_iso)->default_value(0),"Isolating reco jets?")
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
-	("ReclusterTruthJets",boost::program_options::value<bool>(&ReclusterTruthJets)->default_value(0),"Recluster Truth Jets?")
-	;
+	  ;
 
 //	if (!jet_performance_mode) doForward=false;
 	//combine options types for parsing
@@ -171,7 +167,7 @@ int main(int argc, char *argv[])
 	if (isMB) {cout << "Using MB data" << endl;} else { cout << "Using HP data" << endl;}
 	if (isMC) cout << "Running in MC mode" << endl; else { cout << "Running in data mode" << endl;}
 
-	cout << "Input directory:  " << input_directory << endl;
+	cout << "Input directory:          }" << input_directory << endl;
 	cout << "Output directory: " << submitDir << endl;
 
 	cout << "dR truth matching parameter: " << dR_truth_matching << endl;
@@ -181,7 +177,6 @@ int main(int argc, char *argv[])
 	cout << "grl: " << grl << endl;
 	cout << "Centrality scheme: "<< centrality_scheme << endl;
 	cout << "jet pt cut: "<< pTjetCut << endl;
-	cout << "Jet Cali index: "<< indexCali << endl;
 
 
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
@@ -256,9 +251,6 @@ int main(int argc, char *argv[])
 	alg->_truth_iso=truth_iso;
 	alg->_reco_iso=reco_iso;
 	
-	alg->_indexCali=indexCali;
-
-	alg->_ReclusterTruthJets=ReclusterTruthJets;
 	
 	//Initialzie trigger
 	alg->SetTrigger_chains();
