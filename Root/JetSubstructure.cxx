@@ -110,8 +110,8 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	//	h_triggercounter = new TH2D("h_triggercounter","h_triggercounter",_nTriggers,0,_nTriggers,2,-0.5,1.5);
 	//	SetTrigger_hist(h_triggercounter);
 	
-	h_respR2R4 = new TH2D("h_respR2R4","h_respR2R4",jetPtBinsN, jetPtBins,respBinsN,respBins);
-	wk()->addOutput(h_respR2R4);
+	//	h_respR2R4 = new TH2D("h_respR2R4","h_respR2R4",jetPtBinsN, jetPtBins,respBinsN,respBins);
+	//	wk()->addOutput(h_respR2R4);
 	wk()->addOutput(hPtGenRaw);
 	wk()->addOutput(hPtGenWgt);
 	
@@ -227,19 +227,6 @@ EL::StatusCode JetSubstructure :: initialize ()
 	
 	//Calibration tool
 	
-	const std::string name_val = "JetSubstructure_val"; //string describing the current thread, for logging
-	TString jetAlgo_val = "AntiKt4EMTopo"; //String describing your jet collection, for example AntiKt4EMTopo or AntiKt4LCTopo (see below)
-	TString config_val = "JES_Full2012dataset_Preliminary_Jan13.config"; //Path to global config used to initialize the tool (see below)
-	TString calibSeq_val = "AbsoluteEtaJES"; //String describing the calibration sequence to apply (see below)
-	
-	//Call the constructor. The default constructor can also be used if the arguments are set with python configuration instead
-	
-	m_jetCalibration_val = new JetCalibrationTool (name_val);
-	ANA_CHECK(m_jetCalibration_val->setProperty("JetCollection",jetAlgo_val.Data()));
-	ANA_CHECK(m_jetCalibration_val->setProperty("ConfigFile",config_val.Data()));
-	ANA_CHECK(m_jetCalibration_val->setProperty("CalibSequence",calibSeq_val.Data()));
-	ANA_CHECK(m_jetCalibration_val->setProperty("IsData",!_isMC));
-	ANA_CHECK(m_jetCalibration_val->initializeTool(name_val));
 	
 	jetcorr = new JetCorrector();
 	
@@ -443,62 +430,11 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector <double> truth_jet_phi_vector;
 	vector<bool> truth_jet_isolation_vector;
 
-	if (_isMC && _ReclusterTruthJets){
-	  if(m_eventCounter%statSize==0) 	    cout << " re cluster!" << endl;
-	  //**************** reclustering truth ***********
-	  
-	  std::vector<fastjet::PseudoJet> inputConst;
-	  const xAOD::TruthParticleContainer * particles = 0;
-	  ANA_CHECK(event->retrieve( particles, "TruthParticles"));
-	  xAOD::TruthParticleContainer::const_iterator truth_itr = particles->begin();
-	  xAOD::TruthParticleContainer::const_iterator truth_end = particles->end();
-	  for( ; truth_itr!=truth_end; ++truth_itr){
-	    int ty=TrackHelperTools::getTypeTruth((*truth_itr)->barcode(),(*truth_itr)->pdgId(),(*truth_itr)->status());
-	    if(ty!=1 && ty!=5) continue;
-	    //Pt cut on minimum track pt for reclustering;
-	    if ((*truth_itr)->pt() < 6000.) continue;
-	    inputConst.push_back( (*truth_itr)->p4() );		
-	  }
-	  
-	  fastjet::Selector jselector = fastjet::SelectorAbsRapRange(0.0,6.);
-	  fastjet::JetAlgorithm algo = fastjet::antikt_algorithm;
-	  float jetR = 0.4;
-	  fastjet::JetDefinition jetDef(algo, jetR);
-	  fastjet::ClusterSequence cs(inputConst, jetDef);
-	  vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
-	  // print out some infos
-	  //cout << "Clustering with " << jetDef.description() << endl;
-	  
-	  for (unsigned i = 0; i < jets.size(); i++) {
-	    
-	    double phi = jets[i].phi();
-	    if (phi> TMath::Pi()) phi = phi - 2*TMath::Pi();
-	    double pt = jets[i].pt()*0.001;
-	    double eta = jets[i].pseudorapidity();
-	    
-	    //if (jets[i].pt()*0.001 > 20.) cout << "jet " << i << ": "<< jets[i].pt()*0.001 << " " << jets[i].pseudorapidity() << " " << phi << endl;
-	    
-	    if (pt < _truthpTjetCut) continue;
-	    
-	    if (pt > max_pt)  // && _centrality_scheme>1) //  Removed centrlaity condition  (YS)     //event weight from leading truth jet (only if PbPb) 
-	      {
-		event_weight = jetcorr->GetJetWeight(pt, eta, phi);
-		max_pt = pt;
-		//				if (_isMC && isHIJING) event_weight = 1;
-	      }
-	    
-	    truth_jet_pt_vector.push_back(pt);
-	    truth_jet_eta_vector.push_back(eta);
-	    truth_jet_phi_vector.push_back(phi);
-	  }
-	  inputConst.clear();
-	}  
-	
-	else if (_isMC){
+	if (_isMC){
 	  if(m_eventCounter%statSize==0)	 
 	    cout << "Fixing works!!!" << endl;
 	  //**************** Getting truth ****************
-	
+	  
 		const xAOD::JetContainer* truth_jets = 0;
 		ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
 
@@ -513,9 +449,8 @@ EL::StatusCode JetSubstructure :: execute ()
 			double eta    = (jet_truth_4mom.eta());
 			double phi    = (jet_truth_4mom.phi());
 		
-			//if (pt > 20.) cout << "jet : "<< pt << " " << eta << " " << phi << endl;
 
-                        if (pt > max_pt)  // && _centrality_scheme>1) //  Removed centrlaity condition  (YS)     //event weight from leading truth jet (only if PbPb)
+                        if (pt > max_pt) 
 			  {
 			    event_weight = jetcorr->GetJetWeight(pt, eta, phi);
 			    max_pt = pt;
@@ -523,16 +458,16 @@ EL::StatusCode JetSubstructure :: execute ()
 			  }
 			
 			//Not filling truth map here because don't know event weight yet
-
+			
 			if (pt < _truthpTjetCut) continue;
-
+			
 			truth_jet_pt_vector.push_back(pt);
 			truth_jet_eta_vector.push_back(eta);
 			truth_jet_phi_vector.push_back(phi);
 		}
-		truth_jet_isolation_vector = GetIsolation(truth_jet_pt_vector,truth_jet_eta_vector,truth_jet_phi_vector, 1.0, _pt_iso); // -1 is for pT_iso == jet pT
-	}	
-	
+		truth_jet_isolation_vector = GetIsolation(truth_jet_pt_vector,truth_jet_eta_vector,truth_jet_phi_vector, 1.0, _pt_iso); // -1 is for pT_iso == jet 
+	}
+
 
 
 	event_weight = event_weight*event_weight_fcal; //event weight is only set if MC. Otherwise default is 1.
@@ -551,55 +486,38 @@ EL::StatusCode JetSubstructure :: execute ()
 	const xAOD::JetContainer* reco_jets = 0;
 	ANA_CHECK(event->retrieve( reco_jets, _reco_jet_collection.c_str() ));
 
-	xAOD::JetContainer* updatedjets = new xAOD::JetContainer();
-	xAOD::AuxContainerBase* updatedjetsAux = new xAOD::AuxContainerBase();
-	updatedjets->setStore( updatedjetsAux );
-
 	xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
 	xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
 
-	ANA_CHECK(store->record( updatedjets, "updatedjets" ));
-	ANA_CHECK(store->record( updatedjetsAux, "updatedjetsAux" ));
 
 	for( ; jet_itr != jet_end; ++jet_itr )
 	{
 	  xAOD::Jet newjet;
 	  newjet.makePrivateStore( **jet_itr );
 	  
-	  xAOD::Jet newjet_val;
-	  newjet_val.makePrivateStore( **jet_itr );
 
 	  xAOD::JetFourMom_t jet_4mom = newjet.jetP4("JetSubtractedScaleMomentum");
-	  if(m_eventCounter%statSize==0)		cout << " indexCali = " << _indexCali << endl;
 	  if (_indexCali == 0)  
 	    jet_4mom = newjet.jetP4("JetSubtractedScaleMomentum");
 	  if (_indexCali == 1)  
 	    jet_4mom = newjet.jetP4();
 	  
 	  
-	  //		double uncalib_jet_phi2  = (jet_4mom_cal2.phi());
 	  
 	  const xAOD::JetFourMom_t jet_4mom_unsubtracted  = newjet.jetP4("JetUnsubtractedScaleMomentum");
 	  if (_indexCali == 0) {
 	    newjet.setJetP4("JetPileupScaleMomentum",jet_4mom); //Setting PileupScale and ConstitScale because they are not in DFAntiKt4HI
 	    newjet.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted);
 	    newjet.setJetP4("JetEMScaleMomentum",jet_4mom);
-	    newjet_val.setJetP4("JetPileupScaleMomentum",jet_4mom); //Setting PileupScale and ConstitScale because they are not in DFAntiKt4HI
-	    newjet_val.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted);
-	    newjet_val.setJetP4("JetEMScaleMomentum",jet_4mom);
 	    ANA_CHECK(m_jetCalibration->applyCalibration( newjet ) );
-	    ANA_CHECK(m_jetCalibration_val->applyCalibration( newjet_val ) );
 	  }
 	  
 	  const xAOD::JetFourMom_t jet_4mom_xcalib = newjet.jetP4();
-	  const xAOD::JetFourMom_t jet_4mom_xcalib_val = newjet_val.jetP4();
 	  
 	  double jet_pt  = (newjet.pt() * 0.001);
-	  double jet_pt_val  = (newjet_val.pt() * 0.001);
 	  double jet_eta = newjet.eta();
 	  double jet_phi = newjet.phi();
 	  
-	  h_respR2R4->Fill(jet_pt,(jet_pt-jet_pt_val)/jet_pt);
 	  
 	  if (jet_pt < _pTjetCut) continue;
 	  
@@ -614,16 +532,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	  //		cout << "test 2" << endl;
 	  double sumETConst=0;
 	  int iterator=0;
-	  /*
-	    for (xAOD::JetConstituentVector::iterator itr = constituents.begin(); itr != constituents.end(); ++itr){ 
-	    iterator++; 
-	    //cout << "et " << (*itr)->e() << endl;
-	    //cout << "test 3" << endl;
-	    const xAOD::CaloCluster* cl=static_cast<const xAOD::CaloCluster*>(itr->rawConstituent());
-	    //cout << "test 4" << endl; 
-	    sumETConst+= cl->rawE() * 0.001 / std::cosh( cl->rawEta() ); 
-	    }
-	  */
 	  
 	}
 	
@@ -751,7 +659,7 @@ EL::StatusCode JetSubstructure :: finalize ()
 	cout << "Total counts = " << m_eventCounter << endl;
 	//cleaning cleaning :)
 	if( m_jetCalibration ) delete m_jetCalibration; m_jetCalibration = 0;
-	if( m_jetCalibration_val ) delete m_jetCalibration_val; m_jetCalibration_val = 0;
+
 
 
 	return EL::StatusCode::SUCCESS;
