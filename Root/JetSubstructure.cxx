@@ -106,6 +106,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	hPtGenWgt = (TH1D*)hPtGenRaw->Clone("hPtGenWgt");
 	hPtGenWgt->Sumw2();
 		
+	hPtGenReCld = (TH1D*)hPtGenRaw->Clone("hPtGenReCld");
 
 	//	h_triggercounter = new TH2D("h_triggercounter","h_triggercounter",_nTriggers,0,_nTriggers,2,-0.5,1.5);
 	//	SetTrigger_hist(h_triggercounter);
@@ -114,7 +115,8 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	//	wk()->addOutput(h_respR2R4);
 	wk()->addOutput(hPtGenRaw);
 	wk()->addOutput(hPtGenWgt);
-	
+	wk()->addOutput(hPtGenReCld);
+
 	wk()->addOutput (h_FCal_Et);
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
@@ -317,12 +319,15 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
 	else
 	{
-		const xAOD::TruthParticleContainer * particles = 0;
-		if( event->xAOD::TVirtualEvent::retrieve(particles, "TruthParticles", true) )
-		{
-			isHIJING = false;
-		}
+	  const xAOD::TruthParticleContainer * particles = 0;
+	  if( event->xAOD::TVirtualEvent::retrieve(particles, "TruthParticles", true) )
+	    {
+	      isHIJING = false;
+	    }
 	}
+	
+	
+	
 	//Get centrality bin and centile. Centile used for MB weighting (from MB_FCal_Normalization.txt)
 	double FCalEt = 0;
 	int cent_bin = 0;
@@ -331,17 +336,17 @@ EL::StatusCode JetSubstructure :: execute ()
 	const xAOD::HIEventShapeContainer* calos=0;
 	ANA_CHECK(event->retrieve( calos, "CaloSums"));
 	if (_centrality_scheme>1)
-	{
-		FCalEt=calos->at(5)->et()*1e-6;
-		cent_bin = GetCentralityBin(_centrality_scheme, FCalEt, isHIJING);
-
-		event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
-
-		if (_isMC && isHIJING) event_weight_fcal = 1;
-	}
-
+	  {
+	    FCalEt=calos->at(5)->et()*1e-6;
+	    cent_bin = GetCentralityBin(_centrality_scheme, FCalEt, isHIJING);
+	    
+	    event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
+	    
+	    if (_isMC && isHIJING) event_weight_fcal = 1;
+	  }
+	
 	if (cent_bin < 0)
-	{
+	  {
 		h_RejectionHisto->Fill(1.5);
 		keep = false;
 	}
@@ -423,22 +428,27 @@ EL::StatusCode JetSubstructure :: execute ()
 	
 	//**Get Truth jets ***
 	double event_weight = 1;
-	double max_pt = 1;
+	double max_pt = 0;
 	
 	vector <double> truth_jet_pt_vector;
 	vector <double> truth_jet_eta_vector;
 	vector <double> truth_jet_phi_vector;
-	vector<bool> truth_jet_isolation_vector;
+
+	vector <double> re_truth_jet_pt_vector;
+	vector <double> re_truth_jet_eta_vector;
+	vector <double> re_truth_jet_phi_vector;
+
+
 
 	if (_isMC){
 	  if(m_eventCounter%statSize==0)	 
 	    cout << "Fixing works!!!" << endl;
 	  //**************** Getting truth ****************
 	  
-		const xAOD::JetContainer* truth_jets = 0;
-		ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
-
-		xAOD::JetContainer::const_iterator truth_jet_itr = truth_jets->begin();
+	  const xAOD::JetContainer* truth_jets = 0;
+	  ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
+	  
+	  xAOD::JetContainer::const_iterator truth_jet_itr = truth_jets->begin();
 		xAOD::JetContainer::const_iterator truth_jet_end = truth_jets->end();
 
 		for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr )
@@ -465,9 +475,57 @@ EL::StatusCode JetSubstructure :: execute ()
 		  truth_jet_eta_vector.push_back(eta);
 		  truth_jet_phi_vector.push_back(phi);
 		}
-		truth_jet_isolation_vector = GetIsolation(truth_jet_pt_vector,truth_jet_eta_vector,truth_jet_phi_vector, 1.0, _pt_iso); // -1 is for pT_iso == jet 
+		
 	}
 	
+	////////////////////////////////////////////////////////////////////////////////
+	////////// START OF RECLUSTERING ///////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+	
+        max_pt = 0; // RESET max_pt! 
+	if (_isMC && _ReclusterCA) {
+	  if(m_eventCounter%statSize==0)   cout << "A/C Reclustering." << endl;
+	  //**************** reclustering truth ***********
+	  std::vector<fastjet::PseudoJet> inputConst;
+	  const xAOD::TruthParticleContainer * particles = 0;
+	  ANA_CHECK(event->retrieve( particles, "TruthParticles"));
+	  xAOD::TruthParticleContainer::const_iterator truth_itr = particles->begin();
+	  xAOD::TruthParticleContainer::const_iterator truth_end = particles->end();
+	  for( ; truth_itr!=truth_end; ++truth_itr){
+	    int ty=TrackHelperTools::getTypeTruth((*truth_itr)->barcode(),(*truth_itr)->pdgId(),(*truth_itr)->status());
+	    if(ty!=1 && ty!=5) continue;
+	    //	    if ((*truth_itr)->pt() < 6000.) continue; // removed pT cut 
+	    inputConst.push_back( (*truth_itr)->p4() );
+	  }
+
+	  //	  fastjet::Selector jselector = fastjet::SelectorAbsRapRange(0.0,6.);
+	  fastjet::JetAlgorithm algo = fastjet::antikt_algorithm;
+ 	  fastjet::JetDefinition jetDef(algo, _ReclusterRadius);
+	  //	  cout << "_ReclusterRadius = " << _ReclusterRadius << endl;
+	  fastjet::ClusterSequence cs(inputConst, jetDef);
+	  vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
+	  
+	  // print out some infos
+	  //cout << "Clustering with " << jetDef.description() << endl;
+	  
+	  for (unsigned i = 0; i < jets.size(); i++) {
+	    double phi = jets[i].phi();
+	    if (phi> TMath::Pi()) phi = phi - 2*TMath::Pi();
+	    double pt = jets[i].pt()*0.001;
+	    double eta = jets[i].pseudorapidity();
+	    
+	    if (pt < _truthpTjetCut) continue;
+	    if (pt > max_pt)    
+	      {
+		event_weight = jetcorr->GetJetWeight(pt, eta, phi);
+		max_pt = pt;
+	      }
+	    re_truth_jet_pt_vector.push_back(pt);
+	    re_truth_jet_eta_vector.push_back(eta);
+	    re_truth_jet_phi_vector.push_back(phi);
+	  }
+	  inputConst.clear();
+	}
 	
 	
 	event_weight = event_weight*event_weight_fcal; //event weight is only set if MC. Otherwise default is 1.
@@ -478,7 +536,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector <double> reco_jet_pt_vector;
 	vector <double> reco_jet_eta_vector;
 	vector <double> reco_jet_phi_vector;
-	vector<bool> reco_jet_isolation_vector;
 	vector<bool> reco_jet_TM_vector;
 
 
@@ -488,14 +545,12 @@ EL::StatusCode JetSubstructure :: execute ()
 
 	xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
 	xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
-
-
 	for( ; jet_itr != jet_end; ++jet_itr )
 	  {
 	  xAOD::Jet newjet;
 	  newjet.makePrivateStore( **jet_itr );
-	  
-	  
+
+	  	  
 	  xAOD::JetFourMom_t jet_4mom = newjet.jetP4("JetSubtractedScaleMomentum");
 	  jet_4mom = newjet.jetP4();
 	  
@@ -513,44 +568,52 @@ EL::StatusCode JetSubstructure :: execute ()
 	  reco_jet_eta_vector.push_back(jet_eta);
 	  reco_jet_TM_vector.push_back(false);
 		
-	  //		cout << "test 1" << endl;
-	  const xAOD::JetConstituentVector constituents = (*jet_itr)->getConstituents();
-	  //		cout << "n constituents" <<(*jet_itr)->numConstituents() << endl;
-	  //		cout << "test 2" << endl;
-	  double sumETConst=0;
-	  int iterator=0;
+	  const xAOD::JetConstituentVector constituents_tmp = (*jet_itr)->getConstituents();
+	  cout <<" number of RECO constituent = " << (*jet_itr)->numConstituents() << endl;
+	  cout <<" size of constituents = " << constituents_tmp.size() << endl;
 	  
-	}
+
+	  xAOD::JetConstituentVector::iterator itCnst = constituents_tmp.begin();
+	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
+	  
+	  if ( jet_pt > 100 ) {
+	    cout << " jet pt = " << jet_pt << endl;
+	    cout << " jet constitutents' pt: " << endl;
+	    for( ; itCnst !=itCnst_E; ++itCnst) {
+	      cout << itCnst->pt() << ", ";
+	    }
+	    cout << endl;
+	  }
+	  }
 	
-	reco_jet_isolation_vector = GetIsolation(reco_jet_pt_vector,reco_jet_eta_vector,reco_jet_phi_vector, 1.0, _pt_iso); // -1 is for pT_iso == jet pT
-
-
 	store->clear();
 	delete store;
 	
+	
+	
 	if (_isMC){
 	  for (int i = 0; i<truth_jet_pt_vector.size(); i++)
-	    {
+	      {
 	      double truth_pt  = truth_jet_pt_vector.at(i);
 	      double truth_eta  = truth_jet_eta_vector.at(i);
 	      double truth_phi  = truth_jet_phi_vector.at(i);
 	      
-	      if (_truth_iso) { if (!truth_jet_isolation_vector.at(i)) continue;}
 	      
 	      //	cout << " event weight ="  << event_weight << endl; // (YS)
 	      h_truth_jet_cent.at(cent_bin)->Fill(truth_pt,truth_eta, truth_phi, event_weight);
 	      h_truth_jet_cent.at(nCentbins-1)->Fill(truth_pt,truth_eta, truth_phi, event_weight);
 	      
-	      hPtGenRaw->Fill( truth_pt);
-	      hPtGenWgt->Fill( truth_pt, event_weight);
-	      
+	      if ( fabs(truth_eta) < 2.8) { 
+		hPtGenRaw->Fill( truth_pt);
+		hPtGenWgt->Fill( truth_pt, event_weight);
+	      }
+
 	      double d_R_min = 9999;
 	      double d_R_itr = 0;
 	      
 	      double matched_reco_pt = 0;
 	      double matched_reco_eta = 0;
 	      double matched_reco_phi = 0;
-	      double weight = 0;
 	      
 	      for (int j = 0; j<reco_jet_pt_vector.size(); j++)
 		{
@@ -558,7 +621,6 @@ EL::StatusCode JetSubstructure :: execute ()
 		  double reco_eta = reco_jet_eta_vector.at(j);
 		  double reco_phi = reco_jet_phi_vector.at(j);
 		  
-		  if (_reco_iso) { if (!reco_jet_isolation_vector.at(j)) continue;}
 		  
 		  double d_R_itr = DeltaR(reco_phi, reco_eta, truth_phi, truth_eta);
 		  
@@ -583,12 +645,27 @@ EL::StatusCode JetSubstructure :: execute ()
 	      }	
 	    }
 	}	
+
+	/// /// ///
+	for (int i = 0; i<re_truth_jet_pt_vector.size(); i++)
+	  {
+	    double re_truth_pt  = re_truth_jet_pt_vector.at(i);
+	    double re_truth_eta = re_truth_jet_eta_vector.at(i);
+	    if ( fabs(re_truth_eta) < 2.8) { 
+	      hPtGenReCld->Fill( re_truth_pt);
+	    }
+	  }	      
+	
+	
+	
+	/// /// ///
+
+
 	
 	for (int j = 0; j<reco_jet_pt_vector.size(); j++){
 	  double reco_pt  = reco_jet_pt_vector.at(j);
 	  double reco_eta = reco_jet_eta_vector.at(j);
 		double reco_phi = reco_jet_phi_vector.at(j);
-		if (_reco_iso) { if (!reco_jet_isolation_vector.at(j)) continue;}
 		if (_isMC){	
 		  if (!reco_jet_TM_vector.at(j)) {
 		    h_reco_jet_cent_unmatched.at(cent_bin)->Fill(reco_pt,reco_eta, reco_phi, event_weight);
@@ -604,14 +681,15 @@ EL::StatusCode JetSubstructure :: execute ()
 	reco_jet_pt_vector.clear();
 	reco_jet_eta_vector.clear();
 	reco_jet_phi_vector.clear();
-	reco_jet_isolation_vector.clear();
 	reco_jet_TM_vector.clear();
 
 	truth_jet_pt_vector.clear();
 	truth_jet_eta_vector.clear();
 	truth_jet_phi_vector.clear();
-	truth_jet_isolation_vector.clear();
-	
+	re_truth_jet_pt_vector.clear();
+	re_truth_jet_eta_vector.clear();
+	re_truth_jet_phi_vector.clear();
+
 	
 
 	return EL::StatusCode::SUCCESS;

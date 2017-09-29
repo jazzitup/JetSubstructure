@@ -47,8 +47,8 @@ BaseClass :: BaseClass (const BaseClass& base)  {
 	_hasHI=base._hasHI;
 	_truth_iso=base._truth_iso;
 	_reco_iso=base._reco_iso;
-	_ReclusterTruthJets=base._ReclusterTruthJets;
-	
+	_ReclusterCA=base._ReclusterCA;
+	_ReclusterRadius=base._ReclusterRadius;
 }
 
 
