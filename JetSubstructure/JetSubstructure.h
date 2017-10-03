@@ -69,12 +69,18 @@ public:
 
 	TH1D* hPtGenRaw; //!
 	TH1D* hPtGenWgt; //!
+
+	TH1D* hPtGenReCld; //!
+
 	
 	vector<TH3D*> h_reco_jet_cent; //!
 	vector<TH3D*> h_reco_jet_cent_matched; //!
 	vector<TH3D*> h_reco_jet_cent_unmatched; //!
 	vector<TH3D*> h_truth_jet_cent; //!
 	vector<TH3D*> h_truth_jet_cent_matched; //!
+
+	vector<TH3D*> h_gen_reclst_ratio_cent; //!
+	vector<TH3D*> h_reco_reclst_ratio_cent; //!
 	
 	//Prescale sets
 	TFile * f_trigger_RunNumber_prescale; //!

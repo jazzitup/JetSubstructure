@@ -65,7 +65,8 @@ int main(int argc, char *argv[])
 	bool reco_iso;
 	std::string output_file_name="ntuple";
 	bool applyReweighting;
-	
+	bool  ReclusterCA;
+	float ReclusterRadius;
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
 	boost::program_options::options_description cmd_only_options("command line only options");
@@ -92,6 +93,8 @@ int main(int argc, char *argv[])
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
 	("isGridJob",boost::program_options::value<bool>(&isGridJob)->default_value(0),"is it grid job?")
 	("isCondor",boost::program_options::value<bool>(&isCondor)->default_value(0),"is it running on condor?")
+	("ReclusterCA",boost::program_options::value<bool>(&ReclusterCA)->default_value(0),"Do Cambridge Aachen?")
+	("ReclusterRadius",boost::program_options::value<float>(&ReclusterRadius)->default_value(1.0),"Reclustering ratius")
 	("input_directory",boost::program_options::value<std::string>(&input_directory)->default_value("/afs/cern.ch/work/m/mrybar/xAOD/"),"name of input directory containing all files")
 	("submit_directory",boost::program_options::value<std::string>(&submitDir)->default_value("submitDir"),"name of output directory")
 	("InDS,i",boost::program_options::value<std::string>(&InDS)->default_value(""),"InDS for grid job")
@@ -177,8 +180,8 @@ int main(int argc, char *argv[])
 	cout << "grl: " << grl << endl;
 	cout << "Centrality scheme: "<< centrality_scheme << endl;
 	cout << "jet pt cut: "<< pTjetCut << endl;
-
-
+	cout << "Do C/A reclustering?" << ReclusterCA << endl;
+	cout << "Reclustering radius: " << ReclusterRadius << endl;
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
 	if (truth_iso) {cout << "Isolating truth jets" << endl;}
 	if (reco_iso) {cout << "Isolating reco jets" << endl;}
@@ -250,7 +253,8 @@ int main(int argc, char *argv[])
 	alg->_applyReweighting=applyReweighting;
 	alg->_truth_iso=truth_iso;
 	alg->_reco_iso=reco_iso;
-	
+	alg->_ReclusterCA=ReclusterCA;
+	alg->_ReclusterRadius=ReclusterRadius;
 	
 	//Initialzie trigger
 	alg->SetTrigger_chains();

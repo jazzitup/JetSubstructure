@@ -61,9 +61,8 @@ public:
 	double _pt_iso; //
 	bool _truth_iso; //
 	bool _reco_iso; //
-	bool _ReclusterTruthJets;
-
-	int _indexCali;
+	bool _ReclusterCA;
+	float _ReclusterRadius;
 
 	//trigger
 	string _trigger_collection; //
