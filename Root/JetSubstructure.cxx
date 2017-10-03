@@ -81,7 +81,11 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 
 
 	int etaBinsN, phiBinsN, respBinsN, jetPtBinsN;
-	double etaBins[1000], phiBins[1000], respBins[1000], jetPtBins[1000];
+	double etaBins[1000], phiBins[1000], respBins[1000], jetPtBins[1000], ratioBins[1000];
+	int ratioBinN = 500;
+	
+	for ( int i= 0 ; i<=ratioBinN ; i++) 
+	  ratioBins[i] = 2./ratioBinN * i; 
 
 	SetupBinning(0, "eta-fine", etaBins, etaBinsN);
 	SetupBinning(0, "phi-jet", phiBins, phiBinsN);
@@ -108,6 +112,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 		
 	hPtGenReCld = (TH1D*)hPtGenRaw->Clone("hPtGenReCld");
 
+
 	//	h_triggercounter = new TH2D("h_triggercounter","h_triggercounter",_nTriggers,0,_nTriggers,2,-0.5,1.5);
 	//	SetTrigger_hist(h_triggercounter);
 	
@@ -121,6 +126,10 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
 	wk()->addOutput (hET_ETsub);
+
+
+
+
 	//	wk()->addOutput (h_triggercounter);
 
 	TH3D* temphist_3D = nullptr;
@@ -130,45 +139,55 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 
 	for (int i=0;i<nCentbins;i++)
 	{
-		temphist_3D = new TH3D(Form("h_resp_cent%i",i),Form("h_resp_cent%i",i),jetPtBinsN, jetPtBins,respBinsN,respBins,etaBinsN,etaBins);
-		h_resp_cent.push_back(temphist_3D);
-		h_resp_cent.at(i)->Sumw2();
+	  temphist_3D = new TH3D(Form("h_resp_cent%i",i),Form("h_resp_cent%i",i),jetPtBinsN, jetPtBins,respBinsN,respBins,etaBinsN,etaBins);
+	  h_resp_cent.push_back(temphist_3D);
+	  h_resp_cent.at(i)->Sumw2();
+	  
+	  
+	  temphist_3D = new TH3D(Form("h_truth_jet_cent%i",i),Form("h_truth_jet_cent%i",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
+	  h_truth_jet_cent.push_back(temphist_3D);
+	  h_truth_jet_cent.at(i)->Sumw2();
+	  
+	  temphist_3D = new TH3D(Form("h_truth_jet_cent%i_matched",i),Form("h_truth_jet_cent%i_matched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
+	  h_truth_jet_cent_matched.push_back(temphist_3D);
+	  h_truth_jet_cent_matched.at(i)->Sumw2();
+	  
+	  temphist_3D = new TH3D(Form("h_reco_jet_cent%i_matched",i),Form("h_reco_jet_cent%i_matched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
+	  h_reco_jet_cent_matched.push_back(temphist_3D);
+	  h_reco_jet_cent_matched.at(i)->Sumw2();
+	  
+	  temphist_3D = new TH3D(Form("h_reco_jet_cent%i_unmatched",i),Form("h_reco_jet_cent%i_unmatched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
+	  h_reco_jet_cent_unmatched.push_back(temphist_3D);
+	  h_reco_jet_cent_unmatched.at(i)->Sumw2();
+	  
+	  temphist_3D = new TH3D(Form("h_reco_jet_cent%i",i),Form("h_reco_jet_cent%i",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
+	  h_reco_jet_cent.push_back(temphist_3D);
+	  h_reco_jet_cent.at(i)->Sumw2();
+	  
+	  temphist_3D = new TH3D(Form("h_gen_reclst_ratio_cent%d",i),Form("h_gen_reclst_ratio_cent%d",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, ratioBinN, ratioBins);
+	  h_gen_reclst_ratio_cent.push_back(temphist_3D);
+	  h_gen_reclst_ratio_cent.at(i)->Sumw2();
 
-
-		temphist_3D = new TH3D(Form("h_truth_jet_cent%i",i),Form("h_truth_jet_cent%i",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-		h_truth_jet_cent.push_back(temphist_3D);
-		h_truth_jet_cent.at(i)->Sumw2();
-		
-		temphist_3D = new TH3D(Form("h_truth_jet_cent%i_matched",i),Form("h_truth_jet_cent%i_matched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-		h_truth_jet_cent_matched.push_back(temphist_3D);
-		h_truth_jet_cent_matched.at(i)->Sumw2();
-		
-		temphist_3D = new TH3D(Form("h_reco_jet_cent%i_matched",i),Form("h_reco_jet_cent%i_matched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-		h_reco_jet_cent_matched.push_back(temphist_3D);
-		h_reco_jet_cent_matched.at(i)->Sumw2();
-		
-		temphist_3D = new TH3D(Form("h_reco_jet_cent%i_unmatched",i),Form("h_reco_jet_cent%i_unmatched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-		h_reco_jet_cent_unmatched.push_back(temphist_3D);
-		h_reco_jet_cent_unmatched.at(i)->Sumw2();
-		
-		temphist_3D = new TH3D(Form("h_reco_jet_cent%i",i),Form("h_reco_jet_cent%i",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-		h_reco_jet_cent.push_back(temphist_3D);
-		h_reco_jet_cent.at(i)->Sumw2();
-		
-		if (_isMC){
-			wk()->addOutput (h_resp_cent.at(i));
-			wk()->addOutput (h_reco_jet_cent.at(i));
-			wk()->addOutput (h_truth_jet_cent.at(i));
-			wk()->addOutput (h_truth_jet_cent_matched.at(i));
-			wk()->addOutput (h_reco_jet_cent_matched.at(i));
-			wk()->addOutput (h_reco_jet_cent_unmatched.at(i));
-		}
-		wk()->addOutput (h_reco_jet_cent.at(i));
+	  temphist_3D = new TH3D(Form("h_reco_reclst_ratio_cent%d",i),Form("h_reco_reclst_ratio_cent%d",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, ratioBinN, ratioBins);
+	  h_reco_reclst_ratio_cent.push_back(temphist_3D);
+	  h_reco_reclst_ratio_cent.at(i)->Sumw2();
+	  
+	  if (_isMC){
+	    wk()->addOutput (h_resp_cent.at(i));
+	    wk()->addOutput (h_reco_jet_cent.at(i));
+	    wk()->addOutput (h_truth_jet_cent.at(i));
+	    wk()->addOutput (h_truth_jet_cent_matched.at(i));
+	    wk()->addOutput (h_reco_jet_cent_matched.at(i));
+	    wk()->addOutput (h_reco_jet_cent_unmatched.at(i));
+	  }
+	  wk()->addOutput (h_reco_jet_cent.at(i));
+	  wk()->addOutput (h_gen_reclst_ratio_cent.at(i));
+	  wk()->addOutput (h_reco_reclst_ratio_cent.at(i));
 	}
-
+	
 	cout << " Histograms ready" << endl;
 
-
+	
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -523,6 +542,25 @@ EL::StatusCode JetSubstructure :: execute ()
 	    re_truth_jet_pt_vector.push_back(pt);
 	    re_truth_jet_eta_vector.push_back(eta);
 	    re_truth_jet_phi_vector.push_back(phi);
+	    
+	    // recluster by A/C
+	    vector<fastjet::PseudoJet > constiRe = jets[i].constituents();
+	    //	    cout << "number of constituents = " << constiRe.size() << endl;
+	    fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
+	    fastjet::ClusterSequence csRe(constiRe, jetDefRe);
+	    vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets());
+	    if ( jetsRe.size() > 1)   
+	      cout << "Multiple Cambridge jets!!!!" << endl; 
+	    if ( jetsRe.size() == 0 )  
+	      cout << "No re-clustered!!!" << endl; 
+	    else { 
+	      h_gen_reclst_ratio_cent.at(cent_bin)->Fill( pt, eta, jetsRe[0].pt() * 0.001/ pt ) ;
+	      cout << " antikT, Cambridge = " << pt << ", "<<jetsRe[0].pt()*0.001<<endl; 
+	    }
+	    
+	    constiRe.clear();
+	    //
+	    
 	  }
 	  inputConst.clear();
 	}
@@ -545,11 +583,11 @@ EL::StatusCode JetSubstructure :: execute ()
 
 	xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
 	xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
-	for( ; jet_itr != jet_end; ++jet_itr )
-	  {
+	for( ; jet_itr != jet_end; ++jet_itr ) {
+	  
 	  xAOD::Jet newjet;
 	  newjet.makePrivateStore( **jet_itr );
-
+	  
 	  	  
 	  xAOD::JetFourMom_t jet_4mom = newjet.jetP4("JetSubtractedScaleMomentum");
 	  jet_4mom = newjet.jetP4();
@@ -569,22 +607,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	  reco_jet_TM_vector.push_back(false);
 		
 	  const xAOD::JetConstituentVector constituents_tmp = (*jet_itr)->getConstituents();
-	  cout <<" number of RECO constituent = " << (*jet_itr)->numConstituents() << endl;
-	  cout <<" size of constituents = " << constituents_tmp.size() << endl;
+	  //	  cout <<" number of RECO constituent = " << (*jet_itr)->numConstituents() << endl;
+	  //	  cout <<" size of constituents = " << constituents_tmp.size() << endl;
 	  
 
 	  xAOD::JetConstituentVector::iterator itCnst = constituents_tmp.begin();
 	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
 	  
-	  if ( jet_pt > 100 ) {
-	    cout << " jet pt = " << jet_pt << endl;
-	    cout << " jet constitutents' pt: " << endl;
-	    for( ; itCnst !=itCnst_E; ++itCnst) {
-	      cout << itCnst->pt() << ", ";
-	    }
-	    cout << endl;
-	  }
-	  }
+	}
 	
 	store->clear();
 	delete store;
