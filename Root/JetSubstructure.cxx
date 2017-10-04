@@ -30,11 +30,28 @@
 using namespace std;
 using namespace JetHelperTools;
 
+struct jetSubStr {
+  Int_t cent;
+  float genPt, genEta;
+  float recoPt, recoEta;
+};
+jetSubStr myJetSub;
+TString myJetSubText = "cent/I:genPt/F:genEta:recoPt:recoEta";
+
+
 
 // this is needed to distribute the algorithm to the workers
 ClassImp(JetSubstructure)
 
 
+void resetSubstr (jetSubStr jetsub)
+{
+  jetsub.cent = 0 ;
+  jetsub.genPt = 0 ;
+  jetsub.genEta = 0 ;
+  jetsub.recoPt = 0 ;
+  jetsub.recoEta = 0 ;
+}
 
 JetSubstructure :: JetSubstructure ()
 {
@@ -112,7 +129,11 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 		
 	hPtGenReCld = (TH1D*)hPtGenRaw->Clone("hPtGenReCld");
 
-
+	
+	
+        treeOut = new TTree("tr","new tree");
+	treeOut->Branch("jets",&myJetSub,myJetSubText.Data());
+	
 	//	h_triggercounter = new TH2D("h_triggercounter","h_triggercounter",_nTriggers,0,_nTriggers,2,-0.5,1.5);
 	//	SetTrigger_hist(h_triggercounter);
 	
@@ -126,7 +147,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
 	wk()->addOutput (hET_ETsub);
-
+	wk()->addOutput (treeOut);
 
 
 
@@ -246,6 +267,7 @@ EL::StatusCode JetSubstructure :: initialize ()
 	ANA_CHECK(m_jetCalibration->setProperty("IsData",!_isMC));
 	ANA_CHECK(m_jetCalibration->initializeTool(name));
 	
+	cout << "" <<endl;
 	//Calibration tool
 	
 	
@@ -460,8 +482,6 @@ EL::StatusCode JetSubstructure :: execute ()
 
 
 	if (_isMC){
-	  if(m_eventCounter%statSize==0)	 
-	    cout << "Fixing works!!!" << endl;
 	  //**************** Getting truth ****************
 	  
 	  const xAOD::JetContainer* truth_jets = 0;
@@ -555,7 +575,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	      cout << "No re-clustered!!!" << endl; 
 	    else { 
 	      h_gen_reclst_ratio_cent.at(cent_bin)->Fill( pt, eta, jetsRe[0].pt() * 0.001/ pt ) ;
-	      cout << " antikT, Cambridge = " << pt << ", "<<jetsRe[0].pt()*0.001<<endl; 
 	    }
 	    
 	    constiRe.clear();
@@ -707,6 +726,9 @@ EL::StatusCode JetSubstructure :: execute ()
 		h_reco_jet_cent.at(cent_bin)->Fill(reco_pt,reco_eta, reco_phi, event_weight);
 	}
 	
+	resetSubstr(myJetSub);
+	treeOut->Fill();
+
 	// Clear vectors
 	reco_jet_pt_vector.clear();
 	reco_jet_eta_vector.clear();
@@ -776,3 +798,4 @@ EL::StatusCode JetSubstructure :: histFinalize ()
 	// they processed input events.
 	return EL::StatusCode::SUCCESS;
 }
+
