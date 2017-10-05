@@ -15,6 +15,7 @@
 #include <TSystem.h>
 #include <TMath.h>
 
+
 #include "BaseClass.h"
 
 #include <EventLoop/Algorithm.h>
@@ -71,6 +72,8 @@ public:
 	TH1D* hPtGenWgt; //!
 
 	TH1D* hPtGenReCld; //!
+
+	TTree *treeOut; //!
 
 	
 	vector<TH3D*> h_reco_jet_cent; //!
