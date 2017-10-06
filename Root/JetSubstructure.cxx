@@ -435,35 +435,29 @@ EL::StatusCode JetSubstructure :: execute ()
 	  xAOD::Jet theRecoJet;
 	  theRecoJet.makePrivateStore( **jet_itr );
 
-	  xAOD::JetFourMom_t jet_4mom = theRecoJet.jetP4("JetSubtractedScaleMomentum");
-	  jet_4mom = theRecoJet.jetP4();
+	  const xAOD::JetFourMom_t jet_4momUnCal = theRecoJet.jetP4("JetSubtractedScaleMomentum"); // uncalib
+	  const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
 	  
-	  const xAOD::JetFourMom_t jet_4mom_xcalib = theRecoJet.jetP4();
-	  
-	  double jet_pt  = (theRecoJet.pt() * 0.001);
-	  double jet_eta = theRecoJet.eta();
-	  double jet_phi = theRecoJet.phi();
-	  
+	  double jet_pt  = jet_4momCalib.pt() * 0.001 ;
+	  double jet_eta = jet_4momCalib.eta();
+	  double jet_phi = jet_4momCalib.phi();
+	  double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
+
 	  if (jet_pt < _pTjetCut) continue;
 	  
 	  const xAOD::JetConstituentVector constituents_tmp = (*jet_itr)->getConstituents();
 	  //	  cout <<" number of RECO constituent = " << (*jet_itr)->numConstituents() << endl;
 	  //	  cout <<" size of constituents = " << constituents_tmp.size() << endl;
-	  
 	  xAOD::JetConstituentVector::iterator itCnst = constituents_tmp.begin();
 	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
-	  double jet_ptRaw = 0;
 	  vector<fastjet::PseudoJet>  nonZeroConsts;
 	  for( ; itCnst != itCnst_E; ++itCnst ) {
 	    float thePt = (*itCnst)->pt();
-	    jet_ptRaw = jet_ptRaw + thePt ;
-	    if ( thePt > 0 ) {
-	      fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
-	      nonZeroConsts.push_back(thisConst);
-	    }
+	    fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
+	    nonZeroConsts.push_back(thisConst);
 	  }
-	  //	  cout << ", and number of positive energy towers = " << nonZeroConsts.size() << endl;
 	  // recluster by A/C
+	  
 	  fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
 	  fastjet::ClusterSequence csRe(nonZeroConsts, jetDefRe);
 	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets()); // return a vector of jets sorted into decreasing energy
@@ -491,8 +485,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	  vNrc_reco.push_back(theNrc);
 	  vSdmass_reco.push_back(thesdm);
 	  vSdpt_reco.push_back(thesdpt);
-	  vNtow_reco.push_back(constituents_tmp.size() );
-	  vNtowp_reco.push_back( nonZeroConsts.size() );
+	  vNtow_reco.push_back(nonZeroConsts.size() );
+	  vNtowp_reco.push_back(nonZeroConsts.size() );
 
 	  jetsRe.clear();
 	  nonZeroConsts.clear();
@@ -623,6 +617,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  myJetSub.recoRawPt = vptRaw_reco[ri];
 	  myJetSub.recoEta = veta_reco[ri];
 	  myJetSub.recoRcPt = vptRc_reco[ri];
+	  myJetSub.recoNrc = vNrc_reco[ri];
 	  myJetSub.nTow = vNtow_reco[ri];
 	  myJetSub.nTowPos = vNtowp_reco[ri];
 	  myJetSub.weight = event_weight;
