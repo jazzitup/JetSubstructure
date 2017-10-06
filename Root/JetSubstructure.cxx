@@ -34,12 +34,12 @@ using namespace JetHelperTools;
 
 struct jetSubStr {
   Int_t cent;
-  float recoPt, recoEta, recoRcPt, recoSdPt, recoSdmass, recoNrc, nTow, nTowPos;
+  float recoPt, recoRawPt, recoEta, recoRcPt, recoSdPt, recoSdmass, recoNrc, nTow, nTowPos;
   float genPt,  genEta, genRcPt,  genSdPt, genSdmass, genNrc, matchDr;
   float weight;
 };
 jetSubStr myJetSub;
-TString myJetSubText = "cent/I:pt/F:eta:rcpt:sdpt:sdmass:nrc:ntow:ntowp:genpt:geneta:genrcpt:gensdpt:gensdmass:gennrc:dr:weight";
+TString myJetSubText = "cent/I:pt/F:rawPt:eta:rcpt:sdpt:sdmass:nrc:ntow:ntowp:genpt:geneta:genrcpt:gensdpt:gensdmass:gennrc:dr:weight";
 
 
 // this is needed to distribute the algorithm to the workers
@@ -50,6 +50,7 @@ void resetSubstr (jetSubStr &jetsub)
 {
   jetsub.cent = -1 ;
   jetsub.recoPt= -1;
+  jetsub.recoRawPt= -1;
   jetsub.recoEta=-1;
   jetsub.recoRcPt=-1;
   jetsub.recoSdmass=-1;
@@ -120,10 +121,10 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	for ( int i= 0 ; i<=ratioBinN ; i++) 
 	  ratioBins[i] = 2./ratioBinN * i; 
 
-	SetupBinning(0, "eta-fine", etaBins, etaBinsN);
-	SetupBinning(0, "phi-jet", phiBins, phiBinsN);
-	SetupBinning(0, "resp", respBins, respBinsN);
-	SetupBinning(0, "pt-jet-PbPb", jetPtBins, jetPtBinsN);
+	//	SetupBinning(0, "eta-fine", etaBins, etaBinsN);
+	//	SetupBinning(0, "phi-jet", phiBins, phiBinsN);
+	//	SetupBinning(0, "resp", respBins, respBinsN);
+	//	SetupBinning(0, "pt-jet-PbPb", jetPtBins, jetPtBinsN);
 
 	//Basic histograms
 	h_FCal_Et = new TH1D("h_FCal_Et",";FCal E_{T};N",100,0,5);
@@ -211,7 +212,7 @@ EL::StatusCode JetSubstructure :: initialize ()
 	ANA_CHECK(m_jetCalibration->setProperty("CalibSequence",calibSeq.Data()));
 	ANA_CHECK(m_jetCalibration->setProperty("IsData",!_isMC));
 	ANA_CHECK(m_jetCalibration->initializeTool(name));
-	
+		
 	cout << "" <<endl;
 	//Calibration tool
 	
@@ -402,6 +403,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
 
 	vector <double> vpt_reco;
+	vector <double> vptRaw_reco;  
 	vector <double> veta_reco;
 	vector <double> vphi_reco;
 	vector <double> vptRc_reco;
@@ -432,7 +434,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  
 	  xAOD::Jet theRecoJet;
 	  theRecoJet.makePrivateStore( **jet_itr );
-	  
+
 	  xAOD::JetFourMom_t jet_4mom = theRecoJet.jetP4("JetSubtractedScaleMomentum");
 	  jet_4mom = theRecoJet.jetP4();
 	  
@@ -450,10 +452,11 @@ EL::StatusCode JetSubstructure :: execute ()
 	  
 	  xAOD::JetConstituentVector::iterator itCnst = constituents_tmp.begin();
 	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
+	  double jet_ptRaw = 0;
 	  vector<fastjet::PseudoJet>  nonZeroConsts;
-	  //	  cout << " Total towers = " << constituents_tmp.size();
 	  for( ; itCnst != itCnst_E; ++itCnst ) {
 	    float thePt = (*itCnst)->pt();
+	    jet_ptRaw = jet_ptRaw + thePt ;
 	    if ( thePt > 0 ) {
 	      fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
 	      nonZeroConsts.push_back(thisConst);
@@ -481,6 +484,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	    thesdm =  sd_jet.m() * 0.001; 
 	  }  
 	  vpt_reco.push_back(jet_pt);
+	  vptRaw_reco.push_back(jet_ptRaw);
 	  veta_reco.push_back(jet_eta);
 	  vphi_reco.push_back(jet_phi);
 	  vptRc_reco.push_back(thePtrc);
@@ -616,6 +620,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
 	  myJetSub.cent = cent_bin; 
 	  myJetSub.recoPt = vpt_reco[ri];
+	  myJetSub.recoRawPt = vptRaw_reco[ri];
 	  myJetSub.recoEta = veta_reco[ri];
 	  myJetSub.recoRcPt = vptRc_reco[ri];
 	  myJetSub.nTow = vNtow_reco[ri];
@@ -647,6 +652,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	delete store;
 	
 	vpt_reco.clear();
+	vptRaw_reco.clear();
 	veta_reco.clear();
 	vphi_reco.clear();
 	vptRc_reco.clear();
