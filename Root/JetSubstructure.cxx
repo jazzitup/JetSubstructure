@@ -27,38 +27,46 @@
 #include "xAODTrigger/JetRoIAuxContainer.h"
 #include "xAODForward/ZdcModuleContainer.h"
 
+#include "JetRec/JetSoftDrop.h"
+
 using namespace std;
 using namespace JetHelperTools;
 
 struct jetSubStr {
   Int_t cent;
-  float recoPt, recoEta, recoRcPt, recoSdmass, recoNrc, nTow, nTowPos;
-  float genPt,  genEta, genRcPt,  genSdmass, genNrc, matchDr;
+  float recoPt, recoEta, recoRcPt, recoSdPt, recoSdmass, recoNrc, nTow, nTowPos;
+  float genPt,  genEta, genRcPt,  genSdPt, genSdmass, genNrc, matchDr;
   float weight;
 };
 jetSubStr myJetSub;
-TString myJetSubText = "cent/I:pt/F:eta:rcpt:sdmass:nrc:ntow:ntowp:genpt:geneta:genrcpt:gensdmass:gennrc:dr:weight";
+TString myJetSubText = "cent/I:pt/F:eta:rcpt:sdpt:sdmass:nrc:ntow:ntowp:genpt:geneta:genrcpt:gensdpt:gensdmass:gennrc:dr:weight";
 
 
 // this is needed to distribute the algorithm to the workers
 ClassImp(JetSubstructure)
 
 
-void resetSubstr (jetSubStr jetsub)
+void resetSubstr (jetSubStr &jetsub)
 {
   jetsub.cent = -1 ;
   jetsub.recoPt= -1;
   jetsub.recoEta=-1;
   jetsub.recoRcPt=-1;
   jetsub.recoSdmass=-1;
+  jetsub.recoSdPt=-1;
+  jetsub.recoNrc=0;
+  jetsub.nTow =0;
+  jetsub.nTowPos =0;
+  
   jetsub.genPt=-1;
   jetsub.genEta=-1;
   jetsub.genRcPt=-1;
   jetsub.genSdmass=-1;
+  jetsub.genSdPt=-1;
   jetsub.matchDr=-1;
-  jetsub.weight = 1;
   jetsub.genNrc=0;
-  jetsub.recoNrc=0;
+  jetsub.weight = 1;
+
 }
 
 JetSubstructure :: JetSubstructure ()
@@ -130,94 +138,22 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	hET_ETsub = new TH3D("hET_ETsub","hET_ETsub",200,0,200,100,-5,5,200,-50,50);
 	hET_ETsub->Sumw2();
 	
-	hPtGenRaw = new TH1D("hPtGenRaw",";p_{T};Entries",5000,0,1000);
-	hPtGenRaw->Sumw2();
-	hPtGenWgt = (TH1D*)hPtGenRaw->Clone("hPtGenWgt");
-	hPtGenWgt->Sumw2();
-		
-	hPtGenReCld = (TH1D*)hPtGenRaw->Clone("hPtGenReCld");
-
-	
 	
         treeOut = new TTree("tr","new tree");
 	treeOut->Branch("jets",&myJetSub,myJetSubText.Data());
-	resetSubstr(myJetSub);
 	
 	//	h_triggercounter = new TH2D("h_triggercounter","h_triggercounter",_nTriggers,0,_nTriggers,2,-0.5,1.5);
 	//	SetTrigger_hist(h_triggercounter);
 	
 	//	h_respR2R4 = new TH2D("h_respR2R4","h_respR2R4",jetPtBinsN, jetPtBins,respBinsN,respBins);
 	//	wk()->addOutput(h_respR2R4);
-	wk()->addOutput(hPtGenRaw);
-	wk()->addOutput(hPtGenWgt);
-	wk()->addOutput(hPtGenReCld);
 
-	wk()->addOutput (h_FCal_Et);
+	//	wk()->addOutput (h_FCal_Et);
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
 	wk()->addOutput (hET_ETsub);
 	wk()->addOutput (treeOut);
 
-
-
-	//	wk()->addOutput (h_triggercounter);
-
-	TH3D* temphist_3D = nullptr;
-	TH2D* temphist_2D = nullptr;
-	TH1D* temphist_1D = nullptr;
-	
-
-	for (int i=0;i<nCentbins;i++)
-	{
-	  temphist_3D = new TH3D(Form("h_resp_cent%i",i),Form("h_resp_cent%i",i),jetPtBinsN, jetPtBins,respBinsN,respBins,etaBinsN,etaBins);
-	  h_resp_cent.push_back(temphist_3D);
-	  h_resp_cent.at(i)->Sumw2();
-	  
-	  
-	  temphist_3D = new TH3D(Form("h_truth_jet_cent%i",i),Form("h_truth_jet_cent%i",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-	  h_truth_jet_cent.push_back(temphist_3D);
-	  h_truth_jet_cent.at(i)->Sumw2();
-	  
-	  temphist_3D = new TH3D(Form("h_truth_jet_cent%i_matched",i),Form("h_truth_jet_cent%i_matched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-	  h_truth_jet_cent_matched.push_back(temphist_3D);
-	  h_truth_jet_cent_matched.at(i)->Sumw2();
-	  
-	  temphist_3D = new TH3D(Form("h_reco_jet_cent%i_matched",i),Form("h_reco_jet_cent%i_matched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-	  h_reco_jet_cent_matched.push_back(temphist_3D);
-	  h_reco_jet_cent_matched.at(i)->Sumw2();
-	  
-	  temphist_3D = new TH3D(Form("h_reco_jet_cent%i_unmatched",i),Form("h_reco_jet_cent%i_unmatched",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-	  h_reco_jet_cent_unmatched.push_back(temphist_3D);
-	  h_reco_jet_cent_unmatched.at(i)->Sumw2();
-	  
-	  temphist_3D = new TH3D(Form("h_reco_jet_cent%i",i),Form("h_reco_jet_cent%i",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, phiBinsN, phiBins);
-	  h_reco_jet_cent.push_back(temphist_3D);
-	  h_reco_jet_cent.at(i)->Sumw2();
-	  
-	  temphist_3D = new TH3D(Form("h_gen_reclst_ratio_cent%d",i),Form("h_gen_reclst_ratio_cent%d",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, ratioBinN, ratioBins);
-	  h_gen_reclst_ratio_cent.push_back(temphist_3D);
-	  h_gen_reclst_ratio_cent.at(i)->Sumw2();
-
-	  temphist_3D = new TH3D(Form("h_reco_reclst_ratio_cent%d",i),Form("h_reco_reclst_ratio_cent%d",i),jetPtBinsN, jetPtBins,etaBinsN, etaBins, ratioBinN, ratioBins);
-	  h_reco_reclst_ratio_cent.push_back(temphist_3D);
-	  h_reco_reclst_ratio_cent.at(i)->Sumw2();
-	  
-	  if (_isMC){
-	    wk()->addOutput (h_resp_cent.at(i));
-	    wk()->addOutput (h_reco_jet_cent.at(i));
-	    wk()->addOutput (h_truth_jet_cent.at(i));
-	    wk()->addOutput (h_truth_jet_cent_matched.at(i));
-	    wk()->addOutput (h_reco_jet_cent_matched.at(i));
-	    wk()->addOutput (h_reco_jet_cent_unmatched.at(i));
-	  }
-	  wk()->addOutput (h_reco_jet_cent.at(i));
-	  wk()->addOutput (h_gen_reclst_ratio_cent.at(i));
-	  wk()->addOutput (h_reco_reclst_ratio_cent.at(i));
-	}
-	
-	cout << " Histograms ready" << endl;
-
-	
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -306,28 +242,28 @@ EL::StatusCode JetSubstructure :: initialize ()
 	// Initialize and configure trigger tools
 	if (_isMC==0)
 	{
-		m_trigConfigTool = new TrigConf::xAODConfigTool("xAODConfigTool"); // gives us access to the meta-data
-		m_trigConfigTool->msg().setLevel( MSG::ERROR );
-		ANA_CHECK(m_trigConfigTool->initialize());
-		ToolHandle< TrigConf::ITrigConfigTool > trigConfigHandle( m_trigConfigTool );
-
-		m_trigDecisionTool = new Trig::TrigDecisionTool("TrigDecisionTool");
-		m_trigDecisionTool->msg().setLevel( MSG::ERROR );
-		ANA_CHECK(m_trigDecisionTool->setProperty( "ConfigTool", trigConfigHandle ));
-		ANA_CHECK(m_trigDecisionTool->setProperty( "TrigDecisionKey", "xTrigDecision"));
-		ANA_CHECK(m_trigDecisionTool->initialize() );
-
-		cout << "Adding following " << _nTriggers << " triggers: ";
-		for (int i=0;i<_nTriggers;i++){
-			cout << trigger_chains.at(i) << ", ";
-			_chainGroup.push_back(m_trigDecisionTool->getChainGroup(trigger_chains.at(i)));
-		}
-		
-		TString xfn = gSystem->GetFromPipe("echo $ROOTCOREBIN");
-		f_trigger_RunNumber_prescale = new TFile(xfn + "/../pPbFragmentation/data/TriggerPrescales.root","READ");
-		h2_trigger_RunNumber_prescale = (TH2F*)f_trigger_RunNumber_prescale->Get("h2_Trig_RunNumber_prescale");
-		
-		cout << endl << "Initialize triggers finished" << endl;
+	  m_trigConfigTool = new TrigConf::xAODConfigTool("xAODConfigTool"); // gives us access to the meta-data
+	  m_trigConfigTool->msg().setLevel( MSG::ERROR );
+	  ANA_CHECK(m_trigConfigTool->initialize());
+	  ToolHandle< TrigConf::ITrigConfigTool > trigConfigHandle( m_trigConfigTool );
+	  
+	  m_trigDecisionTool = new Trig::TrigDecisionTool("TrigDecisionTool");
+	  m_trigDecisionTool->msg().setLevel( MSG::ERROR );
+	  ANA_CHECK(m_trigDecisionTool->setProperty( "ConfigTool", trigConfigHandle ));
+	  ANA_CHECK(m_trigDecisionTool->setProperty( "TrigDecisionKey", "xTrigDecision"));
+	  ANA_CHECK(m_trigDecisionTool->initialize() );
+	  
+	  cout << "Adding following " << _nTriggers << " triggers: ";
+	  for (int i=0;i<_nTriggers;i++){
+	    cout << trigger_chains.at(i) << ", ";
+	    _chainGroup.push_back(m_trigDecisionTool->getChainGroup(trigger_chains.at(i)));
+	  }
+	  
+	  TString xfn = gSystem->GetFromPipe("echo $ROOTCOREBIN");
+	  f_trigger_RunNumber_prescale = new TFile(xfn + "/../pPbFragmentation/data/TriggerPrescales.root","READ");
+	  h2_trigger_RunNumber_prescale = (TH2F*)f_trigger_RunNumber_prescale->Get("h2_Trig_RunNumber_prescale");
+	  
+	  cout << endl << "Initialize triggers finished" << endl;
 	}
 
 	return EL::StatusCode::SUCCESS;
@@ -337,6 +273,10 @@ EL::StatusCode JetSubstructure :: initialize ()
 
 EL::StatusCode JetSubstructure :: execute ()
 {
+  float beta = 0 ;
+  float z_cut = 0.1;
+  
+
 	// Here you do everything that needs to be done on every single
 	// events, e.g. read input variables, apply cuts, and fill
 	// histograms and trees.  This is where most of your actual analysis
@@ -466,6 +406,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector <double> vphi_reco;
 	vector <double> vptRc_reco;
 	vector <double> vSdmass_reco;
+	vector <double> vSdpt_reco;
 	vector <int> vNrc_reco;
 	vector <int> vNtow_reco;
 	vector <int> vNtowp_reco;
@@ -475,6 +416,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector <double> vphi_gen;
 	vector <double> vptRc_gen;
 	vector <double> vSdmass_gen;
+	vector <double> vSdpt_gen;
 	vector <int> vNrc_gen;
 
 	
@@ -522,13 +464,21 @@ EL::StatusCode JetSubstructure :: execute ()
 	  fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
 	  fastjet::ClusterSequence csRe(nonZeroConsts, jetDefRe);
 	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets()); // return a vector of jets sorted into decreasing energy
+
+
+	  fastjet::contrib::SoftDrop sd(beta, z_cut);
+	  //	  fastjet::contrib::SoftDrop sd(beta, z_cut);
 	  
 	  int theNrc = 0;
-	  double thesdm = 0;
 	  double thePtrc = 0;
+	  double thesdpt = 0 ;
+	  double thesdm = 0;
 	  if ( jetsRe.size() > 0 )   {
 	    theNrc = jetsRe.size();
 	    thePtrc = jetsRe[0].pt() * 0.001;
+	    fastjet::PseudoJet sd_jet = sd(jetsRe[0]);
+	    thesdpt = sd_jet.pt() * 0.001; 
+	    thesdm =  sd_jet.m() * 0.001; 
 	  }  
 	  vpt_reco.push_back(jet_pt);
 	  veta_reco.push_back(jet_eta);
@@ -536,6 +486,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  vptRc_reco.push_back(thePtrc);
 	  vNrc_reco.push_back(theNrc);
 	  vSdmass_reco.push_back(thesdm);
+	  vSdpt_reco.push_back(thesdpt);
 	  vNtow_reco.push_back(constituents_tmp.size() );
 	  vNtowp_reco.push_back( nonZeroConsts.size() );
 
@@ -618,12 +569,17 @@ EL::StatusCode JetSubstructure :: execute ()
 	      fastjet::ClusterSequence csRe(constiRe, jetDefRe);
               vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets()); // return a vector of jets sorted into decreasing energy
 
+    	      fastjet::contrib::SoftDrop sd(beta, z_cut);
 	      int theNrc = 0;
+	      double thesdpt = 0 ;
 	      double thesdm = 0;
 	      double thePtrc = 0;
 	      if ( jetsRe.size() > 0 )   {
 		theNrc = jetsRe.size();
 		thePtrc = jetsRe[0].pt() * 0.001;
+		fastjet::PseudoJet sd_jet = sd(jetsRe[0]);
+		thesdpt = sd_jet.pt() * 0.001; 
+		thesdm =  sd_jet.m() * 0.001;
 	      }  
 	      vpt_gen.push_back(jet_pt);
 	      veta_gen.push_back(jet_eta);
@@ -631,7 +587,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	      vptRc_gen.push_back(thePtrc);
 	      vNrc_gen.push_back(theNrc);
 	      vSdmass_gen.push_back(thesdm);
-
+	      vSdpt_gen.push_back(thesdpt);
+	      
 	      inputConst.clear();
 	      jetsRe.clear();
 	    }
@@ -641,12 +598,43 @@ EL::StatusCode JetSubstructure :: execute ()
 
 	// back to reco loop 
 	for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) { 
+	  
+	  int matchId = -1;
+	  double drMin = 0.2;    // dR cut
+	  for (int gi = 0; gi<vpt_gen.size() ; gi++) { 
+	    double dr_itr = DeltaR(vphi_reco[ri], veta_reco[ri], vphi_gen[gi], veta_gen[gi]);
+	    //	    cout <<"dR_itr = " << dr_itr << endl;
+	    if ( dr_itr < drMin ) { 
+	      matchId = gi;  
+	      drMin = dr_itr;
+	      //	      cout <<"found! dRmin = " << drMin << endl;
+	    }
+	  }
+	  
+	  resetSubstr(myJetSub);
+	  //	  cout << " myJetsub is reset" << endl;
+	  //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
 	  myJetSub.cent = cent_bin; 
 	  myJetSub.recoPt = vpt_reco[ri];
 	  myJetSub.recoEta = veta_reco[ri];
 	  myJetSub.recoRcPt = vptRc_reco[ri];
 	  myJetSub.nTow = vNtow_reco[ri];
 	  myJetSub.nTowPos = vNtowp_reco[ri];
+	  myJetSub.weight = event_weight;
+	  myJetSub.recoSdPt = vSdpt_reco[ri];
+	  myJetSub.recoSdmass = vSdmass_reco[ri];
+
+	  if (matchId != -1) {
+	    myJetSub.matchDr = drMin;
+	    myJetSub.genPt = vpt_gen[matchId];
+	    myJetSub.genEta = veta_gen[matchId];
+	    myJetSub.genRcPt = vptRc_gen[matchId];
+	    myJetSub.genSdmass = vSdmass_gen[matchId];
+	    myJetSub.genSdPt = vSdpt_gen[matchId];
+	    myJetSub.genNrc   =  vSdmass_gen[matchId];
+	  }
+	  
+	  treeOut->Fill();
 	}
 	
 	
@@ -654,12 +642,10 @@ EL::StatusCode JetSubstructure :: execute ()
 
 	
 	
+	// Clear vectors
 	store->clear();
 	delete store;
 	
-	treeOut->Fill();
-
-	// Clear vectors
 	vpt_reco.clear();
 	veta_reco.clear();
 	vphi_reco.clear();
@@ -668,12 +654,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	vNrc_reco.clear();
 	vNtow_reco.clear();
 	vNtowp_reco.clear();
+	vSdpt_reco.clear();
 
 	vpt_gen.clear();
 	veta_gen.clear();
 	vphi_gen.clear();
 	vptRc_gen.clear();
 	vSdmass_gen.clear();
+	vSdpt_gen.clear();
 	vNrc_gen.clear();	
 
 	return EL::StatusCode::SUCCESS;

@@ -47,6 +47,8 @@
 #include "HIEventUtils/HIPileupTool.h"
 #include <iostream>
 
+//#include "fastjet/contrib/SoftDrop.hh"
+
 class JetSubstructure : public BaseClass
 {
 	// put your configuration variables here as public variables.
