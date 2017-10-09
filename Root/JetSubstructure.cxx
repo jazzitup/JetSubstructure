@@ -442,7 +442,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  double jet_eta = jet_4momCalib.eta();
 	  double jet_phi = jet_4momCalib.phi();
 	  double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
-
+	  
 	  if (jet_pt < _pTjetCut) continue;
 	  
 	  const xAOD::JetConstituentVector constituents_tmp = (*jet_itr)->getConstituents();
@@ -452,7 +452,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
 	  vector<fastjet::PseudoJet>  nonZeroConsts;
 	  cout <<" Jet pT = " << jet_pt << ", raw pT = "<<jet_ptRaw<<endl;
-	  cout <<" Constituent's pT: " << endl;
+	  //	  cout <<" Constituent's pT: " << endl;
 	  for( ; itCnst != itCnst_E; ++itCnst ) {
 	    float thePt = (*itCnst)->pt();
 	    fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
@@ -464,7 +464,27 @@ EL::StatusCode JetSubstructure :: execute ()
 	  
 	  fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
 	  fastjet::ClusterSequence csRe(nonZeroConsts, jetDefRe);
-	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets()); // return a vector of jets sorted into decreasing energy
+	  const vector<fastjet::PseudoJet> cambridgeJet = csRe.inclusive_jets();
+	  vector<int> pIndex = csRe.particle_jet_indices( cambridgeJet);
+	  cout <<" number of particle = " << pIndex.size() << endl;
+	  if ( cambridgeJet.size() > 0 ) {  
+	    for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
+	      cout << ij<<"th jet px: "<<cambridgeJet[ij].px() *0.001  << endl;
+	      cout << "constituent PX's : " << endl;
+	      double theSum=0;
+	      for ( int ip = 0 ;ip < pIndex.size() ; ip++) { 
+		if ( pIndex[ip] == ij )   { 
+		  cout << nonZeroConsts[ip].px()*0.001  << ", ";
+		  theSum =theSum + nonZeroConsts[ip].px()*0.001  ;
+		}
+	      }
+	      cout << "  and the sum is " << theSum << endl ;
+	    }
+	    cout << endl << endl;
+	    
+	  }
+	 
+	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
 
 	  if ( jetsRe.size() > 0  ) { 
 	    cout << "Number of AcJets = " << jetsRe.size() << endl;
