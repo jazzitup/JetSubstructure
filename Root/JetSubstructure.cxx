@@ -451,20 +451,32 @@ EL::StatusCode JetSubstructure :: execute ()
 	  xAOD::JetConstituentVector::iterator itCnst = constituents_tmp.begin();
 	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
 	  vector<fastjet::PseudoJet>  nonZeroConsts;
+	  cout <<" Jet pT = " << jet_pt << ", raw pT = "<<jet_ptRaw<<endl;
+	  cout <<" Constituent's pT: " << endl;
 	  for( ; itCnst != itCnst_E; ++itCnst ) {
 	    float thePt = (*itCnst)->pt();
 	    fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
 	    nonZeroConsts.push_back(thisConst);
+	    cout << (*itCnst)->Pt()*0.001 <<" ("<< (*itCnst)->E() <<"), " ;
 	  }
+	  cout << endl;
 	  // recluster by A/C
 	  
 	  fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
 	  fastjet::ClusterSequence csRe(nonZeroConsts, jetDefRe);
 	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets()); // return a vector of jets sorted into decreasing energy
 
+	  if ( jetsRe.size() > 0  ) { 
+	    cout << "Number of AcJets = " << jetsRe.size() << endl;
+	    for ( int ic=0; ic< jetsRe.size() ; ic++) { 
+	      cout <<"   "<<ic<<"th jet (pt,eta,phi) = " <<  jetsRe[ic].pt() *0.001<<", "<< jetsRe[ic].eta()<<", " << jetsRe[ic].phi()<<")"<<endl;
+	    }
+	  }
+	  cout <<endl << endl;
 
 	  fastjet::contrib::SoftDrop sd(beta, z_cut);
 	  //	  fastjet::contrib::SoftDrop sd(beta, z_cut);
+	  
 	  
 	  int theNrc = 0;
 	  double thePtrc = 0;
@@ -631,7 +643,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	    myJetSub.genRcPt = vptRc_gen[matchId];
 	    myJetSub.genSdmass = vSdmass_gen[matchId];
 	    myJetSub.genSdPt = vSdpt_gen[matchId];
-	    myJetSub.genNrc   =  vSdmass_gen[matchId];
+	    myJetSub.genNrc   =  vNrc_gen[matchId];
 	  }
 	  
 	  treeOut->Fill();
