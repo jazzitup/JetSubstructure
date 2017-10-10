@@ -529,10 +529,11 @@ EL::StatusCode JetSubstructure :: execute ()
 	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
 	  
 	  cout <<endl << endl;
-
-	  fastjet::contrib::SoftDrop sd(beta, z_cut);
-	  //	  fastjet::contrib::SoftDrop sd(beta, z_cut);
 	  
+	  // Yongsun:  http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetSoftDrop.cxx line 67.
+	  
+	  fastjet::contrib::SoftDrop softdropper(beta, z_cut);
+	  cout << "SoftDrop groomer is: " << softdropper.description() << endl;
 	  
 	  int theNrc = 0;
 	  double thePtrc = 0;
@@ -541,9 +542,25 @@ EL::StatusCode JetSubstructure :: execute ()
 	  if ( jetsRe.size() > 0 )   {
 	    theNrc = jetsRe.size();
 	    thePtrc = jetsRe[0].pt() * 0.001;
-	    fastjet::PseudoJet sd_jet = sd(jetsRe[0]);
+	    fastjet::PseudoJet sd_jet = softdropper(jetsRe[0]);
 	    thesdpt = sd_jet.pt() * 0.001; 
 	    thesdm =  sd_jet.m() * 0.001; 
+	    cout << "Properties after softdrop:" << endl;
+	    cout << "   ncon: " << jetsRe[0].constituents().size() 
+		 << "  softDrop constituents: "<< sd_jet.constituents().size() << endl; 
+	    cout << " sd_pT = " << thesdpt <<",  nsub: " <<  sd_jet.pieces().size() << endl;
+	    
+	    if (  sd_jet.pieces().size() >=2 ) {   
+	      vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
+	      cout << " Subjet0 pt, eta, phi = [" <<  subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
+	      cout << " Subjet1 pt, eta, phi = [" <<  subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
+
+	    }
+	    //	    cout << "SoftDropped jet: " << sd_jet << endl;
+	    //	    cout << "  delta_R between subjets: " << sd_jet.delta_R() << endl;
+	    //	    cout << "  symmetry measure(z):     " << sd_jet.z() << endl;
+	    //	    cout << "  mass drop(mu):           " << sd_jet.mu() << endl;
+ 
 	  }  
 	  vpt_reco.push_back(jet_pt);
 	  vptRaw_reco.push_back(jet_ptRaw);
