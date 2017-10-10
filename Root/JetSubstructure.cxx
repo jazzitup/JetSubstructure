@@ -452,12 +452,11 @@ EL::StatusCode JetSubstructure :: execute ()
 	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
 	  vector<fastjet::PseudoJet>  nonZeroConsts;
 	  vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
-	  cout <<" Jet pT, eta, phi = " << jet_pt << ", "  << jet_eta << ", " << jet_phi << endl;
+	  cout <<" Jet pT (raw pT), eta, phi, nConsts = " << jet_pt << " ("<<jet_ptRaw<<"), "  << jet_eta << ", " << jet_phi << ", " << constituents_tmp.size() << endl;
 	  //	  cout <<" Constituent's pT: " << endl;
 	  double ghostE = 0.000001;
-	  vector< fastjet::PseudoJet > ghosts;
 	  for( ; itCnst != itCnst_E; ++itCnst ) {
-	    //	    float thePt = (*itCnst)->pt();
+
 	    double thePx = (*itCnst)->Px() ;
 	    double thePy = (*itCnst)->Py() ;
 	    double thePz = (*itCnst)->Pz() ;
@@ -479,14 +478,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	      double gpx = ghostE/cosh(theEta) * cos(thePhi) ;
 	      double gpy = ghostE/cosh(theEta) * sin(thePhi) ;
 	      double gpz = ghostE*tanh(theEta) ;
-	      cout << "norm = " << ghostE << " =? " << sqrt( gpx*gpx + gpy*gpy + gpz*gpz) << endl;
+	      //	      cout << "norm = " << ghostE << " =? " << sqrt( gpx*gpx + gpy*gpy + gpz*gpz) << endl;
 	      nonZeroConsts.push_back( fastjet::PseudoJet ( gpx,gpy,gpz,ghostE )  );
-	      cout << "    xyz = " << gpx  <<", " << gpy  <<", " << gpz  <<", " << endl;
+	      //	      cout << "    xyz = " << gpx  <<", " << gpy  <<", " << gpz  <<", " << endl;
 	      double posPt = - (*itCnst)->pt() ;
 	      double posNorm = posPt * cosh(theEta);    // p = pT * cosh(eta)
 	      toBeSubtracted.push_back ( fastjet::PseudoJet ( gpx*posNorm/ghostE, gpy*posNorm/ghostE, gpz*posNorm/ghostE, posNorm) );
-	      cout << "toBeSubNorm = " << posNorm << endl;
-	      cout << "    xyz = " << gpx*posNorm/ghostE  <<", " << gpy*posNorm/ghostE  <<", " << gpz*posNorm/ghostE  <<", " << endl;
+	      //	      cout << "toBeSubNorm = " << posNorm << endl;
+	      //	      cout << "    xyz = " << gpx*posNorm/ghostE  <<", " << gpy*posNorm/ghostE  <<", " << gpz*posNorm/ghostE  <<", " << endl;
 	      
 	    }
 	  }
@@ -495,35 +494,40 @@ EL::StatusCode JetSubstructure :: execute ()
 	  
 	  fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
 	  fastjet::ClusterSequence csRe(nonZeroConsts, jetDefRe);
-	  const vector<fastjet::PseudoJet> cambridgeJet = csRe.inclusive_jets();
+	  vector<fastjet::PseudoJet> cambridgeJet = csRe.inclusive_jets();
 	  vector<int> pIndex = csRe.particle_jet_indices( cambridgeJet);
-
+	  
 	  if ( cambridgeJet.size() > 0 ) {
 	    for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
-	      cout << ij<<"th jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
+	      cout << endl << endl << ij<<"th jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
 	      double subPx = cambridgeJet[ij].px() ; 
 	      double subPy = cambridgeJet[ij].py() ; 
 	      double subPz = cambridgeJet[ij].pz() ; 
 	      double subE  = cambridgeJet[ij].E() ; 
 	      
-	      cout << "Missing constituent pt,eta,phi : " << endl;
-	      /*
-		for ( int ip = 0 ;ip < pIndex.size() ; ip++) {
-		if ( pIndex[ip] == ij )   {
+	      //	      cout << "Missing constituent pt,eta,phi : " << endl;
+	      int towerCount=0;
+	      int towerCountN=0;
+	      for ( int ip = 0 ; ip < pIndex.size() ; ip++) {
+		if   (pIndex[ip]==ij) {   
+		  towerCount++;
+		  if (toBeSubtracted[ip].px() != 0)   {
+		    towerCountN++;
+		    subPx = subPx - toBeSubtracted[ip].px() ;
+		    subPy = subPy - toBeSubtracted[ip].py() ;
+		    subPz = subPz - toBeSubtracted[ip].pz() ;
+		    subE = subE - toBeSubtracted[ip].E() ;
+		  }
 		}
-		}
-	      */
-	      
+	      }
+	      cambridgeJet[ij].reset_momentum( subPx, subPy, subPz, subE ) ;
+	      cout <<"  new jet pT, eta, phi, towers : " << cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< ",  " << towerCount << endl << endl << endl;
+	      cout <<" negative towers = " << towerCountN << endl;
 	    }
 	  }
 	  
-	  
-
 	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
-
-
-
-
+	  
 	  cout <<endl << endl;
 
 	  fastjet::contrib::SoftDrop sd(beta, z_cut);
@@ -554,7 +558,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
 	  jetsRe.clear();
 	  nonZeroConsts.clear();
-	  ghosts.clear();
+	  //	  toBeSubtracted.clear(); 
 	}
 	
 	
