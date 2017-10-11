@@ -381,7 +381,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
     const xAOD::JetFourMom_t jet_4momUnCal = theRecoJet.jetP4("JetSubtractedScaleMomentum"); // uncalib
     const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
-	  
+    
     double jet_pt  = jet_4momCalib.pt() * 0.001 ;
     double jet_eta = jet_4momCalib.eta();
     double jet_phi = jet_4momCalib.phi();
@@ -478,7 +478,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	if ( leaveLog)          cout <<" Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
       }
     }
-    
+      
     vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
     
     cout <<endl << endl;
@@ -500,25 +500,44 @@ EL::StatusCode JetSubstructure :: execute ()
       fastjet::PseudoJet sd_jet = softdropper(jetsRe[0]);
       thesdpt = sd_jet.pt() * 0.001; 
       thesdm =  sd_jet.m() * 0.001; 
-      if ( leaveLog)       cout << "Properties after softdrop:" << endl;
-      if ( leaveLog)       cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl; 
-      if ( leaveLog)       cout << " sd_pT = " << thesdpt <<",  nsub: " <<  sd_jet.pieces().size() << endl;
+      
+      if ( leaveLog) { 
+	cout << "RECO JET softdrop:" << endl;
+	cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << (*itCnst)->Pt() *0.001 << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
+	cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl;
+	cout << " consticuents lists (pt,eta,phi)" <<endl;
+	vector<fastjet::PseudoJet> jetsRe0Const = jetsRe[0].constituents() ;
+	for ( int ic = 0 ; ic< jetsRe0Const.size() ; ic++){
+	  cout << " ( " << jetsRe0Const[ic].pt() *0.001 << ", " << jetsRe0Const[ic].eta() << ", "<< jetsRe0Const[ic].phi() << ") "<< endl;
+	}
+	jetsRe0Const.clear();
+	
+      }
       
       if (  sd_jet.pieces().size() >=2 ) {   
 	vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
-	if ( leaveLog)    cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
-	if ( leaveLog)    cout << " Subjet1: nConst, pt, eta, phi = [" <<  subJets[1].constituents().size() << ",   " <<subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
-	
+	vector<fastjet::PseudoJet> constSub0 =  subJets[0].constituents() ;
+	vector<fastjet::PseudoJet> constSub1 =  subJets[1].constituents() ;
 	thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
 	thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() );
-
+	
+	if ( leaveLog)   {
+	  cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
+	  cout << "       constituents lists (pt,eta,phi)" <<endl;
+	  for ( int ic = 0 ; ic< constSub0.size() ; ic++){
+	    if ( leaveLog)        cout << "      ( " << constSub0[ic].pt() *0.001 << ", " << constSub0[ic].eta() << ", "<< constSub0[ic].phi() << ") " << endl;
+	  }
+	  cout << endl;
+	  cout << " Subjet1: nConst, pt, eta, phi = [" <<  subJets[1].constituents().size() << ",   " <<subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
+	  cout << "       constituents lists (pt,eta,phi)" <<endl;
+	  for ( int ic = 0 ; ic< constSub1.size() ; ic++){
+	    if ( leaveLog)        cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
+	  }
+	}
 	subJets.clear();
+	constSub0.clear();
+	constSub1.clear();
       }
-      //	    cout << "SoftDropped jet: " << sd_jet << endl;
-      //	    cout << "  delta_R between subjets: " << sd_jet.delta_R() << endl;
-      //	    cout << "  symmetry measure(z):     " << sd_jet.z() << endl;
-      //	    cout << "  mass drop(mu):           " << sd_jet.mu() << endl;
-      
     }
     vpt_reco.push_back(jet_pt);
     vptRaw_reco.push_back(jet_ptRaw);
@@ -638,10 +657,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	      }
 	      jetsRe0Const.clear();
 	  }
+
 	  if (  sd_jet.pieces().size() >=2 ) {
 	    vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
 	    vector<fastjet::PseudoJet> constSub0 =  subJets[0].constituents() ; 
 	    vector<fastjet::PseudoJet> constSub1 =  subJets[1].constituents() ; 
+	    thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
+	    thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() );
+
 	    if ( leaveLog)   {
 	      cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
 	      cout << "       constituents lists (pt,eta,phi)" <<endl;
@@ -654,16 +677,13 @@ EL::StatusCode JetSubstructure :: execute ()
 	      for ( int ic = 0 ; ic< constSub1.size() ; ic++){
 		if ( leaveLog) 	      cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
 	      }
-
-	      thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
-	      thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() );
-	      
-	    }	      
+	    }
 	    subJets.clear();
 	    constSub0.clear();
 	    constSub1.clear();
 	  }
 	}
+	
 	vpt_gen.push_back(jet_pt);
 	veta_gen.push_back(jet_eta);
 	vphi_gen.push_back(jet_phi);
@@ -675,10 +695,10 @@ EL::StatusCode JetSubstructure :: execute ()
 	vSddr_gen.push_back(thesddr);
 	
 	jetsRe.clear();
+	}
+	inputConst.clear();
       }
-      inputConst.clear();
     }
-  }
   
   
   // back to reco loop 
