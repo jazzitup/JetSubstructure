@@ -34,12 +34,12 @@ using namespace JetHelperTools;
 
 struct jetSubStr {
   Int_t cent;
-  float recoPt, recoRawPt, recoEta, recoRcPt, recoSdPt, recoSdmass, recoNrc, nTow, nTowPos;
+  float recoPt, recoRawPt, recoEta, recoRcPt, recoSdPt, recoSdmass, recoNrc;
   float genPt,  genEta, genRcPt,  genSdPt, genSdmass, genNrc, matchDr;
   float weight;
 };
 jetSubStr myJetSub;
-TString myJetSubText = "cent/I:pt/F:rawPt:eta:rcpt:sdpt:sdmass:nrc:ntow:ntowp:genpt:geneta:genrcpt:gensdpt:gensdmass:gennrc:dr:weight";
+TString myJetSubText = "cent/I:pt/F:rawPt:eta:rcpt:sdpt:sdmass:nrc:genpt:geneta:genrcpt:gensdpt:gensdmass:gennrc:dr:weight";
 
 
 // this is needed to distribute the algorithm to the workers
@@ -53,19 +53,17 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.recoRawPt= -1;
   jetsub.recoEta=-1;
   jetsub.recoRcPt=-1;
-  jetsub.recoSdmass=-1;
   jetsub.recoSdPt=-1;
+  jetsub.recoSdmass=-1;
   jetsub.recoNrc=0;
-  jetsub.nTow =0;
-  jetsub.nTowPos =0;
   
   jetsub.genPt=-1;
   jetsub.genEta=-1;
   jetsub.genRcPt=-1;
-  jetsub.genSdmass=-1;
   jetsub.genSdPt=-1;
-  jetsub.matchDr=-1;
+  jetsub.genSdmass=-1;
   jetsub.genNrc=0;
+  jetsub.matchDr=-1;
   jetsub.weight = 1;
 
 }
@@ -113,19 +111,6 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 
 	cout << " Setting  histograms" << endl;
 
-
-	int etaBinsN, phiBinsN, respBinsN, jetPtBinsN;
-	double etaBins[1000], phiBins[1000], respBins[1000], jetPtBins[1000], ratioBins[1000];
-	int ratioBinN = 500;
-	
-	for ( int i= 0 ; i<=ratioBinN ; i++) 
-	  ratioBins[i] = 2./ratioBinN * i; 
-
-	//	SetupBinning(0, "eta-fine", etaBins, etaBinsN);
-	//	SetupBinning(0, "phi-jet", phiBins, phiBinsN);
-	//	SetupBinning(0, "resp", respBins, respBinsN);
-	//	SetupBinning(0, "pt-jet-PbPb", jetPtBins, jetPtBinsN);
-
 	//Basic histograms
 	h_FCal_Et = new TH1D("h_FCal_Et",";FCal E_{T};N",100,0,5);
 	h_FCal_Et->Sumw2();
@@ -143,13 +128,6 @@ EL::StatusCode JetSubstructure :: histInitialize ()
         treeOut = new TTree("tr","new tree");
 	treeOut->Branch("jets",&myJetSub,myJetSubText.Data());
 	
-	//	h_triggercounter = new TH2D("h_triggercounter","h_triggercounter",_nTriggers,0,_nTriggers,2,-0.5,1.5);
-	//	SetTrigger_hist(h_triggercounter);
-	
-	//	h_respR2R4 = new TH2D("h_respR2R4","h_respR2R4",jetPtBinsN, jetPtBins,respBinsN,respBins);
-	//	wk()->addOutput(h_respR2R4);
-
-	//	wk()->addOutput (h_FCal_Et);
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
 	wk()->addOutput (hET_ETsub);
@@ -216,7 +194,7 @@ EL::StatusCode JetSubstructure :: initialize ()
 	cout << "" <<endl;
 	//Calibration tool
 	
-	
+
 	jetcorr = new JetCorrector();
 	
 	//Pileup tool
@@ -241,35 +219,9 @@ EL::StatusCode JetSubstructure :: initialize ()
 	ANA_CHECK(m_grl->initialize());
 	
 	// Initialize and configure trigger tools
-	if (_isMC==0)
-	{
-	  m_trigConfigTool = new TrigConf::xAODConfigTool("xAODConfigTool"); // gives us access to the meta-data
-	  m_trigConfigTool->msg().setLevel( MSG::ERROR );
-	  ANA_CHECK(m_trigConfigTool->initialize());
-	  ToolHandle< TrigConf::ITrigConfigTool > trigConfigHandle( m_trigConfigTool );
-	  
-	  m_trigDecisionTool = new Trig::TrigDecisionTool("TrigDecisionTool");
-	  m_trigDecisionTool->msg().setLevel( MSG::ERROR );
-	  ANA_CHECK(m_trigDecisionTool->setProperty( "ConfigTool", trigConfigHandle ));
-	  ANA_CHECK(m_trigDecisionTool->setProperty( "TrigDecisionKey", "xTrigDecision"));
-	  ANA_CHECK(m_trigDecisionTool->initialize() );
-	  
-	  cout << "Adding following " << _nTriggers << " triggers: ";
-	  for (int i=0;i<_nTriggers;i++){
-	    cout << trigger_chains.at(i) << ", ";
-	    _chainGroup.push_back(m_trigDecisionTool->getChainGroup(trigger_chains.at(i)));
-	  }
-	  
-	  TString xfn = gSystem->GetFromPipe("echo $ROOTCOREBIN");
-	  f_trigger_RunNumber_prescale = new TFile(xfn + "/../pPbFragmentation/data/TriggerPrescales.root","READ");
-	  h2_trigger_RunNumber_prescale = (TH2F*)f_trigger_RunNumber_prescale->Get("h2_Trig_RunNumber_prescale");
-	  
-	  cout << endl << "Initialize triggers finished" << endl;
-	}
 
 	return EL::StatusCode::SUCCESS;
 }
-
 
 
 EL::StatusCode JetSubstructure :: execute ()
@@ -277,481 +229,506 @@ EL::StatusCode JetSubstructure :: execute ()
   float beta = 0 ;
   float z_cut = 0.1;
   
+  
+  // Here you do everything that needs to be done on every single
+  // events, e.g. read input variables, apply cuts, and fill
+  // histograms and trees.  This is where most of your actual analysis
+  // code will go.
+  ANA_CHECK_SET_TYPE (EL::StatusCode); // set type of return code you are expecting (add to top of each function once)
+  xAOD::TEvent* event = wk()->xaodEvent();
+  
+  int statSize=1;
+  if(m_eventCounter!=0)
+    {
+      double power=std::floor(log10(m_eventCounter));
+      statSize=(int)std::pow(10.,power);
+    }
+  bool leaveLog = false;
+  if (m_eventCounter%statSize==0)  leaveLog = true; 
 
-	// Here you do everything that needs to be done on every single
-	// events, e.g. read input variables, apply cuts, and fill
-	// histograms and trees.  This is where most of your actual analysis
-	// code will go.
-	ANA_CHECK_SET_TYPE (EL::StatusCode); // set type of return code you are expecting (add to top of each function once)
-	xAOD::TEvent* event = wk()->xaodEvent();
-
-	int statSize=1;
-	if(m_eventCounter!=0)
+  if (leaveLog) std::cout << "Event: " << m_eventCounter << std::endl;
+  
+  
+  m_eventCounter++;
+  
+  //All events
+  bool keep = true;
+  h_RejectionHisto->Fill(0.5);
+  
+  const xAOD::EventInfo* eventInfo = 0;
+  ANA_CHECK(event->retrieve( eventInfo, "EventInfo"));
+  
+  // check if the event is data overlay or MC
+  bool isHIJING = false; //For centrality
+  if(eventInfo->eventType( xAOD::EventInfo::IS_SIMULATION ) )
+    {
+      isHIJING = true;
+    }
+  else
+    {
+      const xAOD::TruthParticleContainer * particles = 0;
+      if( event->xAOD::TVirtualEvent::retrieve(particles, "TruthParticles", true) )
 	{
-		double power=std::floor(log10(m_eventCounter));
-		statSize=(int)std::pow(10.,power);
+	  isHIJING = false;
 	}
-	if(m_eventCounter%statSize==0) std::cout << "Event: " << m_eventCounter << std::endl;
-	m_eventCounter++;
-
-	//All events
-	bool keep = true;
-	h_RejectionHisto->Fill(0.5);
-
-
-	const xAOD::EventInfo* eventInfo = 0;
-	ANA_CHECK(event->retrieve( eventInfo, "EventInfo"));
-
-	// check if the event is data overlay or MC
-	bool isHIJING = false; //For centrality
-	if(eventInfo->eventType( xAOD::EventInfo::IS_SIMULATION ) )
-	{
-		isHIJING = true;
-	}
-	else
-	{
-	  const xAOD::TruthParticleContainer * particles = 0;
-	  if( event->xAOD::TVirtualEvent::retrieve(particles, "TruthParticles", true) )
-	    {
-	      isHIJING = false;
-	    }
-	}
-	
-	
-	
-	//Get centrality bin and centile. Centile used for MB weighting (from MB_FCal_Normalization.txt)
-	double FCalEt = 0;
-	int cent_bin = 0;
-	double event_weight_fcal = 1;
-	//Centrality
-	const xAOD::HIEventShapeContainer* calos=0;
-	ANA_CHECK(event->retrieve( calos, "CaloSums"));
-	if (_centrality_scheme>1)	  {
-	  FCalEt=calos->at(5)->et()*1e-6;
-	  cent_bin = GetCentralityBin(_centrality_scheme, FCalEt, isHIJING);
-	  
-	  event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
-	  
-	  if (_isMC && isHIJING) event_weight_fcal = 1;
-	}
-	if (cent_bin < 0) {
-	  h_RejectionHisto->Fill(1.5);
-	  keep = false;
-	}
-	// GRL
-	if(!_isMC) {
-	  if(!m_grl->passRunLB(*eventInfo)) {
-	    h_RejectionHisto->Fill(2.5);
-	    keep = false;
-	  }}
-	
-	//Vertex requirement
-	const xAOD::VertexContainer * vertices = 0;
-	if ( !event->retrieve( vertices, "PrimaryVertices" ).isSuccess() ) {
-	  Error("execute()", "Failed to retrieve VertexContainer container. Exiting." );
-	  return EL::StatusCode::FAILURE;
-	}
-	if(vertices->size()<2) {
-	  h_RejectionHisto->Fill(3.5);
-	  keep = false;
-	}
-	
-	//DAQ errors
-	if(!_isMC) {
-	  if(   (eventInfo->errorState(xAOD::EventInfo::LAr)==xAOD::EventInfo::Error ) || (eventInfo->errorState(xAOD::EventInfo::Tile)==xAOD::EventInfo::Error ) || (eventInfo->errorState(xAOD::EventInfo::SCT)==xAOD::EventInfo::Error ) || (eventInfo->isEventFlagBitSet(xAOD::EventInfo::Core, 18) ) ){
-	    h_RejectionHisto->Fill(4.5);
-	    keep = false;
-	  }
-	}
-	
+    }
+  
+  
+  
+  //Get centrality bin and centile. Centile used for MB weighting (from MB_FCal_Normalization.txt)
+  double FCalEt = 0;
+  int cent_bin = 0;
+  double event_weight_fcal = 1;
+  //Centrality
+  const xAOD::HIEventShapeContainer* calos=0;
+  ANA_CHECK(event->retrieve( calos, "CaloSums"));
+  if (_centrality_scheme>1)	  {
+    FCalEt=calos->at(5)->et()*1e-6;
+    cent_bin = GetCentralityBin(_centrality_scheme, FCalEt, isHIJING);
+    
+    event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
+    
+    if (_isMC && isHIJING) event_weight_fcal = 1;
+  }
+  if (cent_bin < 0) {
+    h_RejectionHisto->Fill(1.5);
+    keep = false;
+  }
+  // GRL
+  if(!_isMC) {
+    if(!m_grl->passRunLB(*eventInfo)) {
+      h_RejectionHisto->Fill(2.5);
+      keep = false;
+    }}
+  
+  //Vertex requirement
+  const xAOD::VertexContainer * vertices = 0;
+  if ( !event->retrieve( vertices, "PrimaryVertices" ).isSuccess() ) {
+    Error("execute()", "Failed to retrieve VertexContainer container. Exiting." );
+    return EL::StatusCode::FAILURE;
+  }
+  if(vertices->size()<2) {
+    h_RejectionHisto->Fill(3.5);
+    keep = false;
+  }
+  
+  //DAQ errors
+  if(!_isMC) {
+    if(   (eventInfo->errorState(xAOD::EventInfo::LAr)==xAOD::EventInfo::Error ) || (eventInfo->errorState(xAOD::EventInfo::Tile)==xAOD::EventInfo::Error ) || (eventInfo->errorState(xAOD::EventInfo::SCT)==xAOD::EventInfo::Error ) || (eventInfo->isEventFlagBitSet(xAOD::EventInfo::Core, 18) ) ){
+      h_RejectionHisto->Fill(4.5);
+      keep = false;
+    }
+  }
+  
 	//Pileup		
-	bool m_is_pileup = false;
-	if (!_isMC) {	
-	  const xAOD::ZdcModuleContainer* zdcMod = 0;
-	  ANA_CHECK(event->retrieve( zdcMod, "ZdcModules")); 
-	  m_zdcTools->reprocessZdc();	  // ZDC
-	  // is Pileup
-	  m_is_pileup = m_hiPileup->is_pileup( *calos, *zdcMod); // SAVE pileup Decision HERE 0 = NO pileup, 1 = pileup
-	}
-	else m_is_pileup = (FCalEt > 4.8); //Remove pileup in MC
-	if (m_is_pileup){
-	  h_RejectionHisto->Fill(6.5);
-	  keep = false;
-	}
+  bool m_is_pileup = false;
+  if (!_isMC) {	
+    const xAOD::ZdcModuleContainer* zdcMod = 0;
+    ANA_CHECK(event->retrieve( zdcMod, "ZdcModules")); 
+    m_zdcTools->reprocessZdc();	  // ZDC
+    // is Pileup
+    m_is_pileup = m_hiPileup->is_pileup( *calos, *zdcMod); // SAVE pileup Decision HERE 0 = NO pileup, 1 = pileup
+  }
+  else m_is_pileup = (FCalEt > 4.8); //Remove pileup in MC
+  if (m_is_pileup){
+    h_RejectionHisto->Fill(6.5);
+    keep = false;
+  }
+  
+  if (!keep) return EL::StatusCode::SUCCESS; // go to the next event
+  h_RejectionHisto->Fill(7.5);
+  
+  h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
+  h_centrality->Fill(cent_bin,event_weight_fcal);
+  
+  vector <double> vpt_reco;
+  vector <double> vptRaw_reco;  
+  vector <double> veta_reco;
+  vector <double> vphi_reco;
+  vector <double> vptRc_reco;
+  vector <double> vSdmass_reco;
+  vector <double> vSdpt_reco;
+  vector <int> vNrc_reco;
+  
+  vector <double> vpt_gen;
+  vector <double> veta_gen;
+  vector <double> vphi_gen;
+  vector <double> vptRc_gen;
+  vector <double> vSdmass_gen;
+  vector <double> vSdpt_gen;
+  vector <int> vNrc_gen;
 	
-	if (!keep) return EL::StatusCode::SUCCESS; // go to the next event
-	h_RejectionHisto->Fill(7.5);
-	
-	// trigger
-	if (_isMC==0) {
-	  int event_passed_trigger=0;
+  /////////////   Reco jets /////////////////////////////////////////
+  
+  xAOD::TStore *store = new xAOD::TStore; //For calibration
+  const xAOD::JetContainer* reco_jets = 0;
+  ANA_CHECK(event->retrieve( reco_jets, _reco_jet_collection.c_str() ));
+  
+  xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
+  xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
+  for( ; jet_itr != jet_end; ++jet_itr ) {
+    
+    xAOD::Jet theRecoJet;
+    theRecoJet.makePrivateStore( **jet_itr );
+    
+    const xAOD::JetFourMom_t jet_4momUnCal = theRecoJet.jetP4("JetSubtractedScaleMomentum"); // uncalib
+    const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
 	  
-	  for (int i=0;i<_nTriggers;i++){
-	    event_isTriggered[i] = false;
-	    event_isTriggered[i] =  _chainGroup.at(i)->isPassed();
-	    h_triggercounter->Fill(i, (Double_t) event_isTriggered[i]);
-	    if(event_isTriggered[i]) event_passed_trigger=1;
-	  }
-	  
-	  if(!event_passed_trigger) return EL::StatusCode::SUCCESS; // go to next event
-	  else h_RejectionHisto->Fill(8.5);
-	}
-	
-	h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
-	h_centrality->Fill(cent_bin,event_weight_fcal);
-	
+    double jet_pt  = jet_4momCalib.pt() * 0.001 ;
+    double jet_eta = jet_4momCalib.eta();
+    double jet_phi = jet_4momCalib.phi();
+    if (jet_phi> TMath::Pi()) jet_phi = jet_phi - 2*TMath::Pi();
+    double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
+    
+    if (jet_pt < _pTjetCut) continue;
+    
+    const xAOD::JetConstituentVector constituents_tmp = (*jet_itr)->getConstituents();
+    //	  cout <<" number of RECO constituent = " << (*jet_itr)->numConstituents() << endl;
+    //	  cout <<" size of constituents = " << constituents_tmp.size() << endl;
+    xAOD::JetConstituentVector::iterator itCnst = constituents_tmp.begin();
+    xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
+    vector<fastjet::PseudoJet>  nonZeroConsts;
+    vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
+    vector<bool>  nFlag; // reverse the pT only and subtract
 
+    //    cout <<" Jet pT (raw pT), eta, phi, nConsts = " << jet_pt << " ("<<jet_ptRaw<<"), "  << jet_eta << ", " << jet_phi << ", " << constituents_tmp.size() << endl;
+    //	  cout <<" Constituent's pT: " << endl;
+    double ghostE = 0.000001;
+    for( ; itCnst != itCnst_E; ++itCnst ) {
+      
+      double thePx = (*itCnst)->Px() ;
+      double thePy = (*itCnst)->Py() ;
+      double thePz = (*itCnst)->Pz() ;
+      
+      double thePt = (*itCnst)->Pt() ; 
+      double theEta = (*itCnst)->Eta() ; 
+      double thePhi = (*itCnst)->Phi() ; 
+      if (thePhi> TMath::Pi()) thePhi = thePhi - 2*TMath::Pi();
+      
+      //cout << " in JetConstituentVector, pt, eta, phi, e are : " << (*itCnst)->Pt() <<", " << (*itCnst)->eta() << ", " <<  (*itCnst)->phi()<< ", " <<  (*itCnst)->E() << endl;
+      //	    cout << " px, py, pz =  " << thePx  <<", " << thePy  <<", " << thePz  <<", " << endl;
+      
+      const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
+      
+      if ( (*itCnst)->pt() > 0 ) { // normal tower 
+	nonZeroConsts.push_back(thisConst);
+	toBeSubtracted.push_back ( fastjet::PseudoJet ( 0.000001, 0.000001, 0.000001, 0.000002 )) ;
+	nFlag.push_back (false);
+      }
+      else {  // negative tower 
+	double gpx = ghostE/cosh(theEta) * cos(thePhi) ;
+	double gpy = ghostE/cosh(theEta) * sin(thePhi) ;
+	double gpz = ghostE*tanh(theEta) ;
+	double posPt = - (*itCnst)->pt() ;
+	double posNorm = posPt * cosh(theEta);    // p = pT * cosh(
 
-	vector <double> vpt_reco;
-	vector <double> vptRaw_reco;  
-	vector <double> veta_reco;
-	vector <double> vphi_reco;
-	vector <double> vptRc_reco;
-	vector <double> vSdmass_reco;
-	vector <double> vSdpt_reco;
-	vector <int> vNrc_reco;
-	vector <int> vNtow_reco;
-	vector <int> vNtowp_reco;
-
-	vector <double> vpt_gen;
-	vector <double> veta_gen;
-	vector <double> vphi_gen;
-	vector <double> vptRc_gen;
-	vector <double> vSdmass_gen;
-	vector <double> vSdpt_gen;
-	vector <int> vNrc_gen;
-
-	
-	/////////////   Reco jets /////////////////////////////////////////
-	
-	xAOD::TStore *store = new xAOD::TStore; //For calibration
-	const xAOD::JetContainer* reco_jets = 0;
-	ANA_CHECK(event->retrieve( reco_jets, _reco_jet_collection.c_str() ));
-
-	xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
-	xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
-	for( ; jet_itr != jet_end; ++jet_itr ) {
-	  
-	  xAOD::Jet theRecoJet;
-	  theRecoJet.makePrivateStore( **jet_itr );
-
-	  const xAOD::JetFourMom_t jet_4momUnCal = theRecoJet.jetP4("JetSubtractedScaleMomentum"); // uncalib
-	  const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
-	  
-	  double jet_pt  = jet_4momCalib.pt() * 0.001 ;
-	  double jet_eta = jet_4momCalib.eta();
-	  double jet_phi = jet_4momCalib.phi();
-	  double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
-	  
-	  if (jet_pt < _pTjetCut) continue;
-	  
-	  const xAOD::JetConstituentVector constituents_tmp = (*jet_itr)->getConstituents();
-	  //	  cout <<" number of RECO constituent = " << (*jet_itr)->numConstituents() << endl;
-	  //	  cout <<" size of constituents = " << constituents_tmp.size() << endl;
-	  xAOD::JetConstituentVector::iterator itCnst = constituents_tmp.begin();
-	  xAOD::JetConstituentVector::iterator itCnst_E = constituents_tmp.end();
-	  vector<fastjet::PseudoJet>  nonZeroConsts;
-	  vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
-	  cout <<" Jet pT (raw pT), eta, phi, nConsts = " << jet_pt << " ("<<jet_ptRaw<<"), "  << jet_eta << ", " << jet_phi << ", " << constituents_tmp.size() << endl;
-	  //	  cout <<" Constituent's pT: " << endl;
-	  double ghostE = 0.000001;
-	  for( ; itCnst != itCnst_E; ++itCnst ) {
-
-	    double thePx = (*itCnst)->Px() ;
-	    double thePy = (*itCnst)->Py() ;
-	    double thePz = (*itCnst)->Pz() ;
-	    
-	    double thePt = (*itCnst)->Pt() ; 
-	    double theEta = (*itCnst)->Eta() ; 
-	    double thePhi = (*itCnst)->Phi() ; 
-
-	    //cout << " in JetConstituentVector, pt, eta, phi, e are : " << (*itCnst)->Pt() <<", " << (*itCnst)->eta() << ", " <<  (*itCnst)->phi()<< ", " <<  (*itCnst)->E() << endl;
-	    //	    cout << " px, py, pz =  " << thePx  <<", " << thePy  <<", " << thePz  <<", " << endl;
-	    
-	    const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
-	    
-	    if ( (*itCnst)->pt() > 0 ) { // normal tower 
-	      nonZeroConsts.push_back(thisConst);
-	      toBeSubtracted.push_back ( fastjet::PseudoJet ( 0,0,0,0 )) ;
-	    }
-	    else {  // negative tower 
-	      double gpx = ghostE/cosh(theEta) * cos(thePhi) ;
-	      double gpy = ghostE/cosh(theEta) * sin(thePhi) ;
-	      double gpz = ghostE*tanh(theEta) ;
-	      //	      cout << "norm = " << ghostE << " =? " << sqrt( gpx*gpx + gpy*gpy + gpz*gpz) << endl;
-	      nonZeroConsts.push_back( fastjet::PseudoJet ( gpx,gpy,gpz,ghostE )  );
-	      //	      cout << "    xyz = " << gpx  <<", " << gpy  <<", " << gpz  <<", " << endl;
-	      double posPt = - (*itCnst)->pt() ;
-	      double posNorm = posPt * cosh(theEta);    // p = pT * cosh(eta)
-	      toBeSubtracted.push_back ( fastjet::PseudoJet ( gpx*posNorm/ghostE, gpy*posNorm/ghostE, gpz*posNorm/ghostE, posNorm) );
-	      //	      cout << "toBeSubNorm = " << posNorm << endl;
-	      //	      cout << "    xyz = " << gpx*posNorm/ghostE  <<", " << gpy*posNorm/ghostE  <<", " << gpz*posNorm/ghostE  <<", " << endl;
-	      
-	    }
-	  }
-	  cout << endl;
-	  // recluster by A/C
-	  
-	  fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
-	  fastjet::ClusterSequence csRe(nonZeroConsts, jetDefRe);
-	  vector<fastjet::PseudoJet> cambridgeJet = csRe.inclusive_jets();
-	  vector<int> pIndex = csRe.particle_jet_indices( cambridgeJet);
-	  
-	  if ( cambridgeJet.size() > 0 ) {
-	    for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
-	      cout << endl << endl << ij<<"th jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
-	      double subPx = cambridgeJet[ij].px() ; 
-	      double subPy = cambridgeJet[ij].py() ; 
-	      double subPz = cambridgeJet[ij].pz() ; 
-	      double subE  = cambridgeJet[ij].E() ; 
-	      
-	      //	      cout << "Missing constituent pt,eta,phi : " << endl;
-	      int towerCount=0;
-	      int towerCountN=0;
-	      for ( int ip = 0 ; ip < pIndex.size() ; ip++) {
-		if   (pIndex[ip]==ij) {   
-		  towerCount++;
-		  if (toBeSubtracted[ip].px() != 0)   {
-		    towerCountN++;
-		    subPx = subPx - toBeSubtracted[ip].px() ;
-		    subPy = subPy - toBeSubtracted[ip].py() ;
-		    subPz = subPz - toBeSubtracted[ip].pz() ;
-		    subE = subE - toBeSubtracted[ip].E() ;
-		  }
-		}
-	      }
-	      cambridgeJet[ij].reset_momentum( subPx, subPy, subPz, subE ) ;
-	      cout <<"  new jet pT, eta, phi, towers : " << cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< ",  " << towerCount << endl << endl << endl;
-	      cout <<" negative towers = " << towerCountN << endl;
-	    }
-	  }
-	  
-	  vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
-	  
-	  cout <<endl << endl;
-	  
-	  // Yongsun:  http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetSoftDrop.cxx line 67.
-	  
-	  fastjet::contrib::SoftDrop softdropper(beta, z_cut);
-	  cout << "SoftDrop groomer is: " << softdropper.description() << endl;
-	  
-	  int theNrc = 0;
-	  double thePtrc = 0;
-	  double thesdpt = 0 ;
-	  double thesdm = 0;
-	  if ( jetsRe.size() > 0 )   {
-	    theNrc = jetsRe.size();
-	    thePtrc = jetsRe[0].pt() * 0.001;
-	    fastjet::PseudoJet sd_jet = softdropper(jetsRe[0]);
-	    thesdpt = sd_jet.pt() * 0.001; 
-	    thesdm =  sd_jet.m() * 0.001; 
-	    cout << "Properties after softdrop:" << endl;
-	    cout << "   ncon: " << jetsRe[0].constituents().size() 
-		 << "  softDrop constituents: "<< sd_jet.constituents().size() << endl; 
-	    cout << " sd_pT = " << thesdpt <<",  nsub: " <<  sd_jet.pieces().size() << endl;
-	    
-	    if (  sd_jet.pieces().size() >=2 ) {   
-	      vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
-	      cout << " Subjet0 pt, eta, phi = [" <<  subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
-	      cout << " Subjet1 pt, eta, phi = [" <<  subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
-
-	    }
-	    //	    cout << "SoftDropped jet: " << sd_jet << endl;
-	    //	    cout << "  delta_R between subjets: " << sd_jet.delta_R() << endl;
-	    //	    cout << "  symmetry measure(z):     " << sd_jet.z() << endl;
-	    //	    cout << "  mass drop(mu):           " << sd_jet.mu() << endl;
- 
-	  }  
-	  vpt_reco.push_back(jet_pt);
-	  vptRaw_reco.push_back(jet_ptRaw);
-	  veta_reco.push_back(jet_eta);
-	  vphi_reco.push_back(jet_phi);
-	  vptRc_reco.push_back(thePtrc);
-	  vNrc_reco.push_back(theNrc);
-	  vSdmass_reco.push_back(thesdm);
-	  vSdpt_reco.push_back(thesdpt);
-	  vNtow_reco.push_back(nonZeroConsts.size() );
-	  vNtowp_reco.push_back(nonZeroConsts.size() );
-
-	  jetsRe.clear();
-	  nonZeroConsts.clear();
-	  //	  toBeSubtracted.clear(); 
+	//	if ( leaveLog)	    {  
+	if ( 1==0 ) {
+	  cout << "norm = " << ghostE << " =? " << sqrt( gpx*gpx + gpy*gpy + gpz*gpz) << endl;
+	  cout << "    xyz = " << gpx  <<", " << gpy  <<", " << gpz  <<", " << endl;
+	  cout << " posPt, posNorm = " << posPt <<", "<<posNorm<<endl;
+	  cout << "toBeSubNorm = " << posNorm << endl;
+	  cout << "    xyz = " << gpx*posNorm/ghostE  <<", " << gpy*posNorm/ghostE  <<", " << gpz*posNorm/ghostE  <<", " << endl;
 	}
 	
+	nonZeroConsts.push_back( fastjet::PseudoJet ( gpx,gpy,gpz,ghostE )  );
+	toBeSubtracted.push_back ( fastjet::PseudoJet ( gpx*posNorm/ghostE, gpy*posNorm/ghostE, gpz*posNorm/ghostE, posNorm) );
+	nFlag.push_back(true);
+
+      }
+    }
+    cout << endl;
+    // recluster by A/C
+
+    
+    fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
+    fastjet::ClusterSequence csRe(nonZeroConsts, jetDefRe);
+    vector<fastjet::PseudoJet> cambridgeJet = csRe.inclusive_jets();
+    vector<int> pIndex = csRe.particle_jet_indices( cambridgeJet);
+    
+    if ( cambridgeJet.size() > 0 ) {
+      for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
+	if ( leaveLog)	cout << endl << endl << ij<<"th jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
+	double subPx = cambridgeJet[ij].px() ; 
+	double subPy = cambridgeJet[ij].py() ; 
+	double subPz = cambridgeJet[ij].pz() ; 
+	double subE  = cambridgeJet[ij].E() ; 
 	
-	//**Get Truth jets ***
-	double event_weight = 1;
-	double max_pt = 0;
-	bool useReAntiKt = true; 
-	
-	if (_isMC){
-	  if ( !useReAntiKt )  {
-	    cout << " Don't use useReAntiKt=0 option yet.." << endl;
-	    /*    const xAOD::JetContainer* truth_jets = 0;
-		  ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
-		  
-		  xAOD::JetContainer::const_iterator truth_jet_itr = truth_jets->begin();
-		  xAOD::JetContainer::const_iterator truth_jet_end = truth_jets->end();
-	    
-		  for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr ) {
-		  xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
-		  double pt     = (jet_truth_4mom.pt() * 0.001 );
-		  double eta    = (jet_truth_4mom.eta());
-		  double phi    = (jet_truth_4mom.phi());
-		  if (pt > max_pt)  { 
-		  event_weight = jetcorr->GetJetWeight(pt, eta, phi);
-		  max_pt = pt;
-		  //			    if (_isMC && isHIJING) event_weight = 1;
-		  }
-	      if (pt < _truthpTjetCut) continue;
-	    */ 
+	//	      cout << "Missing constituent pt,eta,phi : " << endl;
+	int towerCount=0;
+	int towerCountN=0;
+	for ( int ip = 0 ; ip < pIndex.size() ; ip++) {
+	  if   (pIndex[ip]==ij) {   
+	    towerCount++;
+	    if ( nFlag[ip] ) {
+	      towerCountN++;
+	      subPx = subPx - toBeSubtracted[ip].px() ;
+	      subPy = subPy - toBeSubtracted[ip].py() ;
+	      subPz = subPz - toBeSubtracted[ip].pz() ;
+	      subE = subE - toBeSubtracted[ip].E() ;
+	    }
 	  }
-	  else {  // if useReAntiKt
+	}
+	cambridgeJet[ij].reset_momentum( subPx, subPy, subPz, subE ) ;
+	if ( leaveLog)  	cout <<"  new jet pT, eta, phi: " << cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()  << endl;
+	if ( leaveLog)          cout <<" Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
+      }
+    }
+    
+    vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
+    
+    cout <<endl << endl;
+    
+    // Yongsun:  http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetSoftDrop.cxx line 67.
+    
+    fastjet::contrib::SoftDrop softdropper(beta, z_cut);
+    cout << "SoftDrop groomer is: " << softdropper.description() << endl;
+    
+    int theNrc = 0;
+    double thePtrc = 0;
+    double thesdpt = 0 ;
+    double thesdm = 0;
+    if ( jetsRe.size() > 0 )   {
+      theNrc = jetsRe.size();
+      thePtrc = jetsRe[0].pt() * 0.001;
+      fastjet::PseudoJet sd_jet = softdropper(jetsRe[0]);
+      thesdpt = sd_jet.pt() * 0.001; 
+      thesdm =  sd_jet.m() * 0.001; 
+      if ( leaveLog)       cout << "Properties after softdrop:" << endl;
+      if ( leaveLog)       cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl; 
+      if ( leaveLog)       cout << " sd_pT = " << thesdpt <<",  nsub: " <<  sd_jet.pieces().size() << endl;
+      
+      if (  sd_jet.pieces().size() >=2 ) {   
+	vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
+	if ( leaveLog)    cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
+	if ( leaveLog)    cout << " Subjet1: nConst, pt, eta, phi = [" <<  subJets[1].constituents().size() << ",   " <<subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
+	subJets.clear();
+      }
+      //	    cout << "SoftDropped jet: " << sd_jet << endl;
+      //	    cout << "  delta_R between subjets: " << sd_jet.delta_R() << endl;
+      //	    cout << "  symmetry measure(z):     " << sd_jet.z() << endl;
+      //	    cout << "  mass drop(mu):           " << sd_jet.mu() << endl;
+      
+    }  
+    vpt_reco.push_back(jet_pt);
+    vptRaw_reco.push_back(jet_ptRaw);
+    veta_reco.push_back(jet_eta);
+    vphi_reco.push_back(jet_phi);
+    vptRc_reco.push_back(thePtrc);
+    vNrc_reco.push_back(theNrc);
+    vSdmass_reco.push_back(thesdm);
+    vSdpt_reco.push_back(thesdpt);
+    
+    jetsRe.clear();
+    nonZeroConsts.clear();
+    //	  toBeSubtracted.clear(); 
+  }
+  // sfsg
+  
+  //**Get Truth jets ***
+  double event_weight = 1;
+  double max_pt = 0;
+  bool useReAntiKt = true; 
+  
+  if (_isMC){
+    if ( !useReAntiKt )  {
+      cout << " Don't use useReAntiKt=0 option yet.." << endl;
+      /*    const xAOD::JetContainer* truth_jets = 0;
+	    ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
+	    
+	    xAOD::JetContainer::const_iterator truth_jet_itr = truth_jets->begin();
+	    xAOD::JetContainer::const_iterator truth_jet_end = truth_jets->end();
+	    
+	    for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr ) {
+	    xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
+	    double pt     = (jet_truth_4mom.pt() * 0.001 );
+	    double eta    = (jet_truth_4mom.eta());
+	    double phi    = (jet_truth_4mom.phi());
+	    if (pt > max_pt)  { 
+	    event_weight = jetcorr->GetJetWeight(pt, eta, phi);
+	    max_pt = pt;
+	    //			    if (_isMC && isHIJING) event_weight = 1;
+	    }
+	    if (pt < _truthpTjetCut) continue;
+      */ 
+    }
+    else {  // if useReAntiKt
 	    ////////// On-the-fly jet finder ///////////////////////////////////////////////
-	    std::vector<fastjet::PseudoJet> inputConst;
-	    const xAOD::TruthParticleContainer * particles = 0;
-	    ANA_CHECK(event->retrieve( particles, "TruthParticles"));
-	    xAOD::TruthParticleContainer::const_iterator truth_itr = particles->begin();
-	    xAOD::TruthParticleContainer::const_iterator truth_end = particles->end();
-	    for( ; truth_itr!=truth_end; ++truth_itr){
-	      int ty=TrackHelperTools::getTypeTruth((*truth_itr)->barcode(),(*truth_itr)->pdgId(),(*truth_itr)->status());
-	      if(ty!=1 && ty!=5) continue;
-	      inputConst.push_back( (*truth_itr)->p4() );
-	    }
-	    
-	    fastjet::JetAlgorithm algo = fastjet::antikt_algorithm;
-	    fastjet::JetDefinition jetDef(algo, _ReclusterRadius);
-	    fastjet::ClusterSequence cs(inputConst, jetDef);
-	    vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
-	    // Now, new genJet is ready!
-	    
-	    //////////////// event weight /////////////////////////////////////
-	    max_pt = 0;
-	    for (unsigned i = 0; i < jets.size(); i++) {
-	      double jet_pt = jets[i].pt()*0.001;
-	      double jet_eta = jets[i].eta();
-	      double jet_phi = jets[i].phi();
-	      if (jet_pt > max_pt) {
-		max_pt = jet_pt;
-		event_weight = jetcorr->GetJetWeight( max_pt, jet_eta, jet_phi);
+      std::vector<fastjet::PseudoJet> inputConst;
+      const xAOD::TruthParticleContainer * particles = 0;
+      ANA_CHECK(event->retrieve( particles, "TruthParticles"));
+      xAOD::TruthParticleContainer::const_iterator truth_itr = particles->begin();
+      xAOD::TruthParticleContainer::const_iterator truth_end = particles->end();
+      for( ; truth_itr!=truth_end; ++truth_itr){
+	int ty=TrackHelperTools::getTypeTruth((*truth_itr)->barcode(),(*truth_itr)->pdgId(),(*truth_itr)->status());
+	if(ty!=1 && ty!=5) continue;
+	inputConst.push_back( (*truth_itr)->p4() );
+      }
+      
+      fastjet::JetAlgorithm algo = fastjet::antikt_algorithm;
+      fastjet::JetDefinition jetDef(algo, _ReclusterRadius);
+      fastjet::ClusterSequence cs(inputConst, jetDef);
+      vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
+      // Now, new genJet is ready!
+      
+      //////////////// event weight /////////////////////////////////////
+      max_pt = 0;
+      for (unsigned i = 0; i < jets.size(); i++) {
+	double jet_pt = jets[i].pt()*0.001;
+	double jet_eta = jets[i].eta();
+	double jet_phi = jets[i].phi();
+	if (jet_phi> TMath::Pi()) jet_phi = jet_phi - 2*TMath::Pi();
+
+	if (jet_pt > max_pt) {
+	  max_pt = jet_pt;
+	  event_weight = jetcorr->GetJetWeight( max_pt, jet_eta, jet_phi);
+	}
+      }
+      event_weight = event_weight*event_weight_fcal; //event weight is only set if MC.
+      //////////////////////////////////////////////////////////////////
+      
+      for (unsigned i = 0; i < jets.size(); i++) {
+	double jet_pt = jets[i].pt()*0.001;
+	if (jet_pt < _truthpTjetCut) continue;
+	
+	double jet_eta = jets[i].pseudorapidity();   // Yongsun checked that eta() and pseudorapidity() are same in fastjet 
+	double jet_phi = jets[i].phi();
+	if (jet_phi> TMath::Pi()) jet_phi = jet_phi - 2*TMath::Pi();
+	
+	// recluster by A/C
+	vector<fastjet::PseudoJet > constiRe = jets[i].constituents();
+	fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
+	fastjet::ClusterSequence csRe(constiRe, jetDefRe);
+	vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets()); // return a vector of jets sorted into decreasing energy
+	
+	fastjet::contrib::SoftDrop softdropper(beta, z_cut);
+	int theNrc = 0;
+	double thesdpt = 0 ;
+	double thesdm = 0;
+	double thePtrc = 0;
+
+	if ( jetsRe.size() > 0 )   {
+	  theNrc = jetsRe.size();
+	  thePtrc = jetsRe[0].pt() * 0.001;
+	  fastjet::PseudoJet sd_jet = softdropper(jetsRe[0]);
+	  thesdpt = sd_jet.pt() * 0.001;
+	  thesdm =  sd_jet.m() * 0.001;
+	  if ( leaveLog) { 
+	    cout << "GEN JET softdrop:" << endl;
+	    cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << jets[i].pt()*0.001 << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
+	    cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl;
+	    cout << " consticuents lists (pt,eta,phi)" <<endl;
+	      vector<fastjet::PseudoJet> jetsRe0Const = jetsRe[0].constituents() ;
+	      for ( int ic = 0 ; ic< jetsRe0Const.size() ; ic++){ 
+		cout << " ( " << jetsRe0Const[ic].pt() *0.001 << ", " << jetsRe0Const[ic].eta() << ", "<< jetsRe0Const[ic].phi() << ") "<< endl;
 	      }
-	    }
-	    event_weight = event_weight*event_weight_fcal; //event weight is only set if MC.
-	    //////////////////////////////////////////////////////////////////
-
-	    for (unsigned i = 0; i < jets.size(); i++) {
-	      double jet_pt = jets[i].pt()*0.001;
-              if (jet_pt < _truthpTjetCut) continue;
-	      
-	      double jet_eta = jets[i].pseudorapidity();
-	      double jet_phi = jets[i].phi();
-	      if (jet_phi> TMath::Pi()) jet_phi = jet_phi - 2*TMath::Pi();
-
-	      // recluster by A/C
-	      vector<fastjet::PseudoJet > constiRe = jets[i].constituents();
-	      fastjet::JetDefinition jetDefRe(fastjet::cambridge_algorithm, _ReclusterRadius);
-	      fastjet::ClusterSequence csRe(constiRe, jetDefRe);
-              vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(csRe.inclusive_jets()); // return a vector of jets sorted into decreasing energy
-
-    	      fastjet::contrib::SoftDrop sd(beta, z_cut);
-	      int theNrc = 0;
-	      double thesdpt = 0 ;
-	      double thesdm = 0;
-	      double thePtrc = 0;
-	      if ( jetsRe.size() > 0 )   {
-		theNrc = jetsRe.size();
-		thePtrc = jetsRe[0].pt() * 0.001;
-		fastjet::PseudoJet sd_jet = sd(jetsRe[0]);
-		thesdpt = sd_jet.pt() * 0.001; 
-		thesdm =  sd_jet.m() * 0.001;
-	      }  
-	      vpt_gen.push_back(jet_pt);
-	      veta_gen.push_back(jet_eta);
-	      vphi_gen.push_back(jet_phi);
-	      vptRc_gen.push_back(thePtrc);
-	      vNrc_gen.push_back(theNrc);
-	      vSdmass_gen.push_back(thesdm);
-	      vSdpt_gen.push_back(thesdpt);
-	      
-	      inputConst.clear();
-	      jetsRe.clear();
-	    }
+	      jetsRe0Const.clear();
 	  }
-	}
-       
-
-	// back to reco loop 
-	for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) { 
-	  
-	  int matchId = -1;
-	  double drMin = 0.2;    // dR cut
-	  for (int gi = 0; gi<vpt_gen.size() ; gi++) { 
-	    double dr_itr = DeltaR(vphi_reco[ri], veta_reco[ri], vphi_gen[gi], veta_gen[gi]);
-	    //	    cout <<"dR_itr = " << dr_itr << endl;
-	    if ( dr_itr < drMin ) { 
-	      matchId = gi;  
-	      drMin = dr_itr;
-	      //	      cout <<"found! dRmin = " << drMin << endl;
-	    }
+	  if (  sd_jet.pieces().size() >=2 ) {
+	    vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
+	    vector<fastjet::PseudoJet> constSub0 =  subJets[0].constituents() ; 
+	    vector<fastjet::PseudoJet> constSub1 =  subJets[1].constituents() ; 
+	    if ( leaveLog)   {
+	      cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
+	      cout << "       constituents lists (pt,eta,phi)" <<endl;
+	      for ( int ic = 0 ; ic< constSub0.size() ; ic++){
+		if ( leaveLog) 	      cout << "      ( " << constSub0[ic].pt() *0.001 << ", " << constSub0[ic].eta() << ", "<< constSub0[ic].phi() << ") " << endl;
+	      }
+	      cout << endl;
+	      cout << " Subjet1: nConst, pt, eta, phi = [" <<  subJets[1].constituents().size() << ",   " <<subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
+	      cout << "       constituents lists (pt,eta,phi)" <<endl;
+	      for ( int ic = 0 ; ic< constSub1.size() ; ic++){
+		if ( leaveLog) 	      cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
+	      }
+	    }	      
+	    subJets.clear();
+	    constSub0.clear();
+	    constSub1.clear();
 	  }
-	  
-	  resetSubstr(myJetSub);
-	  //	  cout << " myJetsub is reset" << endl;
-	  //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
-	  myJetSub.cent = cent_bin; 
-	  myJetSub.recoPt = vpt_reco[ri];
-	  myJetSub.recoRawPt = vptRaw_reco[ri];
-	  myJetSub.recoEta = veta_reco[ri];
-	  myJetSub.recoRcPt = vptRc_reco[ri];
-	  myJetSub.recoNrc = vNrc_reco[ri];
-	  myJetSub.nTow = vNtow_reco[ri];
-	  myJetSub.nTowPos = vNtowp_reco[ri];
-	  myJetSub.weight = event_weight;
-	  myJetSub.recoSdPt = vSdpt_reco[ri];
-	  myJetSub.recoSdmass = vSdmass_reco[ri];
-
-	  if (matchId != -1) {
-	    myJetSub.matchDr = drMin;
-	    myJetSub.genPt = vpt_gen[matchId];
-	    myJetSub.genEta = veta_gen[matchId];
-	    myJetSub.genRcPt = vptRc_gen[matchId];
-	    myJetSub.genSdmass = vSdmass_gen[matchId];
-	    myJetSub.genSdPt = vSdpt_gen[matchId];
-	    myJetSub.genNrc   =  vNrc_gen[matchId];
-	  }
-	  
-	  treeOut->Fill();
-	}
+	}  
+	vpt_gen.push_back(jet_pt);
+	veta_gen.push_back(jet_eta);
+	vphi_gen.push_back(jet_phi);
+	vptRc_gen.push_back(thePtrc);
+	vNrc_gen.push_back(theNrc);
+	vSdmass_gen.push_back(thesdm);
+	vSdpt_gen.push_back(thesdpt);
 	
+	jetsRe.clear();
+      }
+      inputConst.clear();
+    }
+  }
+  
+  
+  // back to reco loop 
+  for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) { 
+    
+    int matchId = -1;
+    double drMin = 0.2;    // dR cut
+    for (int gi = 0; gi<vpt_gen.size() ; gi++) { 
+      double dr_itr = DeltaR(vphi_reco[ri], veta_reco[ri], vphi_gen[gi], veta_gen[gi]);
+      //	    cout <<"dR_itr = " << dr_itr << endl;
+      if ( dr_itr < drMin ) { 
+	matchId = gi;  
+	drMin = dr_itr;
+	//	      cout <<"found! dRmin = " << drMin << endl;
+      }
+    }
+    
+    resetSubstr(myJetSub);
+    //	  cout << " myJetsub is reset" << endl;
+    //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
+    myJetSub.cent = cent_bin; 
+    myJetSub.recoPt = vpt_reco[ri];
+    myJetSub.recoRawPt = vptRaw_reco[ri];
+    myJetSub.recoEta = veta_reco[ri];
+    myJetSub.recoRcPt = vptRc_reco[ri];
+    myJetSub.recoNrc = vNrc_reco[ri];
+    myJetSub.weight = event_weight;
+    myJetSub.recoSdPt = vSdpt_reco[ri];
+    myJetSub.recoSdmass = vSdmass_reco[ri];
+    
+    if (matchId != -1) {
+      myJetSub.matchDr = drMin;
+      myJetSub.genPt = vpt_gen[matchId];
+      myJetSub.genEta = veta_gen[matchId];
+      myJetSub.genRcPt = vptRc_gen[matchId];
+      myJetSub.genSdmass = vSdmass_gen[matchId];
+      myJetSub.genSdPt = vSdpt_gen[matchId];
+      myJetSub.genNrc   =  vNrc_gen[matchId];
+    }
+    
+    treeOut->Fill();
+  }
+  
+  
 	
-	
-
-	
-	
-	// Clear vectors
-	store->clear();
-	delete store;
-	
-	vpt_reco.clear();
-	vptRaw_reco.clear();
-	veta_reco.clear();
-	vphi_reco.clear();
-	vptRc_reco.clear();
-	vSdmass_reco.clear();
-	vNrc_reco.clear();
-	vNtow_reco.clear();
-	vNtowp_reco.clear();
-	vSdpt_reco.clear();
-
-	vpt_gen.clear();
-	veta_gen.clear();
-	vphi_gen.clear();
-	vptRc_gen.clear();
-	vSdmass_gen.clear();
-	vSdpt_gen.clear();
-	vNrc_gen.clear();	
-
-	return EL::StatusCode::SUCCESS;
+  
+  
+  
+  // Clear vectors
+  store->clear();
+  delete store;
+  
+  vpt_reco.clear();
+  vptRaw_reco.clear();
+  veta_reco.clear();
+  vphi_reco.clear();
+  vptRc_reco.clear();
+  vSdmass_reco.clear();
+  vNrc_reco.clear();
+  vSdpt_reco.clear();
+  
+  vpt_gen.clear();
+  veta_gen.clear();
+  vphi_gen.clear();
+  vptRc_gen.clear();
+  vSdmass_gen.clear();
+  vSdpt_gen.clear();
+  vNrc_gen.clear();	
+  
+  return EL::StatusCode::SUCCESS;
 }
 
 
