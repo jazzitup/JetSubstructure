@@ -478,7 +478,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	if ( leaveLog)          cout <<" Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
       }
     }
-      
+   
     vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
     
     cout <<endl << endl;
@@ -503,7 +503,7 @@ EL::StatusCode JetSubstructure :: execute ()
       
       if ( leaveLog) { 
 	cout << "RECO JET softdrop:" << endl;
-	cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << (*itCnst)->Pt() *0.001 << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
+	cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << jet_ptRaw  << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
 	cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl;
 	cout << " consticuents lists (pt,eta,phi)" <<endl;
 	vector<fastjet::PseudoJet> jetsRe0Const = jetsRe[0].constituents() ;
@@ -519,19 +519,19 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector<fastjet::PseudoJet> constSub0 =  subJets[0].constituents() ;
 	vector<fastjet::PseudoJet> constSub1 =  subJets[1].constituents() ;
 	thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
-	thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() );
+	thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() ) / ( subJets[0].pt() +  subJets[1].pt() ) ;
 	
 	if ( leaveLog)   {
 	  cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
 	  cout << "       constituents lists (pt,eta,phi)" <<endl;
 	  for ( int ic = 0 ; ic< constSub0.size() ; ic++){
-	    if ( leaveLog)        cout << "      ( " << constSub0[ic].pt() *0.001 << ", " << constSub0[ic].eta() << ", "<< constSub0[ic].phi() << ") " << endl;
+	    cout << "      ( " << constSub0[ic].pt() *0.001 << ", " << constSub0[ic].eta() << ", "<< constSub0[ic].phi() << ") " << endl;
 	  }
 	  cout << endl;
 	  cout << " Subjet1: nConst, pt, eta, phi = [" <<  subJets[1].constituents().size() << ",   " <<subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
 	  cout << "       constituents lists (pt,eta,phi)" <<endl;
 	  for ( int ic = 0 ; ic< constSub1.size() ; ic++){
-	    if ( leaveLog)        cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
+	    cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
 	  }
 	}
 	subJets.clear();
@@ -663,19 +663,19 @@ EL::StatusCode JetSubstructure :: execute ()
 	    vector<fastjet::PseudoJet> constSub0 =  subJets[0].constituents() ; 
 	    vector<fastjet::PseudoJet> constSub1 =  subJets[1].constituents() ; 
 	    thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
-	    thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() );
+	    thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() ) / ( subJets[0].pt() +  subJets[1].pt() ) ;
 
 	    if ( leaveLog)   {
 	      cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
 	      cout << "       constituents lists (pt,eta,phi)" <<endl;
 	      for ( int ic = 0 ; ic< constSub0.size() ; ic++){
-		if ( leaveLog) 	      cout << "      ( " << constSub0[ic].pt() *0.001 << ", " << constSub0[ic].eta() << ", "<< constSub0[ic].phi() << ") " << endl;
+		cout << "      ( " << constSub0[ic].pt() *0.001 << ", " << constSub0[ic].eta() << ", "<< constSub0[ic].phi() << ") " << endl;
 	      }
 	      cout << endl;
 	      cout << " Subjet1: nConst, pt, eta, phi = [" <<  subJets[1].constituents().size() << ",   " <<subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
 	      cout << "       constituents lists (pt,eta,phi)" <<endl;
 	      for ( int ic = 0 ; ic< constSub1.size() ; ic++){
-		if ( leaveLog) 	      cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
+		cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
 	      }
 	    }
 	    subJets.clear();
