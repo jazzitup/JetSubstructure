@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
 	bool applyReweighting;
 	bool  ReclusterCA;
 	float ReclusterRadius;
+	bool saveLog;
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
 	boost::program_options::options_description cmd_only_options("command line only options");
@@ -91,6 +92,7 @@ int main(int argc, char *argv[])
 	("isHerwig",boost::program_options::value<int>(&isHerwig)->default_value(0),"Pythia or Herwig")
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
+	("saveLog",boost::program_options::value<bool>(&saveLog)->default_value(false),"Save the log?")
 	("isGridJob",boost::program_options::value<bool>(&isGridJob)->default_value(0),"is it grid job?")
 	("isCondor",boost::program_options::value<bool>(&isCondor)->default_value(0),"is it running on condor?")
 	("ReclusterCA",boost::program_options::value<bool>(&ReclusterCA)->default_value(0),"Do Cambridge Aachen?")
@@ -110,6 +112,7 @@ int main(int argc, char *argv[])
 	("reco_iso",boost::program_options::value<bool>(&reco_iso)->default_value(0),"Isolating reco jets?")
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
+	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(0.5),"Track pT cut")
 	  ;
 
 //	if (!jet_performance_mode) doForward=false;
@@ -183,6 +186,7 @@ int main(int argc, char *argv[])
 	cout << "Do C/A reclustering?" << ReclusterCA << endl;
 	cout << "Reclustering radius: " << ReclusterRadius << endl;
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
+	cout << "track pT cut: " << pTtrkCut << endl;
 	if (truth_iso) {cout << "Isolating truth jets" << endl;}
 	if (reco_iso) {cout << "Isolating reco jets" << endl;}
 
@@ -255,7 +259,8 @@ int main(int argc, char *argv[])
 	alg->_reco_iso=reco_iso;
 	alg->_ReclusterCA=ReclusterCA;
 	alg->_ReclusterRadius=ReclusterRadius;
-	
+	alg->_saveLog = saveLog;
+	alg->_pTtrkCut = pTtrkCut;
 	//Initialzie trigger
 	alg->SetTrigger_chains();
 	job.algsAdd( alg );

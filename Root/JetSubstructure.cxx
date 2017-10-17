@@ -195,7 +195,6 @@ EL::StatusCode JetSubstructure :: initialize ()
 	ANA_CHECK(m_jetCalibration->setProperty("IsData",!_isMC));
 	ANA_CHECK(m_jetCalibration->initializeTool(name));
 		
-	cout << "" <<endl;
 	//Calibration tool
 	
 
@@ -247,10 +246,8 @@ EL::StatusCode JetSubstructure :: execute ()
       double power=std::floor(log10(m_eventCounter));
       statSize=(int)std::pow(10.,power);
     }
-  bool leaveLog = false;
-  if (m_eventCounter%statSize==0)  leaveLog = true; 
 
-  if (leaveLog) std::cout << "Event: " << m_eventCounter << std::endl;
+  if (m_eventCounter%statSize==0)  std::cout << "Event: " << m_eventCounter << std::endl;
   
   
   m_eventCounter++;
@@ -426,14 +423,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	double posPt = - (*itCnst)->pt() ;
 	double posNorm = posPt * cosh(theEta);    // p = pT * cosh(
 
-	//	if ( leaveLog)	    {  
-	if ( 1==0 ) {
-	  cout << "norm = " << ghostE << " =? " << sqrt( gpx*gpx + gpy*gpy + gpz*gpz) << endl;
-	  cout << "    xyz = " << gpx  <<", " << gpy  <<", " << gpz  <<", " << endl;
-	  cout << " posPt, posNorm = " << posPt <<", "<<posNorm<<endl;
-	  cout << "toBeSubNorm = " << posNorm << endl;
-	  cout << "    xyz = " << gpx*posNorm/ghostE  <<", " << gpy*posNorm/ghostE  <<", " << gpz*posNorm/ghostE  <<", " << endl;
-	}
 	
 	nonZeroConsts.push_back( fastjet::PseudoJet ( gpx,gpy,gpz,ghostE )  );
 	toBeSubtracted.push_back ( fastjet::PseudoJet ( gpx*posNorm/ghostE, gpy*posNorm/ghostE, gpz*posNorm/ghostE, posNorm) );
@@ -441,7 +430,6 @@ EL::StatusCode JetSubstructure :: execute ()
 
       }
     }
-    cout << endl;
     // recluster by A/C
 
     
@@ -452,7 +440,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
     if ( cambridgeJet.size() > 0 ) {
       for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
-	if ( leaveLog)	cout << endl << endl << ij<<"th jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
+	if ( _saveLog)	cout << endl << endl << ij<<"th jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
 	double subPx = cambridgeJet[ij].px() ; 
 	double subPy = cambridgeJet[ij].py() ; 
 	double subPz = cambridgeJet[ij].pz() ; 
@@ -474,19 +462,18 @@ EL::StatusCode JetSubstructure :: execute ()
 	  }
 	}
 	cambridgeJet[ij].reset_momentum( subPx, subPy, subPz, subE ) ;
-	if ( leaveLog)  	cout <<"  new jet pT, eta, phi: " << cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()  << endl;
-	if ( leaveLog)          cout <<" Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
+	if ( _saveLog)  	cout <<"  new jet pT, eta, phi: " << cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()  << endl;
+	if ( _saveLog)          cout <<" Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
       }
     }
    
     vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
     
-    cout <<endl << endl;
     
     // Yongsun:  http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetSoftDrop.cxx line 67.
     
     fastjet::contrib::SoftDrop softdropper(beta, z_cut);
-    cout << "SoftDrop groomer is: " << softdropper.description() << endl;
+    if ( _saveLog)     cout << "SoftDrop groomer is: " << softdropper.description() << endl;
     
     int theNrc = 0;
     double thePtrc = 0;
@@ -501,7 +488,7 @@ EL::StatusCode JetSubstructure :: execute ()
       thesdpt = sd_jet.pt() * 0.001; 
       thesdm =  sd_jet.m() * 0.001; 
       
-      if ( leaveLog) { 
+      if ( _saveLog) { 
 	cout << "RECO JET softdrop:" << endl;
 	cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << jet_ptRaw  << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
 	cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl;
@@ -521,7 +508,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
 	thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() ) / ( subJets[0].pt() +  subJets[1].pt() ) ;
 	
-	if ( leaveLog)   {
+	if ( _saveLog)   {
 	  cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
 	  cout << "       constituents lists (pt,eta,phi)" <<endl;
 	  for ( int ic = 0 ; ic< constSub0.size() ; ic++){
@@ -646,7 +633,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  fastjet::PseudoJet sd_jet = softdropper(jetsRe[0]);
 	  thesdpt = sd_jet.pt() * 0.001;
 	  thesdm =  sd_jet.m() * 0.001;
-	  if ( leaveLog) { 
+	  if ( _saveLog) { 
 	    cout << "GEN JET softdrop:" << endl;
 	    cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << jets[i].pt()*0.001 << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
 	    cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl;
@@ -665,7 +652,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	    thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
 	    thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() ) / ( subJets[0].pt() +  subJets[1].pt() ) ;
 
-	    if ( leaveLog)   {
+	    if ( _saveLog)   {
 	      cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
 	      cout << "       constituents lists (pt,eta,phi)" <<endl;
 	      for ( int ic = 0 ; ic< constSub0.size() ; ic++){

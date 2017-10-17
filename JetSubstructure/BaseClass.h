@@ -63,7 +63,8 @@ public:
 	bool _reco_iso; //
 	bool _ReclusterCA;
 	float _ReclusterRadius;
-
+	bool _saveLog;
+	bool _pTtrkCut;
 	//trigger
 	string _trigger_collection; //
 	vector <string> trigger_chains; //TODO
@@ -72,8 +73,8 @@ public:
 	int _nTriggers; //
 	bool _applyReweighting; //
 	bool _hasHI; //
-
-
+	
+	
 	bool event_isTriggered[10]; //!	//TODO
 	bool trigger[10]; //!	//TODO
 	int jet_isTriggered[10]; //! //TODO
