@@ -77,6 +77,10 @@ public:
 
 	TTree *treeOut; //!
 
+	TH2D* hGenPar; //!
+	TH2D* hGenParSd; //!
+	TH2D* hRecoPar; //!
+	TH2D* hRecoParSd; //!
 	
 	vector<TH3D*> h_reco_jet_cent; //!
 	vector<TH3D*> h_reco_jet_cent_matched; //!

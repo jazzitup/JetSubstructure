@@ -135,11 +135,23 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	//	jetTree = new TTree("tr2","jet branching tree");
 	//	jetTree->Branch("bran","");
 
+	hGenPar = new TH2D("hGenPar",";#Delta#eta;#Delta#phi",300,-1,1,300,-1,1) ;
+	hGenParSd = (TH2D*)hGenPar->Clone("hGenParSd");
+	hRecoPar = new TH2D("hRecoPar",";#Delta#eta;#Delta#phi",20,-1,1,20,-1,1) ;
+	hRecoParSd = (TH2D*)hRecoPar->Clone("hRecoParSd");
+
+	
+
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
 	wk()->addOutput (hET_ETsub);
 	wk()->addOutput (treeOut);
-
+	if ( _saveLog) {
+	  wk()->addOutput(hGenPar);
+	  wk()->addOutput(hGenParSd);
+	  wk()->addOutput(hRecoPar);
+	  wk()->addOutput(hRecoParSd);
+	}
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -345,6 +357,7 @@ EL::StatusCode JetSubstructure :: execute ()
   h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
   h_centrality->Fill(cent_bin,event_weight_fcal);
   
+  cout << "Centrality of this event = " << cent_bin << endl;
   vector <double> vpt_reco;
   vector <double> vptRaw_reco;  
   vector <double> veta_reco;
@@ -387,7 +400,9 @@ EL::StatusCode JetSubstructure :: execute ()
     double jet_phi = jet_4momCalib.phi();
     if (jet_phi> TMath::Pi()) jet_phi = jet_phi - 2*TMath::Pi();
     double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
+
     
+    if ( _saveLog)  cout << endl << endl << "RECO JET. (pt,eta,phi): " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl;
     if (jet_pt < _pTjetCut) continue;
     if ( fabs(jet_eta) > _etaJetCut ) continue;
 
@@ -400,8 +415,6 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
     vector<bool>  nFlag; // reverse the pT only and subtract
 
-    //    cout <<" Jet pT (raw pT), eta, phi, nConsts = " << jet_pt << " ("<<jet_ptRaw<<"), "  << jet_eta << ", " << jet_phi << ", " << constituents_tmp.size() << endl;
-    //	  cout <<" Constituent's pT: " << endl;
     double ghostE = 0.000001;
     for( ; itCnst != itCnst_E; ++itCnst ) {
       
@@ -411,7 +424,6 @@ EL::StatusCode JetSubstructure :: execute ()
       double thePhi = (*itCnst)->Phi() ; 
       if (thePhi> TMath::Pi()) thePhi = thePhi - 2*TMath::Pi();
       
-      //cout << " in JetConstituentVector, pt, eta, phi, e are : " << (*itCnst)->Pt() <<", " << (*itCnst)->eta() << ", " <<  (*itCnst)->phi()<< ", " <<  (*itCnst)->E() << endl;
       
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
       
@@ -444,7 +456,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
     if ( cambridgeJet.size() > 0 ) {
       for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
-	if ( _saveLog)	cout << endl << endl << ij<<"th jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
+	if ( _saveLog)	cout << endl << ij<<"th Cambridge jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
 	double subPx = cambridgeJet[ij].px() ; 
 	double subPy = cambridgeJet[ij].py() ; 
 	double subPz = cambridgeJet[ij].pz() ; 
@@ -466,11 +478,13 @@ EL::StatusCode JetSubstructure :: execute ()
 	  }
 	}
 	cambridgeJet[ij].reset_momentum( subPx, subPy, subPz, subE ) ;
-	if ( _saveLog)  	cout <<"  new jet pT, eta, phi: " << cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()  << endl;
-	if ( _saveLog)          cout <<" Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
+	if ( _saveLog)  {
+	  cout <<"  After Negative tower subtraction : " << cambridgeJet[ij].pt() *0.001  << " GeV " << endl;
+	  cout <<" Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
+	}
       }
     }
-   
+    
     vector<fastjet::PseudoJet> jetsRe = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
     
     
@@ -492,14 +506,16 @@ EL::StatusCode JetSubstructure :: execute ()
       thesdpt = sd_jet.pt() * 0.001; 
       thesdm =  sd_jet.m() * 0.001; 
       
-      if ( _saveLog && ( false)) { 
+      if ( _saveLog) { 
 	cout << "RECO JET softdrop:" << endl;
-	cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << jet_ptRaw  << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
+	cout << "[ pT of antikT (raw) -> Cambridge -> SoftDrop  =  " << jet_ptRaw  << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
 	cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl;
 	cout << " consticuents lists (pt,eta,phi)" <<endl;
 	vector<fastjet::PseudoJet> jetsRe0Const = jetsRe[0].constituents() ;
 	for ( int ic = 0 ; ic< jetsRe0Const.size() ; ic++){
-	  cout << " ( " << jetsRe0Const[ic].pt() *0.001 << ", " << jetsRe0Const[ic].eta() << ", "<< jetsRe0Const[ic].phi() << ") "<< endl;
+	  //	  cout << " ( " << jetsRe0Const[ic].pt() *0.001 << ", " << jetsRe0Const[ic].eta() << ", "<< jetsRe0Const[ic].phi() << ") "<< endl;
+	  if ( fabs( jet_pt - 440.424 ) < 0.010 ) // The event!
+	    hRecoPar->Fill( jetsRe0Const[ic].eta() - jet_eta, DeltaPhi(jetsRe0Const[ic].phi(), jet_phi) , jetsRe0Const[ic].pt() * 0.001);
 	}
 	jetsRe0Const.clear();
 	
@@ -509,21 +525,26 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
 	vector<fastjet::PseudoJet> constSub0 =  subJets[0].constituents() ;
 	vector<fastjet::PseudoJet> constSub1 =  subJets[1].constituents() ;
-	thesddr =  DeltaR( subJets[0].phi(), subJets[0].eta(), subJets[1].phi(), subJets[1].eta() ) ;
+	thesddr =  DeltaR( subJets[0].phi(), subJets[0].rapidity(), subJets[1].phi(), subJets[1].rapidity() ) ;
 	thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() ) / ( subJets[0].pt() +  subJets[1].pt() ) ;
-	
+	cout << "Reco DR of subjets: " << thesddr << endl;
+
 	if ( _saveLog)   {
 	  cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
 	  cout << "       constituents lists (pt,eta,phi)" <<endl;
 	  for ( int ic = 0 ; ic< constSub0.size() ; ic++){
 	    cout << "      ( " << constSub0[ic].pt() *0.001 << ", " << constSub0[ic].eta() << ", "<< constSub0[ic].phi() << ") " << endl;
+	    if ( fabs( jet_pt - 440.424 ) < 0.010 ) // The event!
+	      hRecoParSd->Fill( constSub0[ic].eta() - jet_eta, DeltaPhi(constSub0[ic].phi(), jet_phi ), constSub0[ic].pt() * 0.001);
 	  }
-	  cout << endl;
 	  cout << " Subjet1: nConst, pt, eta, phi = [" <<  subJets[1].constituents().size() << ",   " <<subJets[1].pt()*0.001 << ", "<< subJets[1].eta() << ", "<< subJets[1].phi() << "] "<< endl;
 	  cout << "       constituents lists (pt,eta,phi)" <<endl;
 	  for ( int ic = 0 ; ic< constSub1.size() ; ic++){
 	    cout << "      ( " << constSub1[ic].pt() *0.001<< ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ")" << endl;
+	    if ( fabs( jet_pt - 440.424 ) < 0.010 ) // The event!
+	      hRecoParSd->Fill( constSub1[ic].eta() - jet_eta, DeltaPhi(constSub1[ic].phi(), jet_phi) , constSub1[ic].pt() * 0.001);
 	  }
+	  
 	}
 	subJets.clear();
 	constSub0.clear();
@@ -675,7 +696,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  nGen[0] = 1; 
 	  indGen[0][0] = maxJetInd;
 	  
-	  cout << endl << "start of tree for jet pT = " << vJetsCA[maxJetInd].pt() << ": " <<endl;
+	  cout << endl << "start of tree for jet pT, eta, phi: " << vJetsCA[maxJetInd].pt() << ", "<< vJetsCA[maxJetInd].eta()<<", "<< vJetsCA[maxJetInd].phi()  <<endl;
 	  for ( int step = 0 ; step< nSteps ; step++) {
 	    cout << "step "<<step<< endl;
 	    for ( int ijet = 0 ; ijet< nGen[step] ; ijet++) {
@@ -687,11 +708,11 @@ EL::StatusCode JetSubstructure :: execute ()
 		continue;
 	      }
 	      float dij = vHistCA[ theIndex ].dij;
-	      cout << "par1, par2 indice = " << par1<<", "<<par2<<endl;
+	      //	      cout << "par1, par2 indice = " << par1<<", "<<par2<<endl;
 	      
-	      cout << "jet pt=" << vJetsCA[theIndex].pt() * 0.001 << " GeV,  dij=" << dij<<endl;
-	      cout << "parent 1: jet pt= " << vJetsCA[par1].pt() * 0.001<< " GeV " << endl;
-	      cout << "parent 2: jet pt= " << vJetsCA[par2].pt() * 0.001 << " GeV "<< endl;
+	      cout << "Child jet pt=" << vJetsCA[theIndex].pt() * 0.001 << " GeV,  dij=" << dij<<endl;
+	      cout << "Parent 1: jet pt= " << vJetsCA[par1].pt() * 0.001<< " GeV " << endl;
+	      cout << "Parent 2: jet pt= " << vJetsCA[par2].pt() * 0.001 << " GeV "<< endl;
 	      
 	      indGen[step+1][ nGen[step+1] ] = par1;
 	      indGen[step+1][ nGen[step+1] +1 ] = par2;
@@ -723,10 +744,15 @@ EL::StatusCode JetSubstructure :: execute ()
 	    cout << "GEN JET softdrop:" << endl;
 	    cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << jets[i].pt()*0.001 << " -> " << jetsRe[0].pt()*0.001 <<" -> "<< thesdpt <<"]  nsub: " <<  sd_jet.pieces().size() << endl;
 	    cout << "   ncon: " << jetsRe[0].constituents().size()  << "  softDrop constituents: "<< sd_jet.constituents().size() << endl;
-	    cout << " consticuents lists (pt, eta, phi)" <<endl;
+	    cout << " Full consticuents lists (pt, eta, phi)" <<endl;
 	      vector<fastjet::PseudoJet> jetsRe0Const = jetsRe[0].constituents() ;
 	      for ( int ic = 0 ; ic< jetsRe0Const.size() ; ic++){ 
 		cout << " ( " << jetsRe0Const[ic].pt() *0.001 << ", " << jetsRe0Const[ic].eta() << ", "<< jetsRe0Const[ic].phi() << ") "<< endl;
+		if ( fabs( jet_pt - 422.31 ) < 0.01 ) // The event!  
+		  {
+		    hGenPar->Fill( jetsRe0Const[ic].eta() - jet_eta, DeltaPhi(jetsRe0Const[ic].phi(),jet_phi), jetsRe0Const[ic].pt() * 0.001);
+		    cout <<" fill" <<endl;
+		  }
 	      }
 	      jetsRe0Const.clear();
 	  }
@@ -735,25 +761,26 @@ EL::StatusCode JetSubstructure :: execute ()
 	  fastjet::PseudoJet parent1, parent2;
 	  if (  sd_jet.has_parents(parent1, parent2) ) {
 	    cout << "sd_jet.pieces().size() : " << sd_jet.pieces().size() << endl; 
-	    cout << "======= parent subroutine ======" << endl;
-	    
-	    cout << "======= pieces subroutine =======" << endl;
 	    vector<fastjet::PseudoJet> constSub1 =  parent1.constituents() ; 
 	    vector<fastjet::PseudoJet> constSub2 =  parent2.constituents() ; 
-	    thesddr =  DeltaR( parent1.phi(), parent1.eta(), parent2.phi(), parent2.eta() ) ;
+	    thesddr =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	    thesdz  = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
+	    cout << "GEN DR of subjets: " << thesddr << endl;
 
 	    if ( _saveLog)   {
 	      cout << " Subjet0: nConst, pt, eta, phi = [" <<  parent1.constituents().size() << ",   " <<parent1.pt()*0.001 << ", "<< parent1.eta() << ", "<< parent1.phi() << "] "<< endl;
 	      cout << "       constituents lists (pt,eta,phi)" <<endl;
 	      for ( int ic = 0 ; ic< constSub1.size() ; ic++){
 		cout << "      ( " << constSub1[ic].pt() *0.001 << ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ") " << endl;
+		if ( fabs( jet_pt - 422.31 ) < 0.01 ) // The event!
+		  hGenParSd->Fill( constSub1[ic].eta() -jet_eta, DeltaPhi(constSub1[ic].phi(), jet_phi), constSub1[ic].pt() * 0.001);
 	      }
-	      cout << endl;
 	      cout << " Subjet1: nConst, pt, eta, phi = [" <<  parent2.constituents().size() << ",   " <<parent2.pt()*0.001 << ", "<< parent2.eta() << ", "<< parent2.phi() << "] "<< endl;
 	      cout << "       constituents lists (pt,eta,phi)" <<endl;
 	      for ( int ic = 0 ; ic< constSub2.size() ; ic++){
 		cout << "      ( " << constSub2[ic].pt() *0.001<< ", " << constSub2[ic].eta() << ", "<< constSub2[ic].phi() << ")" << endl;
+		if ( fabs( jet_pt - 422.31 ) < 0.01 ) // The event!
+		  hGenParSd->Fill( constSub2[ic].eta() - jet_eta, DeltaPhi(constSub2[ic].phi(), jet_phi), constSub2[ic].pt() * 0.001);
 	      }
 	    }
 	    constSub1.clear();
