@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	float dR_truth_matching;
 	int centrality_scheme;
 	int nFilesPerJob;
-	float pTtrkCut, pTjetCut, truthpTjetCut;
+	float pTtrkCut, pTjetCut, truthpTjetCut, etaJetCut;
 	std::string grid_configuration="";
 	string weight_file;
 	string centrality_weight;
@@ -105,6 +105,7 @@ int main(int argc, char *argv[])
 	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
 	("jet_radius",boost::program_options::value<int>(&jet_radius)->default_value(4),"Jet radius")
 	("centrality_scheme,s",boost::program_options::value<int>(&centrality_scheme)->default_value(1),"Centrality scheme")
+	("jet_eta_cut",boost::program_options::value<float>(&etaJetCut)->default_value(1.2),"Jet eta cut")
 	("jet_pT_cut",boost::program_options::value<float>(&pTjetCut)->default_value(10.),"Jet pT cut")
 	("truth_jet_pT_cut",boost::program_options::value<float>(&truthpTjetCut)->default_value(10.),"Truth jet pT cut")
 	("pt_iso",boost::program_options::value<double>(&pt_iso)->default_value(-1),"Jet pT isolation requirement")
@@ -183,6 +184,7 @@ int main(int argc, char *argv[])
 	cout << "grl: " << grl << endl;
 	cout << "Centrality scheme: "<< centrality_scheme << endl;
 	cout << "jet pt cut: "<< pTjetCut << endl;
+	cout << "jet |eta| cut: "<< etaJetCut << endl;
 	cout << "Do C/A reclustering?" << ReclusterCA << endl;
 	cout << "Reclustering radius: " << ReclusterRadius << endl;
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
@@ -251,6 +253,7 @@ int main(int argc, char *argv[])
 	alg->_isMB = isMB;
 	alg->_isHerwig = isHerwig;
 	alg->_dR_truth_matching = dR_truth_matching;
+	alg->_etaJetCut=etaJetCut;
 	alg->_pTjetCut=pTjetCut;
 	alg->_truthpTjetCut=truthpTjetCut;
 	alg->_pt_iso=pt_iso;
