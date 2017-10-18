@@ -40,6 +40,7 @@ BaseClass :: BaseClass (const BaseClass& base)  {
 	_centrality_scheme=base._centrality_scheme;
 	_dR_truth_matching = base._dR_truth_matching;
 	_outputName=base._outputName;
+	_etaJetCut=base._etaJetCut;
 	_pTjetCut=base._pTjetCut;
 	_truthpTjetCut=base._truthpTjetCut;
 	_pt_iso=base._pt_iso;

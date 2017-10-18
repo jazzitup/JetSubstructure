@@ -55,6 +55,7 @@ public:
 	string _cut_level; //
 	int _centrality_scheme; //
 	float _dR_truth_matching; //
+	float _etaJetCut; //
 	float _pTjetCut; //
 	float _truthpTjetCut; //
 	std::string _outputName; //
