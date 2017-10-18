@@ -725,7 +725,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
 	
 	// Charged SoftDrop
-	
+	// First find the charged particle SD
+
 	fastjet::contrib::SoftDrop softdropper(beta, z_cut);
 	int theNrc = 0;
 	double thesdpt = 0 ;
