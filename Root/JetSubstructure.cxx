@@ -723,8 +723,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	  vJetsCA.clear();
 	  vHistCA.clear();
 	}
-
 	
+	// Charged SoftDrop
 	
 	fastjet::contrib::SoftDrop softdropper(beta, z_cut);
 	int theNrc = 0;
