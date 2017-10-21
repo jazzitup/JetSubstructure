@@ -30,6 +30,9 @@
 #undef private
 #include "xAODHIEvent/HIEventShapeContainer.h"
 
+#include "InDetTrackSelectionTool/InDetTrackSelectionTool.h"
+
+
 #include "JetSubstructure/JetHelperTools.h"
 #include "JetSubstructure/GlobalHelper.h"
 #include <iostream>

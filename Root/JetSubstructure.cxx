@@ -34,13 +34,17 @@ using namespace JetHelperTools;
 
 struct jetSubStr {
   Int_t cent;
-  float recoPt, recoRawPt, recoEta, recoRcPt, recoSdPt, recoSdmass, recoNrc, recoSdz, recoSddr;
-  float genPt,  genEta, genRcPt,  genSdPt, genSdmass, genNrc, matchDr, genSdz, genSddr;
   float weight;
+  float recoPt, recoRawPt, recoEta, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoChTheta, recoChMass, recoChz;
+  float genPt,  genEta, genRcPt,  genSdPt, genSdMass, matchDr, genSdz, genSdtheta, genChTheta, genChMass, genChZ;
 };
 jetSubStr myJetSub;
-TString myJetSubText = "cent/I:pt/F:rawPt:eta:rcpt:sdpt:sdmass:nrc:z:dis:genpt:geneta:genrcpt:gensdpt:gensdmass:gennrc:dr:genz:gendis:weight";
 
+TString evtText = "cent/I:weight/F:";
+TString recoText = "pt:rawPt:eta:rcPt:sdPt:sdMass:z:theta:chTheta:chMass:chZ:";
+TString genText = "genPt:genEta:genRcPt:genSdPt:gensSdMass:dr:genZ:genSdtheta:genChTheta:genChMass:genChZ";
+
+TString myJetSubText = evtText+recoText+genText;
 
 // this is needed to distribute the algorithm to the workers
 ClassImp(JetSubstructure)
@@ -54,21 +58,19 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.recoEta=-1;
   jetsub.recoRcPt=-1;
   jetsub.recoSdPt=-1;
-  jetsub.recoSdmass=-1;
-  jetsub.recoNrc=0;
-  jetsub.recoSdz = 100;
-  jetsub.recoSddr = 100;
+  jetsub.recoSdMass=-1;
+  jetsub.recoSdZ = 100;
+  jetsub.recoSdTheta = 100;
 
   jetsub.genPt=-1;
   jetsub.genEta=-1;
   jetsub.genRcPt=-1;
   jetsub.genSdPt=-1;
-  jetsub.genSdmass=-1;
-  jetsub.genNrc=0;
+  jetsub.genSdMass=-1;
   jetsub.matchDr=-1;
   jetsub.weight = 1;
   jetsub.genSdz = 100;
-  jetsub.genSddr = 100;
+  jetsub.genSdtheta = 100;
 
 }
 
@@ -367,7 +369,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <double> vSdpt_reco;
   vector <int> vNrc_reco;
   vector <float> vSdz_reco;
-  vector <float> vSddr_reco;
+  vector <float> vSdtheta_reco;
   
   vector <double> vpt_gen;
   vector <double> veta_gen;
@@ -377,7 +379,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <double> vSdpt_gen;
   vector <int> vNrc_gen;
   vector <float> vSdz_gen;
-  vector <float> vSddr_gen;
+  vector <float> vSdtheta_gen;
 	
   /////////////   Reco jets /////////////////////////////////////////
   
@@ -497,7 +499,7 @@ EL::StatusCode JetSubstructure :: execute ()
     double thePtrc = 0;
     double thesdpt = 0 ;
     double thesdm = 0;
-    float thesddr = 100;
+    float thesdtheta = 100;
     float thesdz = -1;
     if ( jetsRe.size() > 0 )   {
       theNrc = jetsRe.size();
@@ -525,9 +527,9 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector<fastjet::PseudoJet> subJets = sd_jet.pieces();
 	vector<fastjet::PseudoJet> constSub0 =  subJets[0].constituents() ;
 	vector<fastjet::PseudoJet> constSub1 =  subJets[1].constituents() ;
-	thesddr =  DeltaR( subJets[0].phi(), subJets[0].rapidity(), subJets[1].phi(), subJets[1].rapidity() ) ;
+	thesdtheta =  DeltaR( subJets[0].phi(), subJets[0].rapidity(), subJets[1].phi(), subJets[1].rapidity() ) ;
 	thesdz  = std::min( subJets[0].pt(),  subJets[1].pt() ) / ( subJets[0].pt() +  subJets[1].pt() ) ;
-	cout << "Reco DR of subjets: " << thesddr << endl;
+	cout << "Reco DR of subjets: " << thesdtheta << endl;
 
 	if ( _saveLog)   {
 	  cout << " Subjet0: nConst, pt, eta, phi = [" <<  subJets[0].constituents().size() << ",   " <<subJets[0].pt()*0.001 << ", "<< subJets[0].eta() << ", "<< subJets[0].phi() << "] "<< endl;
@@ -560,7 +562,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vSdmass_reco.push_back(thesdm);
     vSdpt_reco.push_back(thesdpt);
     vSdz_reco.push_back(thesdz);
-    vSddr_reco.push_back(thesddr);
+    vSdtheta_reco.push_back(thesdtheta);
     
     jetsRe.clear();
     nonZeroConsts.clear();
@@ -629,9 +631,9 @@ EL::StatusCode JetSubstructure :: execute ()
       xAOD::TruthParticleContainer::const_iterator truth_itr = particles->begin();
       xAOD::TruthParticleContainer::const_iterator truth_end = particles->end();
       for( ; truth_itr!=truth_end; ++truth_itr){
-	int ty=TrackHelperTools::getTypeTruth((*truth_itr)->barcode(),(*truth_itr)->pdgId(),(*truth_itr)->status());
-	if(ty!=1 && ty!=5) continue;
-	inputConst.push_back( (*truth_itr)->p4() );
+	if ( TrackHelperTools::isStableParticle((*truth_itr)->barcode(),(*truth_itr)->pdgId(),(*truth_itr)->status()) ) {
+	  inputConst.push_back( (*truth_itr)->p4() );
+	}
       }
       
       fastjet::JetAlgorithm algo = fastjet::antikt_algorithm;
@@ -732,7 +734,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	double thesdpt = 0 ;
 	double thesdm = 0;
 	double thePtrc = 0;
-	float thesddr = 100;
+	float thesdtheta = 100;
 	float thesdz = -1;
 
 	if ( jetsRe.size() > 0 )   {
@@ -764,9 +766,9 @@ EL::StatusCode JetSubstructure :: execute ()
 	    cout << "sd_jet.pieces().size() : " << sd_jet.pieces().size() << endl; 
 	    vector<fastjet::PseudoJet> constSub1 =  parent1.constituents() ; 
 	    vector<fastjet::PseudoJet> constSub2 =  parent2.constituents() ; 
-	    thesddr =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
+	    thesdtheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	    thesdz  = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
-	    cout << "GEN DR of subjets: " << thesddr << endl;
+	    cout << "GEN DR of subjets: " << thesdtheta << endl;
 
 	    if ( _saveLog)   {
 	      cout << " Subjet0: nConst, pt, eta, phi = [" <<  parent1.constituents().size() << ",   " <<parent1.pt()*0.001 << ", "<< parent1.eta() << ", "<< parent1.phi() << "] "<< endl;
@@ -797,7 +799,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	vSdmass_gen.push_back(thesdm);
 	vSdpt_gen.push_back(thesdpt);
 	vSdz_gen.push_back(thesdz);
-	vSddr_gen.push_back(thesddr);
+	vSdtheta_gen.push_back(thesdtheta);
 	
 	jetsRe.clear();
 	}
@@ -829,12 +831,11 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.recoRawPt = vptRaw_reco[ri];
     myJetSub.recoEta = veta_reco[ri];
     myJetSub.recoRcPt = vptRc_reco[ri];
-    myJetSub.recoNrc = vNrc_reco[ri];
     myJetSub.weight = event_weight;
     myJetSub.recoSdPt = vSdpt_reco[ri];
-    myJetSub.recoSdmass = vSdmass_reco[ri];
-    myJetSub.recoSddr = vSddr_reco[ri];
-    myJetSub.recoSdz = vSdz_reco[ri];
+    myJetSub.recoSdMass = vSdmass_reco[ri];
+    myJetSub.recoSdTheta = vSdtheta_reco[ri];
+    myJetSub.recoSdZ = vSdz_reco[ri];
 
     
     if (matchId != -1) {
@@ -842,10 +843,9 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.genPt = vpt_gen[matchId];
       myJetSub.genEta = veta_gen[matchId];
       myJetSub.genRcPt = vptRc_gen[matchId];
-      myJetSub.genSdmass = vSdmass_gen[matchId];
+      myJetSub.genSdMass = vSdmass_gen[matchId];
       myJetSub.genSdPt = vSdpt_gen[matchId];
-      myJetSub.genNrc   =  vNrc_gen[matchId];
-      myJetSub.genSddr = vSddr_gen[matchId];
+      myJetSub.genSdtheta = vSdtheta_gen[matchId];
       myJetSub.genSdz = vSdz_gen[matchId];
     }
     
@@ -867,9 +867,8 @@ EL::StatusCode JetSubstructure :: execute ()
   vphi_reco.clear();
   vptRc_reco.clear();
   vSdmass_reco.clear();
-  vNrc_reco.clear();
   vSdpt_reco.clear();
-  vSddr_reco.clear();
+  vSdtheta_reco.clear();
   vSdz_reco.clear();
 
   vpt_gen.clear();
@@ -878,8 +877,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vptRc_gen.clear();
   vSdmass_gen.clear();
   vSdpt_gen.clear();
-  vNrc_gen.clear();	
-  vSddr_gen.clear();
+  vSdtheta_gen.clear();
   vSdz_gen.clear();
   
   return EL::StatusCode::SUCCESS;
