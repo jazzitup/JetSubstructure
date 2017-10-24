@@ -73,14 +73,14 @@ public:
 	TH1D* hPtGenRaw; //!
 	TH1D* hPtGenWgt; //!
 
-	TH1D* hPtGenReCld; //!
 
 	TTree *treeOut; //!
 
-	TH2D* hGenPar; //!
-	TH2D* hGenParSd; //!
-	TH2D* hRecoPar; //!
-	TH2D* hRecoParSd; //!
+	TH2D* hGenNcam; //!
+	TH2D* hRecoNcam; //!
+
+	TH2D* hGenSdStat; //!
+	TH2D* hRecoSdStat; //!
 	
 	vector<TH3D*> h_reco_jet_cent; //!
 	vector<TH3D*> h_reco_jet_cent_matched; //!

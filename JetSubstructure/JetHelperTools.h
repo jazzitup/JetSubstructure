@@ -15,6 +15,7 @@ namespace JetHelperTools
   enum SortType{ SortByPt=0, SortByEt, SortByEta, SortByAbsEta};
 
   double DeltaPhi(double phi1, double phi2);
+  double PhiInPI(double phi);
   double DeltaEta(double eta1, double eta2);
   double DeltaR(double phi1, double eta1, double phi2, double eta2);
   double DeltaPsi(double phi, double psi);

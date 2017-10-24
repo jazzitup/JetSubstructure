@@ -14,21 +14,6 @@ return EL::StatusCode::FAILURE;			\
 
 using namespace std;
 
-bool TrackHelperTools::isStableParticle(int barcode, int pdg, int status)
-{
-  if (0<barcode && barcode<200000)   {
-    
-    if(fabs(pdg)==3112 || fabs(pdg)==3222 || fabs(pdg)==3312 || fabs(pdg)==3334) 
-      return true; 
-    if(status==1) 
-      return true;
-  }
-  
-  return false;
-  
-}
-
-
 int TrackHelperTools::getTypeTruth(int barcode, int pdg, int status, float charge)
 {
 	// https://twiki.cern.ch/twiki/bin/viewauth/AtlasProtected/TrackingCPMoriond2016#Truth_definitions

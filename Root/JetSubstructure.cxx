@@ -35,16 +35,20 @@ using namespace JetHelperTools;
 struct jetSubStr {
   Int_t cent;
   float weight;
-  float recoPt, recoRawPt, recoEta, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoChTheta, recoChMass, recoChz;
-  float genPt,  genEta, genRcPt,  genSdPt, genSdMass, matchDr, genSdz, genSdtheta, genChTheta, genChMass, genChZ;
+  float recoPt, recoRawPt, recoEta, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta;
+  float reChSdPt, reChSdMass, reChSdZ, reChSdTheta;
+  float matchDr, genPt,  genEta, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta;
+  float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
 };
 jetSubStr myJetSub;
 
 TString evtText = "cent/I:weight/F:";
-TString recoText = "pt:rawPt:eta:rcPt:sdPt:sdMass:z:theta:chTheta:chMass:chZ:";
-TString genText = "genPt:genEta:genRcPt:genSdPt:gensSdMass:dr:genZ:genSdtheta:genChTheta:genChMass:genChZ";
+TString recoText = "pt:rawPt:eta:rcPt:sdPt:sdMass:zg:theta:";
+TString reChText = "chSdPt:chSdMass:chZg:chTheta:";
+TString genText = "dr:genPt:genEta:genRcPt:genSdPt:genSdMass:genSdZg:genSdtheta:";
+TString genChText = "genChSdPt:genChSdMass:genChSdZg:genChSdTheta";
 
-TString myJetSubText = evtText+recoText+genText;
+TString myJetSubText = evtText+recoText+reChText+genText+genChText;
 
 // this is needed to distribute the algorithm to the workers
 ClassImp(JetSubstructure)
@@ -129,7 +133,7 @@ void drawTreeHistory ( fastjet::ClusterSequence &clustSeq ) {
   nGen[0] = 1;
   indGen[0][0] = maxJetInd;
 
-  cout << endl << "~~~~Start of tree for jet pT, eta, phi: " << vJetsCA[maxJetInd].pt() << ", "<< vJetsCA[maxJetInd].eta()<<", "<< vJetsCA[maxJetInd].phi()  << "~~~~" << endl;
+  cout << endl << "~~~~Start of tree for jet pT, eta, phi: " << vJetsCA[maxJetInd].pt()*0.001 << ", "<< vJetsCA[maxJetInd].eta()<<", "<< vJetsCA[maxJetInd].phi()  << "~~~~" << endl;
   for ( int step = 0 ; step< nSteps ; step++) {
     cout << "  step "<<step << endl;
     for ( int ijet = 0 ; ijet< nGen[step] ; ijet++) {
@@ -163,12 +167,12 @@ void logSubJets( fastjet::PseudoJet &parent1, fastjet::PseudoJet &parent2 ) {
   vector<fastjet::PseudoJet> constSub1 =  parent1.constituents() ;
   vector<fastjet::PseudoJet> constSub2 =  parent2.constituents() ;
   cout << "DR of subjets: " << DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) << endl;
-  cout << " Subjet0: nConst, pt, eta, phi = [" <<  parent1.constituents().size() << ",   " <<parent1.pt()*0.001 << ", "<< parent1.eta() << ", "<< parent1.phi() << "] "<< endl;
+  cout << "   * Subjet0: nConst, pt, eta, phi = [" <<  parent1.constituents().size() << ",   " <<parent1.pt()*0.001 << ", "<< parent1.eta() << ", "<< parent1.phi() << "] "<< endl;
   cout << "       constituents lists (pt,eta,phi)" <<endl;
   for ( int ic = 0 ; ic< constSub1.size() ; ic++){
     cout << "      ( " << constSub1[ic].pt() *0.001 << ", " << constSub1[ic].eta() << ", "<< constSub1[ic].phi() << ") " << endl;
   }
-  cout << " Subjet1: nConst, pt, eta, phi = [" <<  parent2.constituents().size() << ",   " <<parent2.pt()*0.001 << ", "<< parent2.eta() << ", "<< parent2.phi() << "] "<< endl;
+  cout << "   * Subjet1: nConst, pt, eta, phi = [" <<  parent2.constituents().size() << ",   " <<parent2.pt()*0.001 << ", "<< parent2.eta() << ", "<< parent2.phi() << "] "<< endl;
   cout << "       constituents lists (pt,eta,phi)" <<endl;
   for ( int ic = 0 ; ic< constSub2.size() ; ic++){
     cout << "      ( " << constSub2[ic].pt() *0.001<< ", " << constSub2[ic].eta() << ", "<< constSub2[ic].phi() << ")" << endl;
@@ -479,6 +483,13 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <double> vSdpt_gen;
   vector <float> vSdz_gen;
   vector <float> vSdtheta_gen;
+  vector <float> vGenChSdPt;
+  vector <float> vGenChSdMass  ;
+  vector <float> vGenChSdZ  ;
+  vector <float> vGenChSdTheta  ;
+
+
+
 
   // algorithm definition 
   fastjet::JetDefinition jetDefCam(fastjet::cambridge_algorithm, _ReclusterRadius);
@@ -703,8 +714,8 @@ EL::StatusCode JetSubstructure :: execute ()
       for (unsigned i = 0; i < jets.size(); i++) {  // MC anti-kT jets
 	double jet_pt = jets[i].pt()*0.001;
 	double jet_eta = jets[i].pseudorapidity();  
+	double jet_rap = jets[i].rapidity();
 	double jet_phi = PhiInPI ( jets[i].phi() ) ;
-	
 	if (jet_pt < _truthpTjetCut) continue;
 	if ( fabs(jet_eta) > _etaJetCut ) continue;
 	
@@ -712,7 +723,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
 	fastjet::ClusterSequence reCam(akConsts, jetDefCam);
 	vector<fastjet::PseudoJet> camJets = fastjet::sorted_by_pt(reCam.inclusive_jets()); // return a vector of jets sorted into decreasing energy
-
+	
 	if ( _saveLog)  {   	  
 	  cout << "Truth Cambridge jet " << endl ;
 	  drawTreeHistory(reCam) ;  
@@ -730,6 +741,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  thePtrc = camJets[0].pt() * 0.001;
 	  fastjet::PseudoJet sd_jet = softdropper(camJets[0]);
 	  thesdm =  sd_jet.m() * 0.001;
+	  thesdpt = sd_jet.pt() * 0.001;
 	  if ( _saveLog) { 
 	    cout << "GEN JET softdrop:" << endl;
 	    showLadder ( jets[i], camJets[0], sd_jet );  
@@ -758,12 +770,59 @@ EL::StatusCode JetSubstructure :: execute ()
 	vSdz_gen.push_back(thesdz);
 	vSdtheta_gen.push_back(thesdtheta);
 	camJets.clear();
+	
+	
+	
+	// Charged Particle reclustering
+	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+	cout << "Charged particle clustering starts" << endl;
+        vector<fastjet::PseudoJet> chargeConsts;
+        for ( int ic=0; ic< truthCharges.size() ; ic++) {
+          if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
+            chargeConsts.push_back( truthCharges[ic]) ;
+          }
+        }
+	fastjet::ClusterSequence reChCam(chargeConsts, jetDefCam);
+        vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets()); 
+	if ( _saveLog)  {
+	  cout << "Charged Cambridge jets" << endl;
+	  drawTreeHistory(reChCam) ;
+	}
+	// Charged SoftDrop
+	// First find the charged particle SD
+	
+	float t_genChSdPt =0 ;
+	float t_genChSdMass=0;
+	float t_genChSdZ=0;
+	float t_genChSdTheta=0;
+	if ( camChJets.size() > 0 )   {
+	  fastjet::PseudoJet chSd_jet = softdropper(camChJets[0]);
+	  t_genChSdMass = chSd_jet.m() * 0.001;
+	  t_genChSdPt = chSd_jet.pt() * 0.001;
+	  fastjet::PseudoJet parent1, parent2;
+          if (  chSd_jet.has_parents(parent1, parent2) ) {
+	    t_genChSdTheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
+	    t_genChSdZ     = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
+            if ( _saveLog)   {
+              cout << " charged subjet profile:"<<endl;
+	      logSubJets( parent1, parent2 ) ;
+            }
+          }
+          else {
+            cout << "This Charged Softdrop jet is not divided!" << endl;
+          }
+        }
+	
+	vGenChSdPt.push_back(t_genChSdPt);
+	vGenChSdMass.push_back(t_genChSdMass)  ;
+	vGenChSdZ.push_back(t_genChSdZ)  ;
+	vGenChSdTheta.push_back(t_genChSdTheta) ;
+	
       }
-      
       truthParticles.clear();
       truthCharges.clear();
     }
-
+    
     else  { // If to use the AOD container
       cout << " Don't use useReAntiKt=0 option yet.." << endl; 
     }
@@ -811,6 +870,11 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.genSdPt = vSdpt_gen[matchId];
       myJetSub.genSdtheta = vSdtheta_gen[matchId];
       myJetSub.genSdz = vSdz_gen[matchId];
+      myJetSub.genChSdPt = vGenChSdPt[matchId];
+      myJetSub.genChSdMass = vGenChSdMass[matchId];
+      myJetSub.genChSdZ = vGenChSdZ[matchId];
+      myJetSub.genChSdTheta = vGenChSdTheta[matchId];
+
     }
     
     treeOut->Fill();

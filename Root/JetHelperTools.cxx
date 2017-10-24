@@ -11,6 +11,13 @@ double JetHelperTools::DeltaPhi(double phi1, double phi2)
 	return diff;
 }
 
+double JetHelperTools::PhiInPI(double phi)
+{
+  return DeltaPhi( phi, 0 ) ;
+}
+
+
+
 double JetHelperTools::DeltaEta(double eta1, double eta2)
 {
 	return (eta1 - eta2);
