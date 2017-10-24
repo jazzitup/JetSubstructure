@@ -31,7 +31,7 @@
 
 using namespace std;
 using namespace JetHelperTools;
-
+using namespace TrackHelperTools;
 
 #define EL_RETURN_CHECK( CONTEXT, EXP )			  \
   do {                                                    \
@@ -274,6 +274,13 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	wk()->addOutput (hRecoNcam);
 	wk()->addOutput (hGenSdStat);
 	wk()->addOutput (hRecoSdStat);
+
+
+        cout << "=======================================" << endl;
+	cout << "Parametrization of d0 cut" << endl;
+	f_d0_cut = new TF1("f1", "[0]*exp([1]*x)+[2]*exp([3]*x)", 0.4, 500);
+        f_d0_cut->SetParameters(0.472367, -0.149934, 0.193095, 0.000337765);
+
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -332,6 +339,13 @@ EL::StatusCode JetSubstructure :: initialize ()
 	ANA_CHECK(m_jetCalibration->setProperty("IsData",!_isMC));
 	ANA_CHECK(m_jetCalibration->initializeTool(name));
 		
+	
+	///////////// track selection ///////////////////////////////////
+	m_trackSelectorTool = new InDet::InDetTrackSelectionTool("InDetTrackSelectorTool");
+	SetCutLevel(m_trackSelectorTool, _trk_cut_level.c_str());
+	EL_RETURN_CHECK("initialize()",m_trackSelectorTool->initialize());
+	
+
 	//Calibration tool
 	
 
@@ -409,6 +423,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
     }
   
+
+
   
   
   //Get centrality bin and centile. Centile used for MB weighting (from MB_FCal_Normalization.txt)
@@ -437,16 +453,38 @@ EL::StatusCode JetSubstructure :: execute ()
       keep = false;
     }}
   
-  //Vertex requirement
+
+  //Vertex : 
   const xAOD::VertexContainer * vertices = 0;
-  if ( !event->retrieve( vertices, "PrimaryVertices" ).isSuccess() ) {
+  if ( !event->retrieve( vertices, "PrimaryVertices" ).isSuccess() ){
     Error("execute()", "Failed to retrieve VertexContainer container. Exiting." );
     return EL::StatusCode::FAILURE;
   }
+
   if(vertices->size()<2) {
     h_RejectionHisto->Fill(3.5);
-    keep = false;
+    return EL::StatusCode::SUCCESS;
   }
+  // Find primary vertex
+  xAOD::VertexContainer::const_iterator vtx_itr = vertices->begin();
+  xAOD::VertexContainer::const_iterator vtx_end = vertices->end();
+  const xAOD::Vertex* primaryVertex = 0;
+  for(;vtx_itr!=vtx_end;++vtx_itr)	  {
+    if((*vtx_itr)->vertexType()==xAOD::VxType::PriVtx) {
+      primaryVertex = (*vtx_itr);
+      break;
+    }}
+  
+  if(primaryVertex)	  {
+    if (fabs(primaryVertex->z())>150.)
+      {
+	return EL::StatusCode::SUCCESS;
+      }}
+  else {
+    h_RejectionHisto->Fill(5.5);
+    return EL::StatusCode::SUCCESS;
+  }
+  
   
   //DAQ errors
   if(!_isMC) {
@@ -486,7 +524,12 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <double> vSdpt_reco;
   vector <float> vSdz_reco;
   vector <float> vSdtheta_reco;
-  
+
+  vector <float> vRecoChSdPt; 
+  vector <float> vRecoChSdMass; 
+  vector <float> vRecoChSdZ; 
+  vector <float> vRecoChSdTheta; 
+
   vector <double> vpt_gen;
   vector <double> veta_gen;
   vector <double> vphi_gen;
@@ -510,19 +553,36 @@ EL::StatusCode JetSubstructure :: execute ()
   float z_cut = 0.1;
   fastjet::contrib::SoftDrop softdropper(beta, z_cut);
 	
-	
+  
   ///////////// tracks ////////////////////////////////////////
+  std::vector<fastjet::PseudoJet> selectedTrks;
+  
   const xAOD::TrackParticleContainer* recoTracks = 0;
   EL_RETURN_CHECK("execute",event->retrieve( recoTracks, "InDetTrackParticles"));
   for (const auto& trk : *recoTracks) {
     float pt = trk->pt()/1000.;
     float eta = trk->eta();
     float phi = trk->phi();
-    cout << " track pt, eta, phi = " << pt <<", "<<eta<<", "<<phi<<endl;
+    if (_saveLog)   cout << "   * Track pt, eta, phi = " << pt <<", "<<eta<<", "<<phi<<endl;
+    if(!m_trackSelectorTool->accept(*trk, *vtx_itr )) 
+      continue;
+    if (_saveLog)    cout << "     passed selection cut "<< endl;
+    
+    double d0 = trk->d0();
+    double d0_cut = f_d0_cut->Eval(pt);  // Make sure the unit is GeV!!!!
+    if(fabs(d0) > d0_cut) continue;
+    if (_saveLog)    cout << "     passed the d0 cut " << endl;
+    
+    double pionMass = 139.570 ; // in MeV
+    double pionx = trk->p4().Px(); // Oct 24th, Yongsun confiremd p4() is in MeV unit
+    double piony = trk->p4().Py();
+    double pionz = trk->p4().Pz();
+    double pione = sqrt (pionx*pionx + piony*piony + pionz*pionz + pionMass*pionMass) ;
+    //    cout << " pt, px,py,pz = " << trk->pt() <<"," <<pionx<<", "<<piony<<", "<<pionz <<endl; 
+    selectedTrks.push_back( fastjet::PseudoJet ( pionx, piony, pionz, pione ) );
   }
-  
-  
-  
+  if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
+
   /////////////   Reco jets /////////////////////////////////////////
   
   xAOD::TStore *store = new xAOD::TStore; //For calibration
@@ -538,10 +598,12 @@ EL::StatusCode JetSubstructure :: execute ()
     
     const xAOD::JetFourMom_t jet_4momUnCal = theRecoJet.jetP4("JetSubtractedScaleMomentum"); // uncalib
     const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
-    
+
+    fastjet::PseudoJet CalibFourVec = fastjet::PseudoJet ( jet_4momCalib.px(), jet_4momCalib.py(), jet_4momCalib.pz(), jet_4momCalib.energy() );
     fastjet::PseudoJet unCaliFourVec = fastjet::PseudoJet ( jet_4momUnCal.px(), jet_4momUnCal.py(), jet_4momUnCal.pz(), jet_4momUnCal.energy() );
     double jet_pt  = jet_4momCalib.pt() * 0.001 ;
     double jet_eta = jet_4momCalib.eta();
+    double jet_rap = CalibFourVec.rapidity();
     double jet_phi = PhiInPI ( jet_4momCalib.phi() );
     double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
     if (jet_pt < _pTjetCut)          continue;
@@ -666,6 +728,50 @@ EL::StatusCode JetSubstructure :: execute ()
     vSdpt_reco.push_back(thesdpt);
     vSdz_reco.push_back(thesdz);
     vSdtheta_reco.push_back(thesdtheta);
+      
+    
+    // Charged Particle reclustering
+    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+    cout << "(RECO) Charged track clustering starts" << endl;
+    vector<fastjet::PseudoJet> trkConsts;
+    for ( int ic=0; ic< selectedTrks.size() ; ic++) {
+      if ( DeltaR ( jet_phi, jet_rap, selectedTrks[ic].phi(), selectedTrks[ic].rapidity() ) <  _ReclusterRadius ) {
+	trkConsts.push_back( selectedTrks[ic]) ;
+      }
+    }
+    fastjet::ClusterSequence reChCam(trkConsts, jetDefCam);
+    vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets());
+    if ( _saveLog)  {
+      cout << "(RECO) Charged Cambridge jets" << endl;
+      drawTreeHistory(reChCam) ;
+    }
+    
+    float t_recoChSdPt =0 ;
+    float t_recoChSdMass=0;
+    float t_recoChSdZ=0;
+    float t_recoChSdTheta=0;
+    if ( camChJets.size() > 0 )   {
+      fastjet::PseudoJet chSd_jet = softdropper(camChJets[0]);
+      t_recoChSdMass = chSd_jet.m() * 0.001;
+      t_recoChSdPt = chSd_jet.pt() * 0.001;
+      fastjet::PseudoJet parent1, parent2;
+      if (  chSd_jet.has_parents(parent1, parent2) ) {
+	t_recoChSdTheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
+	t_recoChSdZ     = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
+	if ( _saveLog)   {
+	  cout << " charged subjet profile:"<<endl;
+	  logSubJets( parent1, parent2 ) ;
+	}
+      }
+      else {
+	cout << "This Charged Softdrop jet is not divided!" << endl;
+      }
+    }
+
+    vRecoChSdPt.push_back(t_recoChSdPt);
+    vRecoChSdMass.push_back(t_recoChSdMass)  ;
+    vRecoChSdZ.push_back(t_recoChSdZ)  ;
+    vRecoChSdTheta.push_back(t_recoChSdTheta) ;
     
     corrRecCamJets.clear();
     nonZeroConsts.clear();
@@ -677,7 +783,6 @@ EL::StatusCode JetSubstructure :: execute ()
   double event_weight = 1;
   bool useReAntiKt = true; 
   
-
   // truth jet constituent test
   /*  
       cout << " Don't use useReAntiKt=0 option yet.." << endl;
@@ -731,8 +836,10 @@ EL::StatusCode JetSubstructure :: execute ()
       //////////////// event weight /////////////////////////////////////
       int maxPtId = getMaxPtIndex ( jets ) ;
       event_weight = 0;  
-      if (maxPtId > -1)  
-	event_weight = jetcorr->GetJetWeight( jets[maxPtId].pt(), jets[maxPtId].eta(), jets[maxPtId].phi() );
+      cout << "maxPtId = " << maxPtId << endl;
+      if (maxPtId > -1)   {
+	event_weight = jetcorr->GetJetWeight( jets[maxPtId].pt() * 0.001, jets[maxPtId].eta(), jets[maxPtId].phi() ); // pt unit needs to be GeV 
+      }
       event_weight = event_weight*event_weight_fcal; //event weight is only set if MC.
       if ( _saveLog ) cout << " Max Truth pT = " << jets[maxPtId].pt()*0.001 << " GeV " << endl ;
       //////////////////////////////////////////////////////////////////
@@ -801,7 +908,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	
 	// Charged Particle reclustering
 	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-	cout << "Charged particle clustering starts" << endl;
+	cout << "(Truth) Charged particle clustering starts" << endl;
         vector<fastjet::PseudoJet> chargeConsts;
         for ( int ic=0; ic< truthCharges.size() ; ic++) {
           if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
@@ -811,7 +918,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	fastjet::ClusterSequence reChCam(chargeConsts, jetDefCam);
         vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets()); 
 	if ( _saveLog)  {
-	  cout << "Charged Cambridge jets" << endl;
+	  cout << "(Truth) Charged Cambridge jets" << endl;
 	  drawTreeHistory(reChCam) ;
 	}
 	// Charged SoftDrop
@@ -885,7 +992,10 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.recoSdMass = vSdmass_reco[ri];
     myJetSub.recoSdTheta = vSdtheta_reco[ri];
     myJetSub.recoSdZ = vSdz_reco[ri];
-
+    myJetSub.reChSdPt = vRecoChSdPt[ri];
+    myJetSub.reChSdMass = vRecoChSdMass[ri];
+    myJetSub.reChSdZ = vRecoChSdZ[ri];
+    myJetSub.reChSdTheta = vRecoChSdTheta[ri];
     
     if (matchId != -1) {
       myJetSub.matchDr = drMin;
@@ -914,7 +1024,8 @@ EL::StatusCode JetSubstructure :: execute ()
   // Clear vectors
   store->clear();
   delete store;
-  
+
+  selectedTrks.clear();
   vpt_reco.clear();
   vptRaw_reco.clear();
   veta_reco.clear();
@@ -924,7 +1035,13 @@ EL::StatusCode JetSubstructure :: execute ()
   vSdpt_reco.clear();
   vSdtheta_reco.clear();
   vSdz_reco.clear();
+  
+  vRecoChSdPt.clear();
+  vRecoChSdMass.clear();
+  vRecoChSdZ.clear();
+  vRecoChSdTheta.clear();
 
+  
   vpt_gen.clear();
   veta_gen.clear();
   vphi_gen.clear();
@@ -966,7 +1083,9 @@ EL::StatusCode JetSubstructure :: finalize ()
 	cout << "Total counts = " << m_eventCounter << endl;
 	//cleaning cleaning :)
 	if( m_jetCalibration ) delete m_jetCalibration; m_jetCalibration = 0;
-
+	
+	EL_RETURN_CHECK( "Finalize", m_trackSelectorTool->finalize() );
+	if( m_trackSelectorTool ) delete m_trackSelectorTool; m_trackSelectorTool=0;
 
 
 	return EL::StatusCode::SUCCESS;
