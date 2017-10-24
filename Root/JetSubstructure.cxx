@@ -32,6 +32,18 @@
 using namespace std;
 using namespace JetHelperTools;
 
+
+#define EL_RETURN_CHECK( CONTEXT, EXP )			  \
+  do {                                                    \
+    if( ! EXP.isSuccess() ) {				  \
+      Error( CONTEXT,					  \
+	     XAOD_MESSAGE( "Failed to execute: %s" ),	  \
+	     #EXP );					  \
+      return EL::StatusCode::FAILURE;			  \
+    }							  \
+  } while( false )
+
+
 struct jetSubStr {
   Int_t cent;
   float weight;
@@ -499,6 +511,18 @@ EL::StatusCode JetSubstructure :: execute ()
   fastjet::contrib::SoftDrop softdropper(beta, z_cut);
 	
 	
+  ///////////// tracks ////////////////////////////////////////
+  const xAOD::TrackParticleContainer* recoTracks = 0;
+  EL_RETURN_CHECK("execute",event->retrieve( recoTracks, "InDetTrackParticles"));
+  for (const auto& trk : *recoTracks) {
+    float pt = trk->pt()/1000.;
+    float eta = trk->eta();
+    float phi = trk->phi();
+    cout << " track pt, eta, phi = " << pt <<", "<<eta<<", "<<phi<<endl;
+  }
+  
+  
+  
   /////////////   Reco jets /////////////////////////////////////////
   
   xAOD::TStore *store = new xAOD::TStore; //For calibration
@@ -631,6 +655,8 @@ EL::StatusCode JetSubstructure :: execute ()
       }
       
     }
+
+
     vpt_reco.push_back(jet_pt);
     vptRaw_reco.push_back(jet_ptRaw);
     veta_reco.push_back(jet_eta);

@@ -3,14 +3,14 @@
 #include "xAODRootAccess/tools/Message.h"
 
 #define EL_RETURN_CHECK( CONTEXT, EXP )			\
-do {							\
-if( ! EXP.isSuccess() ) {				\
-Error( CONTEXT,					\
-XAOD_MESSAGE( "Failed to execute: %s" ),	\
-#EXP );					\
-return EL::StatusCode::FAILURE;			\
-}							\
-} while( false )
+  do {							\
+    if( ! EXP.isSuccess() ) {				\
+      Error( CONTEXT,					\
+	     XAOD_MESSAGE( "Failed to execute: %s" ),	\
+	     #EXP );					\
+      return EL::StatusCode::FAILURE;			\
+    }							\
+  } while( false )
 
 using namespace std;
 
