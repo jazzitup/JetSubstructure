@@ -87,7 +87,7 @@ public:
 
 	TH1D *h_FCal_Et; //!
 	TH1D *h_RejectionHisto; //!
-	TH1D * h_centrality; //!
+	TH1D *h_centrality; //!
 	TH3D *hET_ETsub; //!
 	TH2D *h_triggercounter; //!
 

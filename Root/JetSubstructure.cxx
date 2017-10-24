@@ -57,8 +57,8 @@ jetSubStr myJetSub;
 TString evtText = "cent/I:weight/F:";
 TString recoText = "pt:rawPt:eta:rcPt:sdPt:sdMass:zg:theta:";
 TString reChText = "chSdPt:chSdMass:chZg:chTheta:";
-TString genText = "dr:genPt:genEta:genRcPt:genSdPt:genSdMass:genSdZg:genSdtheta:";
-TString genChText = "genChSdPt:genChSdMass:genChSdZg:genChSdTheta";
+TString genText = "dr:genPt:genEta:genRcPt:genSdPt:genSdMass:genZg:genTheta:";
+TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
 
 TString myJetSubText = evtText+recoText+reChText+genText+genChText;
 
@@ -259,21 +259,29 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	//	jetTree->Branch("bran","");
 
 	
-	hGenNcam = new TH2D("hGenNcam","; p_{T} GeV/c ; Number of C/A clusters",100,0,1000,3,-0.5,2.5);
-	hRecoNcam = (TH2D*)hGenNcam->Clone("hRecoNcam");
-	hGenSdStat = new TH2D("hGenSdStat","; p_{T} GeV/c ; 0:fail, 1;pass",100,0,1000,2,-0.5,1.5);
-	hRecoSdStat = (TH2D*)hGenSdStat->Clone("hRecoSdStat");
-	
-	
+	hGenNcam = new TH2D("genCam","; p_{T} GeV/c ; Number of C/A clusters",100,0,1000,6,-0.5,5.5);
+	hGenNchCam = (TH2D*)hGenNcam->Clone("genChCam");
+	hRecoNcam = (TH2D*)hGenNcam->Clone("recoCam");
+	hRecoNchCam = (TH2D*)hGenNcam->Clone("recoChCam");
+
+	hGenSdStat = new TH2D("genSd","; p_{T} GeV/c ; [SoftDrop] 0:fail, 1;pass",100,0,1000,2,-0.5,1.5);
+	hGenSdChStat = (TH2D*)hGenSdStat->Clone("genChSd");
+	hRecoSdStat = (TH2D*)hGenSdStat->Clone("recoSd");
+	hRecoSdChStat = (TH2D*)hGenSdStat->Clone("recoChSd");
 	
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
 	wk()->addOutput (hET_ETsub);
 	wk()->addOutput (treeOut);
+
 	wk()->addOutput (hGenNcam);
-	wk()->addOutput (hRecoNcam);
+	wk()->addOutput (hGenNchCam);
 	wk()->addOutput (hGenSdStat);
+	wk()->addOutput (hGenSdChStat);
+	wk()->addOutput (hRecoNcam);
+	wk()->addOutput (hRecoNchCam);
 	wk()->addOutput (hRecoSdStat);
+	wk()->addOutput (hRecoSdChStat);
 
 
         cout << "=======================================" << endl;
@@ -644,14 +652,16 @@ EL::StatusCode JetSubstructure :: execute ()
     }
 
     // Cambridge reclustering 
-    if ( _saveLog) cout << "Reco reclustering starts!" << endl;
+    if ( _saveLog) cout << "Reco re-clustering starts!" << endl;
     fastjet::ClusterSequence recoCamSeq(nonZeroConsts, jetDefCam);
     vector<fastjet::PseudoJet> cambridgeJet = recoCamSeq.inclusive_jets();
     vector<int> pIndex = recoCamSeq.particle_jet_indices( cambridgeJet);
     if ( _saveLog)  {
       drawTreeHistory(recoCamSeq) ;
     }
-
+    
+    hRecoNcam->Fill(jet_pt,cambridgeJet.size());
+    
     if ( cambridgeJet.size() > 0 ) { 
       for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
 	if ( _saveLog)	cout<< ij<<"th Cambridge jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
@@ -693,6 +703,11 @@ EL::StatusCode JetSubstructure :: execute ()
     double thesdm = 0;
     float thesdtheta = 100;
     float thesdz = -1;
+
+    float t_recoChSdPt =0 ;
+    float t_recoChSdMass=0;
+    float t_recoChSdZ=0;
+    float t_recoChSdTheta=0;
  
     if ( corrRecCamJets.size() > 0 )   {
       thePtrc = corrRecCamJets[0].pt() * 0.001;
@@ -706,6 +721,7 @@ EL::StatusCode JetSubstructure :: execute ()
       
       fastjet::PseudoJet parent1, parent2;
       if (  sd_jet.has_parents(parent1, parent2) ) {
+	hRecoSdStat->Fill(jet_pt, 1);
 	thesdtheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	thesdz  = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
 	if ( _saveLog)   {
@@ -714,25 +730,13 @@ EL::StatusCode JetSubstructure :: execute ()
       }
       else  {
 	cout << "This softdrop jet is not divided!" << endl; 
+	hRecoSdStat->Fill(jet_pt, 0);
       }
       
     }
 
-
-    vpt_reco.push_back(jet_pt);
-    vptRaw_reco.push_back(jet_ptRaw);
-    veta_reco.push_back(jet_eta);
-    vphi_reco.push_back(jet_phi);
-    vptRc_reco.push_back(thePtrc);
-    vSdmass_reco.push_back(thesdm);
-    vSdpt_reco.push_back(thesdpt);
-    vSdz_reco.push_back(thesdz);
-    vSdtheta_reco.push_back(thesdtheta);
-      
-    
     // Charged Particle reclustering
-    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-    cout << "(RECO) Charged track clustering starts" << endl;
+    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl << "(RECO) Charged track clustering starts" << endl;
     vector<fastjet::PseudoJet> trkConsts;
     for ( int ic=0; ic< selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, selectedTrks[ic].phi(), selectedTrks[ic].rapidity() ) <  _ReclusterRadius ) {
@@ -746,28 +750,34 @@ EL::StatusCode JetSubstructure :: execute ()
       drawTreeHistory(reChCam) ;
     }
     
-    float t_recoChSdPt =0 ;
-    float t_recoChSdMass=0;
-    float t_recoChSdZ=0;
-    float t_recoChSdTheta=0;
+    hRecoNchCam->Fill(jet_pt,camChJets.size() ) ;
     if ( camChJets.size() > 0 )   {
       fastjet::PseudoJet chSd_jet = softdropper(camChJets[0]);
       t_recoChSdMass = chSd_jet.m() * 0.001;
       t_recoChSdPt = chSd_jet.pt() * 0.001;
       fastjet::PseudoJet parent1, parent2;
       if (  chSd_jet.has_parents(parent1, parent2) ) {
+	hRecoSdChStat->Fill(jet_pt, 1);
 	t_recoChSdTheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	t_recoChSdZ     = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
-	if ( _saveLog)   {
-	  cout << " charged subjet profile:"<<endl;
-	  logSubJets( parent1, parent2 ) ;
-	}
+	if ( _saveLog)  logSubJets( parent1, parent2 ) ;
       }
       else {
-	cout << "This Charged Softdrop jet is not divided!" << endl;
+	hRecoSdChStat->Fill(jet_pt, 0);
       }
     }
-
+    
+    
+    vpt_reco.push_back(jet_pt);
+    vptRaw_reco.push_back(jet_ptRaw);
+    veta_reco.push_back(jet_eta);
+    vphi_reco.push_back(jet_phi);
+    vptRc_reco.push_back(thePtrc);
+    vSdmass_reco.push_back(thesdm);
+    vSdpt_reco.push_back(thesdpt);
+    vSdz_reco.push_back(thesdz);
+    vSdtheta_reco.push_back(thesdtheta);
+      
     vRecoChSdPt.push_back(t_recoChSdPt);
     vRecoChSdMass.push_back(t_recoChSdMass)  ;
     vRecoChSdZ.push_back(t_recoChSdZ)  ;
@@ -870,6 +880,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	float thesdtheta = 100;
 	float thesdz = -1;
 	
+	hGenNcam->Fill( jet_pt, camJets.size() ) ;
+
 	if ( camJets.size() > 0 )   {
 	  thePtrc = camJets[0].pt() * 0.001;
 	  fastjet::PseudoJet sd_jet = softdropper(camJets[0]);
@@ -882,15 +894,13 @@ EL::StatusCode JetSubstructure :: execute ()
 	  
 	  fastjet::PseudoJet parent1, parent2;
 	  if (  sd_jet.has_parents(parent1, parent2) ) {
+	    hGenSdStat->Fill( jet_pt, 1 ) ;
 	    thesdtheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	    thesdz  = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
-	    
-	    if ( _saveLog)   {
-	      logSubJets( parent1, parent2 ) ;
-	    }
+	    if ( _saveLog)  logSubJets( parent1, parent2 ) ;
 	  }
-	  else {
-	    cout << "This softdrop jet is not divided!" << endl; 
+	  else  {
+	    hGenSdStat->Fill( jet_pt, 0 ) ;	    
 	  }
 	}
 	
@@ -928,21 +938,22 @@ EL::StatusCode JetSubstructure :: execute ()
 	float t_genChSdMass=0;
 	float t_genChSdZ=0;
 	float t_genChSdTheta=0;
+	hGenNchCam->Fill( jet_pt, camChJets.size() );
 	if ( camChJets.size() > 0 )   {
 	  fastjet::PseudoJet chSd_jet = softdropper(camChJets[0]);
 	  t_genChSdMass = chSd_jet.m() * 0.001;
 	  t_genChSdPt = chSd_jet.pt() * 0.001;
 	  fastjet::PseudoJet parent1, parent2;
           if (  chSd_jet.has_parents(parent1, parent2) ) {
+	    hGenSdChStat->Fill(jet_pt, 1);
 	    t_genChSdTheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	    t_genChSdZ     = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
-            if ( _saveLog)   {
-              cout << " charged subjet profile:"<<endl;
-	      logSubJets( parent1, parent2 ) ;
-            }
-          }
-          else {
-            cout << "This Charged Softdrop jet is not divided!" << endl;
+	    cout << " Charged Softdrop jet splits into:" << endl;
+            if ( _saveLog)       logSubJets( parent1, parent2 ) ;
+	  }
+	  else {
+	    hGenSdChStat->Fill(jet_pt, 0);
+	    cout << "This Charged Softdrop jet is not divided!" << endl;
           }
         }
 	

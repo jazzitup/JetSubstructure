@@ -77,10 +77,15 @@ public:
 	TTree *treeOut; //!
 
 	TH2D* hGenNcam; //!
+        TH2D* hGenNchCam; //!
 	TH2D* hRecoNcam; //!
+        TH2D* hRecoNchCam; //!
 
-	TH2D* hGenSdStat; //!
-	TH2D* hRecoSdStat; //!
+        TH2D* hGenSdStat; //!
+        TH2D* hGenSdChStat; //!
+        TH2D* hRecoSdStat; //!
+        TH2D* hRecoSdChStat; //!
+
 	
 	vector<TH3D*> h_reco_jet_cent; //!
 	vector<TH3D*> h_reco_jet_cent_matched; //!
