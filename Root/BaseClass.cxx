@@ -50,6 +50,7 @@ BaseClass :: BaseClass (const BaseClass& base)  {
 	_reco_iso=base._reco_iso;
 	_ReclusterCA=base._ReclusterCA;
 	_ReclusterRadius=base._ReclusterRadius;
+        _trk_cut_level=base._trk_cut_level;
 }
 
 

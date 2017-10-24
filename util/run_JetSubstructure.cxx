@@ -68,6 +68,8 @@ int main(int argc, char *argv[])
 	bool  ReclusterCA;
 	float ReclusterRadius;
 	bool saveLog;
+	string trk_cut_level;
+
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
 	boost::program_options::options_description cmd_only_options("command line only options");
@@ -84,6 +86,7 @@ int main(int argc, char *argv[])
 	main_options.add_options()
 	("output_file",boost::program_options::value<std::string>(&output_file_name)->default_value("ntuple"),"name of output root file")
 	("grl,g",boost::program_options::value<std::string>(&grl)->default_value("GRL_pPb_5p02TeV_2013.xml"),"grl file name")
+	("trk_cut_level,C",boost::program_options::value<std::string>(&trk_cut_level)->default_value("ppTight"),"Trk cut level")
 	("reco_jet_collection",boost::program_options::value<std::string>(&reco_jet_collection)->default_value("antikt4HIItrEM"),"Jet collection")
 	("test_reco_jet_collection",boost::program_options::value<std::string>(&test_reco_jet_collection)->default_value("none"),"Test Jet collection")
 	("truth_jet_collection",boost::program_options::value<std::string>(&truth_jet_collection)->default_value("antikt4Truth"),"Truth jet collection")
@@ -189,6 +192,8 @@ int main(int argc, char *argv[])
 	cout << "Reclustering radius: " << ReclusterRadius << endl;
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
 	cout << "track pT cut: " << pTtrkCut << endl;
+        cout << "Track Selection: " << trk_cut_level << endl;
+	
 	if (truth_iso) {cout << "Isolating truth jets" << endl;}
 	if (reco_iso) {cout << "Isolating reco jets" << endl;}
 
@@ -264,6 +269,7 @@ int main(int argc, char *argv[])
 	alg->_ReclusterRadius=ReclusterRadius;
 	alg->_saveLog = saveLog;
 	alg->_pTtrkCut = pTtrkCut;
+        alg->_trk_cut_level = trk_cut_level;
 	//Initialzie trigger
 	alg->SetTrigger_chains();
 	job.algsAdd( alg );

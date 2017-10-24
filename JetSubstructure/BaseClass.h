@@ -65,10 +65,11 @@ public:
 	double _pt_iso; //
 	bool _truth_iso; //
 	bool _reco_iso; //
-	bool _ReclusterCA;
-	float _ReclusterRadius;
-	bool _saveLog;
-	bool _pTtrkCut;
+	bool _ReclusterCA; //
+	float _ReclusterRadius; //
+	bool _saveLog; //
+	bool _pTtrkCut; //
+	string _trk_cut_level; //
 	//trigger
 	string _trigger_collection; //
 	vector <string> trigger_chains; //TODO
@@ -90,6 +91,8 @@ public:
 	TH3D *hET_ETsub; //!
 	TH2D *h_triggercounter; //!
 
+        TF1* f_d0_cut; //!
+
 	//Evnets
 	int m_eventCounter; //!
 
@@ -109,6 +112,9 @@ public:
 	//Calibration tools
 	JetCalibrationTool * m_jetCalibration; //!
 	JetCalibrationTool * m_jetCalibration_val; //!
+
+	//Track Selection Tool
+	InDet::InDetTrackSelectionTool * m_trackSelectorTool; //!
 
 	// this is a standard constructor
 	BaseClass ();
