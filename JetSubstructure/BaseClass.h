@@ -68,7 +68,7 @@ public:
 	bool _ReclusterCA; //
 	float _ReclusterRadius; //
 	bool _saveLog; //
-	bool _pTtrkCut; //
+	float _pTtrkCut; //
 	string _trk_cut_level; //
 	//trigger
 	string _trigger_collection; //

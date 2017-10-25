@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 	("reco_iso",boost::program_options::value<bool>(&reco_iso)->default_value(0),"Isolating reco jets?")
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
-	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(0.5),"Track pT cut")
+	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(4),"Track pT cut")
 	  ;
 
 //	if (!jet_performance_mode) doForward=false;

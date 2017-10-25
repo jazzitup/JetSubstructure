@@ -596,6 +596,9 @@ EL::StatusCode JetSubstructure :: execute ()
     ANA_CHECK(event->retrieve( genParCont, "TruthParticles"));
     
     for( xAOD::TruthParticleContainer::const_iterator truth_itr = genParCont->begin() ; truth_itr!= genParCont->end() ; ++truth_itr) {
+      //      cout <<"  (*truth_itr)->p4().Pt() = " <<  (*truth_itr)->p4().Pt() << endl; // MeV is confirmed
+      if ( (*truth_itr)->p4().Pt() * 0.001 < _pTtrkCut )
+	continue;
       int thebc = (*truth_itr)->barcode();
       if ( (thebc > 0) && ( thebc < 200000 ) )  {
 	truthParticles.push_back( (*truth_itr)->p4() );
@@ -617,6 +620,11 @@ EL::StatusCode JetSubstructure :: execute ()
     float eta = trk->eta();
     float phi = trk->phi();
     if (_saveLog)   cout << "   * Track pt, eta, phi = " << pt <<", "<<eta<<", "<<phi<<endl;
+    
+    if ( pt < _pTtrkCut ) 
+      continue;
+    
+    
     if(!m_trackSelectorTool->accept(*trk, *vtx_itr )) 
       continue;
     if (_saveLog)    cout << "     passed selection cut "<< endl;
