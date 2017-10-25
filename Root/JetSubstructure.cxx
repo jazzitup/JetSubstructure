@@ -268,13 +268,13 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  h_allGen_pt_dphi_cent.push_back( temphist_2d);
 	  h_allGen_pt_dphi_cent.at(i)->Sumw2();
 
-	  temphist_2d = new TH2D(Form("h_trkGen_pt_deta_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
-	  h_trkGen_pt_deta_cent.push_back( temphist_2d);
-	  h_trkGen_pt_deta_cent.at(i)->Sumw2();
+	  temphist_2d = new TH2D(Form("h_trkGen_pt_drap_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
+	  h_trkGen_pt_drap_cent.push_back( temphist_2d);
+	  h_trkGen_pt_drap_cent.at(i)->Sumw2();
 	
-	  temphist_2d = new TH2D(Form("h_allGen_pt_deta_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
-	  h_allGen_pt_deta_cent.push_back( temphist_2d);
-	  h_allGen_pt_deta_cent.at(i)->Sumw2();
+	  temphist_2d = new TH2D(Form("h_allGen_pt_drap_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
+	  h_allGen_pt_drap_cent.push_back( temphist_2d);
+	  h_allGen_pt_drap_cent.at(i)->Sumw2();
 
 	}
 	
@@ -305,8 +305,8 @@ EL::StatusCode JetSubstructure :: histInitialize ()
         for (int i=0;i<nCentbins;i++)  {
 	  wk()->addOutput (h_trkGen_pt_dphi_cent.at(i));
 	  wk()->addOutput (h_allGen_pt_dphi_cent.at(i));
-	  wk()->addOutput (h_trkGen_pt_deta_cent.at(i));
-	  wk()->addOutput (h_allGen_pt_deta_cent.at(i));
+	  wk()->addOutput (h_trkGen_pt_drap_cent.at(i));
+	  wk()->addOutput (h_allGen_pt_drap_cent.at(i));
 	}
 	
 	
@@ -772,16 +772,16 @@ EL::StatusCode JetSubstructure :: execute ()
     
     // Yongsun:  http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetSoftDrop.cxx line 67.
     
-    double thePtrc = 0;
-    double thesdpt = 0 ;
-    double thesdm = 0;
-    float thesdtheta = 100;
+    double thePtrc = -1;
+    double thesdpt = -1 ;
+    double thesdm = -1;
+    float thesdtheta =-1 ;
     float thesdz = -1;
 
-    float t_recoChSdPt =0 ;
-    float t_recoChSdMass=0;
-    float t_recoChSdZ=0;
-    float t_recoChSdTheta=0;
+    float t_recoChSdPt = -1 ;
+    float t_recoChSdMass= -1;
+    float t_recoChSdZ= -1 ;
+    float t_recoChSdTheta= -1;
  
     if ( corrRecCamJets.size() > 0 )   {
       thePtrc = corrRecCamJets[0].pt() * 0.001;
@@ -823,13 +823,13 @@ EL::StatusCode JetSubstructure :: execute ()
       for ( int ic=0; ic< selGenMatchTrks.size() ; ic++) {
 	if ( DeltaR ( jet_phi, jet_rap, selGenMatchTrks[ic].phi(), selGenMatchTrks[ic].rapidity() ) <  _ReclusterRadius ) {
 	  h_trkGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, DeltaPhi(selGenMatchTrks[ic].phi(), jet_phi) ) ;
-	  h_trkGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt,    selGenMatchTrks[ic].rapidity() - jet_rap );
+	  h_trkGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt,    selGenMatchTrks[ic].rapidity() - jet_rap );
 	}
       }
       for ( int ic=0; ic< truthCharges.size() ; ic++) {
 	if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
 	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, DeltaPhi(truthCharges[ic].phi(), jet_phi) ) ;
-	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt,    truthCharges[ic].rapidity() - jet_rap );
+	  h_allGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt,    truthCharges[ic].rapidity() - jet_rap );
 	}
       }
     }
@@ -928,7 +928,7 @@ EL::StatusCode JetSubstructure :: execute ()
       event_weight = 0;  
       if (_saveLog)      cout << "maxPtId = " << maxPtId << endl;
       if (maxPtId > -1)   {
-	event_weight = jetcorr->GetJetWeight( jets[maxPtId].pt() * 0.001, jets[maxPtId].eta(), jets[maxPtId].phi() ); // pt unit needs to be GeV 
+	event_weight = jetcorr->GetJetWeight( jets[maxPtId].pt() * 0.001, jets[maxPtId].eta(), jets[maxPtId].phi() ); // pt unit needs to be GeV    ToBeFixed  : this value is strange
       }
       if ( _saveLog ) cout << " Max Truth pT = " << jets[maxPtId].pt()*0.001 << " GeV " << endl ;
       //////////////////////////////////////////////////////////////////
@@ -953,10 +953,10 @@ EL::StatusCode JetSubstructure :: execute ()
 	// Charged SoftDrop
 	// First find the charged particle SD
 	
-	double thesdpt = 0 ;
-	double thesdm = 0;
-	double thePtrc = 0;
-	float thesdtheta = 100;
+	double thesdpt = -1 ;
+	double thesdm = -1;
+	double thePtrc = -1 ;
+	float thesdtheta = -1 ; 
 	float thesdz = -1;
 	
 	hGenNcam->Fill( jet_pt, camJets.size() ) ;
@@ -1013,10 +1013,10 @@ EL::StatusCode JetSubstructure :: execute ()
 	// Charged SoftDrop
 	// First find the charged particle SD
 	
-	float t_genChSdPt =0 ;
-	float t_genChSdMass=0;
-	float t_genChSdZ=0;
-	float t_genChSdTheta=0;
+	float t_genChSdPt = -1 ;
+	float t_genChSdMass= -1;
+	float t_genChSdZ= -1;
+	float t_genChSdTheta=-1;
 	hGenNchCam->Fill( jet_pt, camChJets.size() );
 	if ( camChJets.size() > 0 )   {
 	  fastjet::PseudoJet chSd_jet = softdropper(camChJets[0]);
