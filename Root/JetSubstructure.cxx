@@ -264,7 +264,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	hRecoNcam = (TH2D*)hGenNcam->Clone("recoCam");
 	hRecoNchCam = (TH2D*)hGenNcam->Clone("recoChCam");
 
-	hGenSdStat = new TH2D("genSd","; p_{T} GeV/c ; [SoftDrop] 0:fail, 1;pass",100,0,1000,2,-0.5,1.5);
+	hGenSdStat = new TH2D("genSd","; p_{T} GeV/c ; [SoftDrop]  0=fail,  1=pass",100,0,1000,2,-0.5,1.5);
 	hGenSdChStat = (TH2D*)hGenSdStat->Clone("genChSd");
 	hRecoSdStat = (TH2D*)hGenSdStat->Clone("recoSd");
 	hRecoSdChStat = (TH2D*)hGenSdStat->Clone("recoChSd");
@@ -438,7 +438,7 @@ EL::StatusCode JetSubstructure :: execute ()
   //Get centrality bin and centile. Centile used for MB weighting (from MB_FCal_Normalization.txt)
   double FCalEt = 0;
   int cent_bin = 0;
-  double event_weight_fcal = 1;
+  //  double event_weight_fcal = 1;
   //Centrality
   const xAOD::HIEventShapeContainer* calos=0;
   ANA_CHECK(event->retrieve( calos, "CaloSums"));
@@ -446,9 +446,8 @@ EL::StatusCode JetSubstructure :: execute ()
     FCalEt=calos->at(5)->et()*1e-6;
     cent_bin = GetCentralityBin(_centrality_scheme, FCalEt, isHIJING);
     
-    event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
-    
-    if (_isMC && isHIJING) event_weight_fcal = 1;
+    //    event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
+    //    if (_isMC && isHIJING) event_weight_fcal = 1;
   }
   if (cent_bin < 0) {
     h_RejectionHisto->Fill(1.5);
@@ -519,8 +518,8 @@ EL::StatusCode JetSubstructure :: execute ()
   if (!keep) return EL::StatusCode::SUCCESS; // go to the next event
   h_RejectionHisto->Fill(7.5);
   
-  h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
-  h_centrality->Fill(cent_bin,event_weight_fcal);
+  //  h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
+  h_centrality->Fill(cent_bin,1); //  weight is set 1 event_weight_fcal);
   
   cout << "Centrality of this event = " << cent_bin << endl;
   vector <double> vpt_reco;
@@ -715,10 +714,10 @@ EL::StatusCode JetSubstructure :: execute ()
       thesdpt = sd_jet.pt() * 0.001; 
       thesdm =  sd_jet.m() * 0.001; 
       
-      cout << "RECO JET softdrop:" << endl;
-      if ( _saveLog) 
+      if (_saveLog) {
+	cout << "RECO JET softdrop:" << endl;
 	showLadder ( unCaliFourVec, corrRecCamJets[0], sd_jet );
-      
+      }
       fastjet::PseudoJet parent1, parent2;
       if (  sd_jet.has_parents(parent1, parent2) ) {
 	hRecoSdStat->Fill(jet_pt, 1);
@@ -729,14 +728,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
       else  {
-	cout << "This softdrop jet is not divided!" << endl; 
 	hRecoSdStat->Fill(jet_pt, 0);
+	if (_saveLog)	cout << "This softdrop jet is not divided!" << endl; 
       }
       
     }
 
     // Charged Particle reclustering
-    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl << "(RECO) Charged track clustering starts" << endl;
+    if (_saveLog)    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl << "(RECO) Charged track clustering starts" << endl;
     vector<fastjet::PseudoJet> trkConsts;
     for ( int ic=0; ic< selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, selectedTrks[ic].phi(), selectedTrks[ic].rapidity() ) <  _ReclusterRadius ) {
@@ -821,9 +820,10 @@ EL::StatusCode JetSubstructure :: execute ()
   if (_isMC){
     if ( useReAntiKt )  {
       ////////// On-the-fly jet finder ///////////////////////////////////////////////
-      cout << endl << "///////////////////////////////////" << endl;
-      cout << " MC information " << endl;
-
+      if (_saveLog) {
+	cout << endl << "///////////////////////////////////" << endl;
+	cout << " MC information " << endl;
+      }
       const xAOD::TruthParticleContainer * genParCont = 0;
       ANA_CHECK(event->retrieve( genParCont, "TruthParticles"));
       std::vector<fastjet::PseudoJet> truthParticles;
@@ -846,11 +846,10 @@ EL::StatusCode JetSubstructure :: execute ()
       //////////////// event weight /////////////////////////////////////
       int maxPtId = getMaxPtIndex ( jets ) ;
       event_weight = 0;  
-      cout << "maxPtId = " << maxPtId << endl;
+      if (_saveLog)      cout << "maxPtId = " << maxPtId << endl;
       if (maxPtId > -1)   {
 	event_weight = jetcorr->GetJetWeight( jets[maxPtId].pt() * 0.001, jets[maxPtId].eta(), jets[maxPtId].phi() ); // pt unit needs to be GeV 
       }
-      event_weight = event_weight*event_weight_fcal; //event weight is only set if MC.
       if ( _saveLog ) cout << " Max Truth pT = " << jets[maxPtId].pt()*0.001 << " GeV " << endl ;
       //////////////////////////////////////////////////////////////////
       
@@ -917,8 +916,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	
 	
 	// Charged Particle reclustering
-	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
-	cout << "(Truth) Charged particle clustering starts" << endl;
+	if (_saveLog)	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
+	if (_saveLog)	cout << "(Truth) Charged particle clustering starts" << endl;
         vector<fastjet::PseudoJet> chargeConsts;
         for ( int ic=0; ic< truthCharges.size() ; ic++) {
           if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
@@ -948,12 +947,12 @@ EL::StatusCode JetSubstructure :: execute ()
 	    hGenSdChStat->Fill(jet_pt, 1);
 	    t_genChSdTheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	    t_genChSdZ     = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
-	    cout << " Charged Softdrop jet splits into:" << endl;
+	    if (_saveLog)	    cout << " Charged Softdrop jet splits into:" << endl;
             if ( _saveLog)       logSubJets( parent1, parent2 ) ;
 	  }
 	  else {
 	    hGenSdChStat->Fill(jet_pt, 0);
-	    cout << "This Charged Softdrop jet is not divided!" << endl;
+	    if (_saveLog)	    cout << "This Charged Softdrop jet is not divided!" << endl;
           }
         }
 	
