@@ -257,7 +257,26 @@ EL::StatusCode JetSubstructure :: histInitialize ()
        
 	//	jetTree = new TTree("tr2","jet branching tree");
 	//	jetTree->Branch("bran","");
+	
+	TH2D* temphist_2d;
+	for (int i=0;i<nCentbins;i++)  {
+	  temphist_2d = new TH2D(Form("h_trkGen_pt_dphi_cent%i",i),";pt;dphi",100,0,1000,20,-1,1);
+	  h_trkGen_pt_dphi_cent.push_back( temphist_2d);
+	  h_trkGen_pt_dphi_cent.at(i)->Sumw2();
 
+	  temphist_2d = new TH2D(Form("h_allGen_pt_dphi_cent%i",i),";pt;dphi",100,0,1000,20,-1,1);
+	  h_allGen_pt_dphi_cent.push_back( temphist_2d);
+	  h_allGen_pt_dphi_cent.at(i)->Sumw2();
+
+	  temphist_2d = new TH2D(Form("h_trkGen_pt_deta_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
+	  h_trkGen_pt_deta_cent.push_back( temphist_2d);
+	  h_trkGen_pt_deta_cent.at(i)->Sumw2();
+	
+	  temphist_2d = new TH2D(Form("h_allGen_pt_deta_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
+	  h_allGen_pt_deta_cent.push_back( temphist_2d);
+	  h_allGen_pt_deta_cent.at(i)->Sumw2();
+
+	}
 	
 	hGenNcam = new TH2D("genCam","; p_{T} GeV/c ; Number of C/A clusters",100,0,1000,6,-0.5,5.5);
 	hGenNchCam = (TH2D*)hGenNcam->Clone("genChCam");
@@ -282,8 +301,15 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	wk()->addOutput (hRecoNchCam);
 	wk()->addOutput (hRecoSdStat);
 	wk()->addOutput (hRecoSdChStat);
-
-
+	
+        for (int i=0;i<nCentbins;i++)  {
+	  wk()->addOutput (h_trkGen_pt_dphi_cent.at(i));
+	  wk()->addOutput (h_allGen_pt_dphi_cent.at(i));
+	  wk()->addOutput (h_trkGen_pt_deta_cent.at(i));
+	  wk()->addOutput (h_allGen_pt_deta_cent.at(i));
+	}
+	
+	
         cout << "=======================================" << endl;
 	cout << "Parametrization of d0 cut" << endl;
 	f_d0_cut = new TF1("f1", "[0]*exp([1]*x)+[2]*exp([3]*x)", 0.4, 500);
@@ -559,10 +585,30 @@ EL::StatusCode JetSubstructure :: execute ()
   float beta = 0 ;
   float z_cut = 0.1;
   fastjet::contrib::SoftDrop softdropper(beta, z_cut);
-	
+
+
+  ////////////// MC truth particles /////////////
+
+  std::vector<fastjet::PseudoJet> truthParticles;
+  std::vector<fastjet::PseudoJet> truthCharges;
+  if (_isMC){
+    const xAOD::TruthParticleContainer * genParCont = 0;
+    ANA_CHECK(event->retrieve( genParCont, "TruthParticles"));
+    
+    for( xAOD::TruthParticleContainer::const_iterator truth_itr = genParCont->begin() ; truth_itr!= genParCont->end() ; ++truth_itr) {
+      int thebc = (*truth_itr)->barcode();
+      if ( (thebc > 0) && ( thebc < 200000 ) )  {
+	truthParticles.push_back( (*truth_itr)->p4() );
+	if ( fabs((*truth_itr)->charge()) > 0 )
+	  truthCharges.push_back( (*truth_itr)->p4() ) ;
+      }
+    }
+  }
+  
   
   ///////////// tracks ////////////////////////////////////////
   std::vector<fastjet::PseudoJet> selectedTrks;
+  std::vector<fastjet::PseudoJet> selGenMatchTrks;
   
   const xAOD::TrackParticleContainer* recoTracks = 0;
   EL_RETURN_CHECK("execute",event->retrieve( recoTracks, "InDetTrackParticles"));
@@ -586,10 +632,31 @@ EL::StatusCode JetSubstructure :: execute ()
     double pionz = trk->p4().Pz();
     double pione = sqrt (pionx*pionx + piony*piony + pionz*pionz + pionMass*pionMass) ;
     //    cout << " pt, px,py,pz = " << trk->pt() <<"," <<pionx<<", "<<piony<<", "<<pionz <<endl; 
+    
+    // truth particle matching 
+    bool isTruthMatched=false;
+    fastjet::PseudoJet matchPar = fastjet::PseudoJet (0,0,0,0);
+
+    if ( _isMC) { 
+      //Truth matching
+      ElementLink< xAOD::TruthParticleContainer > truthLink = trk->auxdata<ElementLink< xAOD::TruthParticleContainer > >("truthParticleLink");
+      float mcprob=-1.;
+      if(truthLink.isValid()) {
+	mcprob = trk->auxdata<float>("truthMatchProbability");
+	if ( ( mcprob > 0.2 ) && ( (*truthLink)->barcode() > 0 ) &&  ( (*truthLink)->barcode() < 200000 ) ) {  // 0.2 is hard-coded at the momnet.  ToBeFixed   
+	  isTruthMatched = true;
+	  matchPar = fastjet::PseudoJet( (*truthLink)->p4() );
+	}
+      }
+    }
+    
     selectedTrks.push_back( fastjet::PseudoJet ( pionx, piony, pionz, pione ) );
+    if (isTruthMatched) selGenMatchTrks.push_back( matchPar );
   }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
-
+  
+  
+  
   /////////////   Reco jets /////////////////////////////////////////
   
   xAOD::TStore *store = new xAOD::TStore; //For calibration
@@ -739,9 +806,28 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet> trkConsts;
     for ( int ic=0; ic< selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, selectedTrks[ic].phi(), selectedTrks[ic].rapidity() ) <  _ReclusterRadius ) {
-	trkConsts.push_back( selectedTrks[ic]) ;
+	trkConsts.push_back( selectedTrks[ic]) ;	
       }
     }
+
+    // Tracking efficiency calculation 
+    if ( _isMC) {  
+      for ( int ic=0; ic< selGenMatchTrks.size() ; ic++) {
+	if ( DeltaR ( jet_phi, jet_rap, selGenMatchTrks[ic].phi(), selGenMatchTrks[ic].rapidity() ) <  _ReclusterRadius ) {
+	  h_trkGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, DeltaPhi(selGenMatchTrks[ic].phi(), jet_phi) ) ;
+	  h_trkGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt,    selGenMatchTrks[ic].rapidity() - jet_rap );
+	}
+      }
+      for ( int ic=0; ic< truthCharges.size() ; ic++) {
+	if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
+	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, DeltaPhi(truthCharges[ic].phi(), jet_phi) ) ;
+	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt,    truthCharges[ic].rapidity() - jet_rap );
+	}
+      }
+    }
+    
+    
+    
     fastjet::ClusterSequence reChCam(trkConsts, jetDefCam);
     vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets());
     if ( _saveLog)  {
@@ -824,20 +910,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	cout << endl << "///////////////////////////////////" << endl;
 	cout << " MC information " << endl;
       }
-      const xAOD::TruthParticleContainer * genParCont = 0;
-      ANA_CHECK(event->retrieve( genParCont, "TruthParticles"));
-      std::vector<fastjet::PseudoJet> truthParticles;
-      std::vector<fastjet::PseudoJet> truthCharges;
-
-      for( xAOD::TruthParticleContainer::const_iterator truth_itr = genParCont->begin() ; truth_itr!= genParCont->end() ; ++truth_itr) {
-	int thebc = (*truth_itr)->barcode(); 
-	if ( (thebc > 0) && ( thebc < 200000 ) )  {
-	  truthParticles.push_back( (*truth_itr)->p4() );
-	  if ( fabs((*truth_itr)->charge()) > 0 ) 
-	    truthCharges.push_back( (*truth_itr)->p4() ) ;
-	} 
-      }
-      
       
       fastjet::ClusterSequence cs(truthParticles, jetDefAk);
       vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
@@ -922,7 +994,7 @@ EL::StatusCode JetSubstructure :: execute ()
         for ( int ic=0; ic< truthCharges.size() ; ic++) {
           if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
             chargeConsts.push_back( truthCharges[ic]) ;
-          }
+	  }
         }
 	fastjet::ClusterSequence reChCam(chargeConsts, jetDefCam);
         vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets()); 

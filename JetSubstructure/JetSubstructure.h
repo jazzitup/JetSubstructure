@@ -86,6 +86,10 @@ public:
         TH2D* hRecoSdStat; //!
         TH2D* hRecoSdChStat; //!
 
+        vector<TH2D*> h_trkGen_pt_dphi_cent; //!
+        vector<TH2D*> h_allGen_pt_dphi_cent; //!
+        vector<TH2D*> h_trkGen_pt_deta_cent; //!
+        vector<TH2D*> h_allGen_pt_deta_cent; //!
 	
 	vector<TH3D*> h_reco_jet_cent; //!
 	vector<TH3D*> h_reco_jet_cent_matched; //!
