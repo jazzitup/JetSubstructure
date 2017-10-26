@@ -597,13 +597,15 @@ EL::StatusCode JetSubstructure :: execute ()
     
     for( xAOD::TruthParticleContainer::const_iterator truth_itr = genParCont->begin() ; truth_itr!= genParCont->end() ; ++truth_itr) {
       //      cout <<"  (*truth_itr)->p4().Pt() = " <<  (*truth_itr)->p4().Pt() << endl; // MeV is confirmed
-      if ( (*truth_itr)->p4().Pt() * 0.001 < _pTtrkCut )
-	continue;
+      double ptTrk = (*truth_itr)->p4().Pt() * 0.001 ; 
       int thebc = (*truth_itr)->barcode();
       if ( (thebc > 0) && ( thebc < 200000 ) )  {
-	truthParticles.push_back( (*truth_itr)->p4() );
-	if ( fabs((*truth_itr)->charge()) > 0 )
-	  truthCharges.push_back( (*truth_itr)->p4() ) ;
+	
+	truthParticles.push_back( (*truth_itr)->p4() );   // To be used for anti-kT jet reconstrucutre 
+	
+	if ( (fabs((*truth_itr)->charge()) > 0 ) && ( ptTrk > _pTtrkCut ) ) 
+	  truthCharges.push_back( (*truth_itr)->p4() ) ; // For softdrop
+	
       }
     }
   }
