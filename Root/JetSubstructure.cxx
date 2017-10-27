@@ -251,10 +251,24 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	hET_ETsub = new TH3D("hET_ETsub","hET_ETsub",200,0,200,100,-5,5,200,-50,50);
 	hET_ETsub->Sumw2();
 	
-	
+	eventDisRecTow = new TH2F("eventDisRecTow","",20,-1,1,20,-1,1);
+	eventDisRecTow1 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow1");
+	eventDisRecTow2 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow2");
+	eventDisGen = new TH2F("eventDisGen","",100,-1,1,100,-1,1);
+	eventDisGen1 = (TH2F*)eventDisGen->Clone("eventDisGen1");
+	eventDisGen2 = (TH2F*)eventDisGen->Clone("eventDisGen2");
+
         treeOut = new TTree("tr","new tree");
 	treeOut->Branch("jets",&myJetSub,myJetSubText.Data());
-       
+	treeOut->Branch("rect","TH2F",&eventDisRecTow,256000,0);
+	treeOut->Branch("rect1","TH2F",&eventDisRecTow1,256000,0);
+	treeOut->Branch("rect2","TH2F",&eventDisRecTow2,256000,0);
+	treeOut->Branch("genp","TH2F",&eventDisGen,256000,0);
+	treeOut->Branch("genp1","TH2F",&eventDisGen1,256000,0);
+	treeOut->Branch("genp2","TH2F",&eventDisGen2,256000,0);
+		
+	
+
 	//	jetTree = new TTree("tr2","jet branching tree");
 	//	jetTree->Branch("bran","");
 	
@@ -287,6 +301,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	hGenSdChStat = (TH2D*)hGenSdStat->Clone("genChSd");
 	hRecoSdStat = (TH2D*)hGenSdStat->Clone("recoSd");
 	hRecoSdChStat = (TH2D*)hGenSdStat->Clone("recoChSd");
+	
 	
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
@@ -548,6 +563,15 @@ EL::StatusCode JetSubstructure :: execute ()
   h_centrality->Fill(cent_bin,1); //  weight is set 1 event_weight_fcal);
   
   cout << "Centrality of this event = " << cent_bin << endl;
+
+  TH2F* t_recTow[20];
+  TH2F* t_recTow1[20];
+  TH2F* t_recTow2[20];
+  TH2F* t_genTow[20];
+  TH2F* t_genTow1[20];
+  TH2F* t_genTow2[20];
+
+
   vector <double> vpt_reco;
   vector <double> vptRaw_reco;  
   vector <double> veta_reco;
@@ -653,7 +677,7 @@ EL::StatusCode JetSubstructure :: execute ()
       float mcprob=-1.;
       if(truthLink.isValid()) {
 	mcprob = trk->auxdata<float>("truthMatchProbability");
-	if ( ( mcprob > 0.2 ) && ( (*truthLink)->barcode() > 0 ) &&  ( (*truthLink)->barcode() < 200000 ) ) {  // 0.2 is hard-coded at the momnet.  ToBeFixed   
+	if ( ( mcprob > 0.3 ) && ( (*truthLink)->barcode() > 0 ) &&  ( (*truthLink)->barcode() < 200000 ) ) {  // 0.2 is hard-coded at the momnet.  ToBeFixed   
 	  isTruthMatched = true;
 	  matchPar = fastjet::PseudoJet( (*truthLink)->p4() );
 	}
@@ -665,7 +689,7 @@ EL::StatusCode JetSubstructure :: execute ()
   }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
   
-  
+
   
   /////////////   Reco jets /////////////////////////////////////////
   
@@ -675,6 +699,7 @@ EL::StatusCode JetSubstructure :: execute ()
   
   xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
   xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
+  int nRecoJetCounter=0;
   for( ; jet_itr != jet_end; ++jet_itr ) {
     
     xAOD::Jet theRecoJet;
@@ -693,6 +718,14 @@ EL::StatusCode JetSubstructure :: execute ()
     if (jet_pt < _pTjetCut)          continue;
     if (fabs(jet_eta) > _etaJetCut)  continue;
     
+    // WARNING! THERE MUST BE NO CONTINUE COMMAND FROM NOW ON IN THIS LOOP!!!!! 
+    //    nRecoJetCounter++;    will be written at the end of this loop.
+  
+    t_recTow[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow_i%d",nRecoJetCounter));
+    t_recTow1[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow1_i%d",nRecoJetCounter));
+    t_recTow2[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow2_i%d",nRecoJetCounter));
+    
+    
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
     
     const xAOD::JetConstituentVector recoConsts = (*jet_itr)->getConstituents();
@@ -706,6 +739,10 @@ EL::StatusCode JetSubstructure :: execute ()
     for( ; itCnst != itCnst_E; ++itCnst ) {
       double theEta = (*itCnst)->Eta() ; 
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
+      
+      // Fill the eventdisplay histogram first! 
+      t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
+      
       
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
       
@@ -797,12 +834,27 @@ EL::StatusCode JetSubstructure :: execute ()
       }
       fastjet::PseudoJet parent1, parent2;
       if (  sd_jet.has_parents(parent1, parent2) ) {
+	
+	
 	hRecoSdStat->Fill(jet_pt, 1);
 	thesdtheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	thesdz  = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
 	if ( _saveLog)   {
 	  logSubJets( parent1, parent2 ) ;
 	}
+	//Fill the histogram
+	vector<fastjet::PseudoJet> sub1 =  parent1.constituents() ;
+	vector<fastjet::PseudoJet> sub2 =  parent2.constituents() ;
+	//	DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity()
+	for ( int ic = 0 ; ic< sub1.size() ; ic++){
+	  t_recTow1[nRecoJetCounter]->Fill( sub1[ic].eta() - jet_rap, DeltaPhi( sub1[ic].phi(), jet_phi), sub1[ic].pt() * 0.001 );
+	}
+	for ( int ic = 0 ; ic< sub2.size() ; ic++){
+	  t_recTow2[nRecoJetCounter]->Fill( sub2[ic].eta() - jet_rap, DeltaPhi( sub2[ic].phi(), jet_phi), sub2[ic].pt() * 0.001 );
+	}
+	sub1.clear();
+	sub2.clear();
+
       }
       else  {
 	hRecoSdStat->Fill(jet_pt, 0);
@@ -819,7 +871,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	trkConsts.push_back( selectedTrks[ic]) ;	
       }
     }
-
+    
     // Tracking efficiency calculation 
     if ( _isMC) {  
       for ( int ic=0; ic< selGenMatchTrks.size() ; ic++) {
@@ -881,8 +933,20 @@ EL::StatusCode JetSubstructure :: execute ()
     corrRecCamJets.clear();
     nonZeroConsts.clear();
     toBeSubtracted.clear(); 
+    
+    nRecoJetCounter++;   // This must cone to the end of the loop!
   }
-  // sfsg
+
+  if ( nRecoJetCounter == vpt_reco.size())
+    cout << "Count numbers are consistent!!" << endl ;
+  else  cout << "Counts are inconsistent!!"<<endl;
+
+
+
+
+
+
+
   
   //**Get Truth jets ***
   double event_weight = 1;
@@ -941,7 +1005,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	double jet_rap = jets[i].rapidity();
 	double jet_phi = PhiInPI ( jets[i].phi() ) ;
 	if (jet_pt < _truthpTjetCut) continue;
-	if ( fabs(jet_eta) > _etaJetCut ) continue;
+	if ( fabs(jet_eta) > _etaJetCut+0.2 ) continue;
 	
 	// Truth recluster by C/A
 	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
@@ -1071,7 +1135,17 @@ EL::StatusCode JetSubstructure :: execute ()
       }
     }
     
+    cout << " here1 " << endl;
     resetSubstr(myJetSub);
+    eventDisRecTow->Reset();
+    eventDisRecTow1->Reset();
+    eventDisRecTow2->Reset();
+    cout << " here2" << endl;
+    eventDisGen->Reset();
+    eventDisGen1->Reset();
+    eventDisGen2->Reset();
+    cout << " here3 " << endl;
+
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
     myJetSub.cent = cent_bin; 
@@ -1088,7 +1162,10 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.reChSdMass = vRecoChSdMass[ri];
     myJetSub.reChSdZ = vRecoChSdZ[ri];
     myJetSub.reChSdTheta = vRecoChSdTheta[ri];
-    
+    eventDisRecTow->Add(t_recTow[ri]);
+    eventDisRecTow1->Add(t_recTow1[ri]);
+    eventDisRecTow2->Add(t_recTow2[ri]);
+       
     if (matchId != -1) {
       myJetSub.matchDr = drMin;
       myJetSub.genPt = vpt_gen[matchId];

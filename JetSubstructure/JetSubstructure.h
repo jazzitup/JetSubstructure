@@ -75,6 +75,12 @@ public:
 
 
 	TTree *treeOut; //!
+	TH2F* eventDisRecTow; //!
+	TH2F* eventDisRecTow1; //!
+	TH2F* eventDisRecTow2; //!
+	TH2F* eventDisGen; //!
+	TH2F* eventDisGen1; //!
+	TH2F* eventDisGen2; //!
 
 	TH2D* hGenNcam; //!
         TH2D* hGenNchCam; //!
