@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
 	bool  ReclusterCA;
 	float ReclusterRadius;
 	bool saveLog;
+	bool saveEvtDisplay;
 	string trk_cut_level;
 
 	//Boost configuration
@@ -96,6 +97,7 @@ int main(int argc, char *argv[])
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
 	("saveLog",boost::program_options::value<bool>(&saveLog)->default_value(false),"Save the log?")
+	("saveEvtDisplay",boost::program_options::value<bool>(&saveEvtDisplay)->default_value(false),"Save the log?")
 	("isGridJob",boost::program_options::value<bool>(&isGridJob)->default_value(0),"is it grid job?")
 	("isCondor",boost::program_options::value<bool>(&isCondor)->default_value(0),"is it running on condor?")
 	("ReclusterCA",boost::program_options::value<bool>(&ReclusterCA)->default_value(0),"Do Cambridge Aachen?")
@@ -268,6 +270,7 @@ int main(int argc, char *argv[])
 	alg->_ReclusterCA=ReclusterCA;
 	alg->_ReclusterRadius=ReclusterRadius;
 	alg->_saveLog = saveLog;
+	alg->_saveEvtDisplay = saveEvtDisplay;
 	alg->_pTtrkCut = pTtrkCut;
         alg->_trk_cut_level = trk_cut_level;
 	//Initialzie trigger

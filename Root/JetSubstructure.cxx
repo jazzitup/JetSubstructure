@@ -251,22 +251,23 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	hET_ETsub = new TH3D("hET_ETsub","hET_ETsub",200,0,200,100,-5,5,200,-50,50);
 	hET_ETsub->Sumw2();
 	
-	eventDisRecTow = new TH2F("eventDisRecTow","",20,-1,1,20,-1,1);
-	eventDisRecTow1 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow1");
-	eventDisRecTow2 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow2");
-	eventDisGen = new TH2F("eventDisGen","",100,-1,1,100,-1,1);
-	eventDisGen1 = (TH2F*)eventDisGen->Clone("eventDisGen1");
-	eventDisGen2 = (TH2F*)eventDisGen->Clone("eventDisGen2");
-
         treeOut = new TTree("tr","new tree");
 	treeOut->Branch("jets",&myJetSub,myJetSubText.Data());
-	treeOut->Branch("rect","TH2F",&eventDisRecTow,256000,0);
-	treeOut->Branch("rect1","TH2F",&eventDisRecTow1,256000,0);
-	treeOut->Branch("rect2","TH2F",&eventDisRecTow2,256000,0);
-	treeOut->Branch("genp","TH2F",&eventDisGen,256000,0);
-	treeOut->Branch("genp1","TH2F",&eventDisGen1,256000,0);
-	treeOut->Branch("genp2","TH2F",&eventDisGen2,256000,0);
-		
+
+	if (_saveEvtDisplay) {
+	  eventDisRecTow = new TH2F("eventDisRecTow","",20,-1,1,20,-1,1);
+	  eventDisRecTow1 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow1");
+	  eventDisRecTow2 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow2");
+	  eventDisGen = new TH2F("eventDisGen","",100,-1,1,100,-1,1);
+	  eventDisGen1 = (TH2F*)eventDisGen->Clone("eventDisGen1");
+	  eventDisGen2 = (TH2F*)eventDisGen->Clone("eventDisGen2");
+	  treeOut->Branch("rect","TH2F",&eventDisRecTow,256000,0);
+	  treeOut->Branch("rect1","TH2F",&eventDisRecTow1,256000,0);
+	  treeOut->Branch("rect2","TH2F",&eventDisRecTow2,256000,0);
+	  treeOut->Branch("genp","TH2F",&eventDisGen,256000,0);
+	  treeOut->Branch("genp1","TH2F",&eventDisGen1,256000,0);
+	  treeOut->Branch("genp2","TH2F",&eventDisGen2,256000,0);
+	}
 	
 
 	//	jetTree = new TTree("tr2","jet branching tree");
@@ -721,10 +722,11 @@ EL::StatusCode JetSubstructure :: execute ()
     // WARNING! THERE MUST BE NO CONTINUE COMMAND FROM NOW ON IN THIS LOOP!!!!! 
     //    nRecoJetCounter++;    will be written at the end of this loop.
   
-    t_recTow[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow_i%d",nRecoJetCounter));
-    t_recTow1[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow1_i%d",nRecoJetCounter));
-    t_recTow2[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow2_i%d",nRecoJetCounter));
-    
+    if (_saveEvtDisplay) {
+      t_recTow[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow_i%d",nRecoJetCounter));
+      t_recTow1[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow1_i%d",nRecoJetCounter));
+      t_recTow2[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow2_i%d",nRecoJetCounter));
+    }
     
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
     
@@ -741,7 +743,8 @@ EL::StatusCode JetSubstructure :: execute ()
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
       
       // Fill the eventdisplay histogram first! 
-      t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
+      if (_saveEvtDisplay) 
+	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
       
       
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
@@ -843,18 +846,17 @@ EL::StatusCode JetSubstructure :: execute ()
 	  logSubJets( parent1, parent2 ) ;
 	}
 	//Fill the histogram
-	vector<fastjet::PseudoJet> sub1 =  parent1.constituents() ;
-	vector<fastjet::PseudoJet> sub2 =  parent2.constituents() ;
-	//	DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity()
-	for ( int ic = 0 ; ic< sub1.size() ; ic++){
-	  t_recTow1[nRecoJetCounter]->Fill( sub1[ic].eta() - jet_rap, DeltaPhi( sub1[ic].phi(), jet_phi), sub1[ic].pt() * 0.001 );
+	if (_saveEvtDisplay) { 
+	  vector<fastjet::PseudoJet> sub1 =  parent1.constituents() ;
+	  vector<fastjet::PseudoJet> sub2 =  parent2.constituents() ;
+	  //	DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity()
+	  for ( int ic = 0 ; ic< sub1.size() ; ic++)
+	    t_recTow1[nRecoJetCounter]->Fill( sub1[ic].eta() - jet_rap, DeltaPhi( sub1[ic].phi(), jet_phi), sub1[ic].pt() * 0.001 );
+	  for ( int ic = 0 ; ic< sub2.size() ; ic++)
+	    t_recTow2[nRecoJetCounter]->Fill( sub2[ic].eta() - jet_rap, DeltaPhi( sub2[ic].phi(), jet_phi), sub2[ic].pt() * 0.001 );
+	  sub1.clear();
+	  sub2.clear();
 	}
-	for ( int ic = 0 ; ic< sub2.size() ; ic++){
-	  t_recTow2[nRecoJetCounter]->Fill( sub2[ic].eta() - jet_rap, DeltaPhi( sub2[ic].phi(), jet_phi), sub2[ic].pt() * 0.001 );
-	}
-	sub1.clear();
-	sub2.clear();
-
       }
       else  {
 	hRecoSdStat->Fill(jet_pt, 0);
@@ -999,6 +1001,8 @@ EL::StatusCode JetSubstructure :: execute ()
       if ( _saveLog ) cout << " Max Truth pT = " << jets[maxPtId].pt()*0.001 << " GeV " << endl ;
       //////////////////////////////////////////////////////////////////
       
+
+      int nGenJetCounter =0;
       for (unsigned i = 0; i < jets.size(); i++) {  // MC anti-kT jets
 	double jet_pt = jets[i].pt()*0.001;
 	double jet_eta = jets[i].pseudorapidity();  
@@ -1007,6 +1011,11 @@ EL::StatusCode JetSubstructure :: execute ()
 	if (jet_pt < _truthpTjetCut) continue;
 	if ( fabs(jet_eta) > _etaJetCut+0.2 ) continue;
 	
+	// IMPORTNAT!  There must be no more continue command in this loop! 
+	t_genTow[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp_i%d",nRecoJetCounter));
+	t_genTow1[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp1_i%d",nRecoJetCounter));
+	t_genTow2[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp2_i%d",nRecoJetCounter));
+
 	// Truth recluster by C/A
 	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
 	fastjet::ClusterSequence reCam(akConsts, jetDefCam);
@@ -1048,7 +1057,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	    hGenSdStat->Fill( jet_pt, 0 ) ;	    
 	  }
 	}
-	
+      
 	vpt_gen.push_back(jet_pt);
 	veta_gen.push_back(jet_eta);
 	vphi_gen.push_back(jet_phi);
@@ -1107,6 +1116,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	vGenChSdZ.push_back(t_genChSdZ)  ;
 	vGenChSdTheta.push_back(t_genChSdTheta) ;
 	
+	nGenJetCounter++; // THIS MUST BE AT THE END OF THE jets LOOP! 
       }
       truthParticles.clear();
       truthCharges.clear();
@@ -1135,17 +1145,15 @@ EL::StatusCode JetSubstructure :: execute ()
       }
     }
     
-    cout << " here1 " << endl;
     resetSubstr(myJetSub);
-    eventDisRecTow->Reset();
-    eventDisRecTow1->Reset();
-    eventDisRecTow2->Reset();
-    cout << " here2" << endl;
-    eventDisGen->Reset();
-    eventDisGen1->Reset();
-    eventDisGen2->Reset();
-    cout << " here3 " << endl;
-
+    if (_saveEvtDisplay) { 
+      eventDisRecTow->Reset();
+      eventDisRecTow1->Reset();
+      eventDisRecTow2->Reset();
+      eventDisGen->Reset();
+      eventDisGen1->Reset();
+      eventDisGen2->Reset();
+    }
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
     myJetSub.cent = cent_bin; 
@@ -1162,10 +1170,11 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.reChSdMass = vRecoChSdMass[ri];
     myJetSub.reChSdZ = vRecoChSdZ[ri];
     myJetSub.reChSdTheta = vRecoChSdTheta[ri];
-    eventDisRecTow->Add(t_recTow[ri]);
-    eventDisRecTow1->Add(t_recTow1[ri]);
-    eventDisRecTow2->Add(t_recTow2[ri]);
-       
+    if (_saveEvtDisplay) { 
+      eventDisRecTow->Add(t_recTow[ri]);
+      eventDisRecTow1->Add(t_recTow1[ri]);
+      eventDisRecTow2->Add(t_recTow2[ri]);
+    }
     if (matchId != -1) {
       myJetSub.matchDr = drMin;
       myJetSub.genPt = vpt_gen[matchId];
@@ -1179,7 +1188,11 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.genChSdMass = vGenChSdMass[matchId];
       myJetSub.genChSdZ = vGenChSdZ[matchId];
       myJetSub.genChSdTheta = vGenChSdTheta[matchId];
-
+      if (_saveEvtDisplay) {
+	eventDisGen->Add(t_genTow[matchId]);
+	eventDisGen1->Add(t_genTow1[matchId]);
+	eventDisGen2->Add(t_genTow2[matchId]);
+      }
     }
     
     treeOut->Fill();
