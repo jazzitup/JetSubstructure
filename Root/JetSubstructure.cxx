@@ -765,8 +765,6 @@ EL::StatusCode JetSubstructure :: execute ()
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
       
       // Fill the eventdisplay histogram first! 
-      if (_saveEvtDisplay) 
-	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
       
       
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
@@ -787,8 +785,12 @@ EL::StatusCode JetSubstructure :: execute ()
 	toBeSubtracted.push_back ( fastjet::PseudoJet ( gpx*posNorm/ghostE, gpy*posNorm/ghostE, gpz*posNorm/ghostE, posNorm) );
 	nFlag.push_back(true);
       }
+      
+      if (_saveEvtDisplay) 
+	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
+      
     }
-
+    
     // Cambridge reclustering 
     if ( _saveLog) cout << "Reco re-clustering starts!" << endl;
     fastjet::ClusterSequence recoCamSeq(nonZeroConsts, jetDefCam);

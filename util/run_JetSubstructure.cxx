@@ -71,6 +71,8 @@ int main(int argc, char *argv[])
 	bool saveEvtDisplay;
 	string trk_cut_level;
 
+	int bkgKill;
+
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
 	boost::program_options::options_description cmd_only_options("command line only options");
@@ -93,6 +95,7 @@ int main(int argc, char *argv[])
 	("truth_jet_collection",boost::program_options::value<std::string>(&truth_jet_collection)->default_value("antikt4Truth"),"Truth jet collection")
 	("dataset",boost::program_options::value<string>(&dataset)->default_value("PbPb_5p02"),"Type of input data")
 	("isMB",boost::program_options::value<int>(&isMB)->default_value(0),"MB or HP")
+	("bkgKill",boost::program_options::value<int>(&bkgKill)->default_value(0),"Background subtraction method")
 	("isHerwig",boost::program_options::value<int>(&isHerwig)->default_value(0),"Pythia or Herwig")
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
@@ -119,6 +122,8 @@ int main(int argc, char *argv[])
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
 	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(4),"Track pT cut")
+	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
+
 	  ;
 
 //	if (!jet_performance_mode) doForward=false;
@@ -195,6 +200,7 @@ int main(int argc, char *argv[])
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
 	cout << "track pT cut: " << pTtrkCut << endl;
         cout << "Track Selection: " << trk_cut_level << endl;
+	cout << "background subtraction method: "<< bkgKill << endl;
 	
 	if (truth_iso) {cout << "Isolating truth jets" << endl;}
 	if (reco_iso) {cout << "Isolating reco jets" << endl;}
@@ -258,6 +264,7 @@ int main(int argc, char *argv[])
 	alg->_centrality_scheme = centrality_scheme;
 	alg->_jet_radius = jet_radius;
 	alg->_isMB = isMB;
+	alg->_bkgKill = bkgKill;
 	alg->_isHerwig = isHerwig;
 	alg->_dR_truth_matching = dR_truth_matching;
 	alg->_etaJetCut=etaJetCut;

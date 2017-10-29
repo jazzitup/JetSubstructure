@@ -49,6 +49,7 @@ public:
 	int _isMC; //
 	string _dataset; //
 	int _isMB; //
+	int _bkgKill; //
 	int _isHerwig; //
 	int _jet_radius; //
 	string _reco_jet_collection; //
