@@ -44,6 +44,7 @@ using namespace TrackHelperTools;
   } while( false )
 
 
+
 struct jetSubStr {
   Int_t cent;
   float weight;
@@ -54,13 +55,17 @@ struct jetSubStr {
 };
 jetSubStr myJetSub;
 
-TString evtText = "cent/I:weight/F:";
+TString evtText = "cent/I:weight/F";
 TString recoText = "pt:rawPt:eta:y:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2";
-TString reChText = "chSdPt:chSdMass:chZg:chTheta:";
-TString genText = "dr:genPt:genEta:genRcPt:genSdPt:genSdMass:genZg:genTheta:";
+TString reChText = "chSdPt:chSdMass:chZg:chTheta";
+TString genText = "dr:genPt:genEta:genRcPt:genSdPt:genSdMass:genZg:genTheta";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
 
-TString myJetSubText = evtText+recoText+reChText+genText+genChText;
+TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText;
+
+int kTrim = 1;
+int kVerySoft = 1;
+
 
 // this is needed to distribute the algorithm to the workers
 ClassImp(JetSubstructure)
@@ -117,7 +122,7 @@ void showLadder (fastjet::PseudoJet akJet, fastjet::PseudoJet camJet, fastjet::P
   cout << "*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*" << endl;
   cout << "[ pT of antikT -> Cambridge -> SoftDrop  =  " << akJet.pt()*0.001 << " -> " << camJet.pt()*0.001 <<" -> "<< sd_jet.pt()*0.001 <<"]" << endl;
   cout << " Number of C/A constituents: " << camJet.constituents().size()  << ",  SoftDrop constituents: "<< sd_jet.constituents().size() << endl;
-  cout << " Full consticuents lists (pt, eta, phi)" <<endl;
+  cout << " Full constituents lists (pt, eta, phi)" <<endl;
   vector<fastjet::PseudoJet> camConst = camJet.constituents() ;
   for ( int ic = 0 ; ic< camConst.size() ; ic++){
     cout << "    ( " << camConst[ic].pt() *0.001 << ", " << camConst[ic].eta() << ", "<< camConst[ic].phi() << ") "<< endl;
@@ -693,7 +698,7 @@ EL::StatusCode JetSubstructure :: execute ()
       float mcprob=-1.;
       if(truthLink.isValid()) {
 	mcprob = trk->auxdata<float>("truthMatchProbability");
-	if ( ( mcprob > 0.3 ) && ( (*truthLink)->barcode() > 0 ) &&  ( (*truthLink)->barcode() < 200000 ) ) {  // 0.2 is hard-coded at the momnet.  ToBeFixed   
+	if ( ( mcprob > 0.3 ) && ( (*truthLink)->barcode() > 0 ) &&  ( (*truthLink)->barcode() < 200000 ) ) {  // 0.3 is hard-coded at the momnet.  ToBeFixed   
 	  isTruthMatched = true;
 	  matchPar = fastjet::PseudoJet( (*truthLink)->p4() );
 	}
@@ -705,7 +710,7 @@ EL::StatusCode JetSubstructure :: execute ()
   }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
   
-
+  
   
   /////////////   Reco jets /////////////////////////////////////////
   
@@ -737,18 +742,17 @@ EL::StatusCode JetSubstructure :: execute ()
     // WARNING! THERE MUST BE NO CONTINUE COMMAND FROM NOW ON IN THIS LOOP!!!!! 
     //    nRecoJetCounter++;    will be written at the end of this loop.
     
-    eventDisRecTow->Reset();
-    eventDisRecTow1->Reset();
-    eventDisRecTow2->Reset();
     if (_saveEvtDisplay) {
+      eventDisRecTow->Reset();
+      eventDisRecTow1->Reset();
+      eventDisRecTow2->Reset();
       t_recTow[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow_i%d",nRecoJetCounter));
       t_recTow1[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow1_i%d",nRecoJetCounter));
       t_recTow2[nRecoJetCounter] = (TH2F*)eventDisRecTow->Clone(Form("recTow2_i%d",nRecoJetCounter));
+      t_recTow[nRecoJetCounter]->Reset();
+      t_recTow1[nRecoJetCounter]->Reset();
+      t_recTow2[nRecoJetCounter]->Reset();
     }
-    t_recTow[nRecoJetCounter]->Reset();
-    t_recTow1[nRecoJetCounter]->Reset();
-    t_recTow2[nRecoJetCounter]->Reset();
-
 
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
     
@@ -763,29 +767,37 @@ EL::StatusCode JetSubstructure :: execute ()
     for( ; itCnst != itCnst_E; ++itCnst ) {
       double theEta = (*itCnst)->Eta() ; 
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
-      
-      // Fill the eventdisplay histogram first! 
-      
-      
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
       
-      if ( (*itCnst)->pt() > 0 ) { // normal tower 
-	nonZeroConsts.push_back(thisConst);
-	toBeSubtracted.push_back ( fastjet::PseudoJet ( 0.000001, 0.000001, 0.000001, 0.000002 )) ;
-	nFlag.push_back (false);
+      if ( _bkgKill == -1 ) { 
+	if ( (*itCnst)->pt() > 0 ) { // normal tower 
+	  nonZeroConsts.push_back(thisConst);
+	  toBeSubtracted.push_back ( fastjet::PseudoJet ( 0.000001, 0.000001, 0.000001, 0.000002 )) ; // place holder
+	  nFlag.push_back (false);
+	}
+	else {  // negative tower 
+	  double gpx = ghostE/cosh(theEta) * cos(thePhi) ;
+	  double gpy = ghostE/cosh(theEta) * sin(thePhi) ;
+	  double gpz = ghostE*tanh(theEta) ;
+	  double posPt = - (*itCnst)->pt() ;
+	  double posNorm = posPt * cosh(theEta);    // p = pT * cosh(
+	  nonZeroConsts.push_back( fastjet::PseudoJet ( gpx,gpy,gpz,ghostE )  );
+	  toBeSubtracted.push_back ( fastjet::PseudoJet ( gpx*posNorm/ghostE, gpy*posNorm/ghostE, gpz*posNorm/ghostE, posNorm) );
+	  nFlag.push_back(true);
+	}
       }
-      else {  // negative tower 
-	double gpx = ghostE/cosh(theEta) * cos(thePhi) ;
-	double gpy = ghostE/cosh(theEta) * sin(thePhi) ;
-	double gpz = ghostE*tanh(theEta) ;
-	double posPt = - (*itCnst)->pt() ;
-	double posNorm = posPt * cosh(theEta);    // p = pT * cosh(
-		
-	nonZeroConsts.push_back( fastjet::PseudoJet ( gpx,gpy,gpz,ghostE )  );
-	toBeSubtracted.push_back ( fastjet::PseudoJet ( gpx*posNorm/ghostE, gpy*posNorm/ghostE, gpz*posNorm/ghostE, posNorm) );
-	nFlag.push_back(true);
+      else if ( _bkgKill == 0 ) {  // Just ignore negative towers
+	if ( (*itCnst)->pt() > 0 ) {
+	  nonZeroConsts.push_back(thisConst);
+	  toBeSubtracted.push_back ( fastjet::PseudoJet ( 0.000001, 0.000001, 0.000001, 0.000002 )) ; // place holder
+          nFlag.push_back (false);
+	}
+      }
+      else if ( _bkgKill == 1 ) { // soft kill
+	cout << "No SoftKilling module deployed yet" << endl; 
       }
       
+      // Fill the eventdisplay histogram first! 
       if (_saveEvtDisplay) 
 	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
       
@@ -1058,13 +1070,15 @@ EL::StatusCode JetSubstructure :: execute ()
 	if ( fabs(jet_eta) > _etaJetCut+0.2 ) continue;
       
 	// IMPORTNAT!  There must be no more continue command in this loop! 
-	t_genTow[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp_i%d",nRecoJetCounter));
-	t_genTow1[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp1_i%d",nRecoJetCounter));
-	t_genTow2[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp2_i%d",nRecoJetCounter));
-	t_genTow[nGenJetCounter]->Reset();
-	t_genTow1[nGenJetCounter]->Reset();
-	t_genTow2[nGenJetCounter]->Reset();
-
+	if (_saveEvtDisplay) {	
+	  t_genTow[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp_i%d",nRecoJetCounter));
+	  t_genTow1[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp1_i%d",nRecoJetCounter));
+	  t_genTow2[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp2_i%d",nRecoJetCounter));
+	  t_genTow[nGenJetCounter]->Reset();
+	  t_genTow1[nGenJetCounter]->Reset();
+	  t_genTow2[nGenJetCounter]->Reset();
+	}
+	
 	// Truth recluster by C/A
 	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
 	fastjet::ClusterSequence reCam(akConsts, jetDefCam);

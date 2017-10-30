@@ -50,6 +50,8 @@ public:
 	string _dataset; //
 	int _isMB; //
 	int _bkgKill; //
+	bool _doTrimming; //
+	float _fCut; //
 	int _isHerwig; //
 	int _jet_radius; //
 	string _reco_jet_collection; //
