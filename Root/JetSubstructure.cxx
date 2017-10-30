@@ -48,17 +48,17 @@ using namespace TrackHelperTools;
 struct jetSubStr {
   Int_t cent;
   float weight;
-  float recoPt, recoRawPt, recoEta, recoRap, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2;
+  float recoPt, recoRawPt, recoEta, recoRap, recoPhi, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2;
   float reChSdPt, reChSdMass, reChSdZ, reChSdTheta;
-  float matchDr, genPt,  genEta, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2;
+  float matchDr, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2;
   float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
 };
 jetSubStr myJetSub;
 
 TString evtText = "cent/I:weight/F";
-TString recoText = "pt:rawPt:eta:y:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2";
+TString recoText = "pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2";
 TString reChText = "chSdPt:chSdMass:chZg:chTheta";
-TString genText = "dr:genPt:genEta:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2";
+TString genText = "dr:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
 
 TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText;
@@ -78,6 +78,7 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.recoRawPt= -1;
   jetsub.recoEta=-100;
   jetsub.recoRap=-100;
+  jetsub.recoPhi=-100;
   jetsub.recoRcPt=-1;
   jetsub.recoSdPt=-1;
   jetsub.recoSdMass=-1;
@@ -92,7 +93,9 @@ void resetSubstr (jetSubStr &jetsub)
 
 
   jetsub.genPt=-1;
-  jetsub.genEta=-1;
+  jetsub.genEta=-10;
+  jetsub.genRap=-10;
+  jetsub.genPhi=-10;
   jetsub.genRcPt=-1;
   jetsub.genSdPt=-1;
   jetsub.genSdMass=-1;
@@ -616,6 +619,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
   vector <double> vpt_gen;
   vector <double> veta_gen;
+  vector <double> vrap_gen;
   vector <double> vphi_gen;
   vector <double> vptRc_gen;
   vector <double> vSdmass_gen;
@@ -1177,6 +1181,7 @@ EL::StatusCode JetSubstructure :: execute ()
       
 	vpt_gen.push_back(jet_pt);
 	veta_gen.push_back(jet_eta);
+	vrap_gen.push_back(jet_rap);
 	vphi_gen.push_back(jet_phi);
 	vptRc_gen.push_back(thePtrc);
 	vSdmass_gen.push_back(thesdm);
@@ -1286,6 +1291,7 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.recoRawPt = vptRaw_reco[ri];
     myJetSub.recoEta = veta_reco[ri];
     myJetSub.recoRap = vrap_reco[ri];
+    myJetSub.recoPhi = vphi_reco[ri];
     myJetSub.recoRcPt = vptRc_reco[ri];
     myJetSub.weight = event_weight;
     myJetSub.recoSdPt = vSdpt_reco[ri];
@@ -1316,6 +1322,8 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.matchDr = drMin;
       myJetSub.genPt = vpt_gen[matchId];
       myJetSub.genEta = veta_gen[matchId];
+      myJetSub.genRap = vrap_gen[matchId];
+      myJetSub.genPhi = vphi_gen[matchId];
       myJetSub.genRcPt = vptRc_gen[matchId];
       myJetSub.genSdMass = vSdmass_gen[matchId];
       myJetSub.genSdPt = vSdpt_gen[matchId];
