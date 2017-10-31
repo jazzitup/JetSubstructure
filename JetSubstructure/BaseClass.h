@@ -52,6 +52,7 @@ public:
 	int _bkgKill; //
 	bool _doTrimming; //
 	float _fCut; //
+	float _rSub; //
 	int _isHerwig; //
 	int _jet_radius; //
 	string _reco_jet_collection; //

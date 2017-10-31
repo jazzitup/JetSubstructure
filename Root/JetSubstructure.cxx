@@ -28,6 +28,8 @@
 #include "xAODForward/ZdcModuleContainer.h"
 
 #include "JetRec/JetSoftDrop.h"
+#include "fastjet/tools/Filter.hh"
+#include "JetRec/JetTrimmer.h"
 
 using namespace std;
 using namespace JetHelperTools;
@@ -52,6 +54,7 @@ struct jetSubStr {
   float reChSdPt, reChSdMass, reChSdZ, reChSdTheta;
   float matchDr, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2;
   float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
+  float recoTrMass, recoChTrMass, genTrMass, genChTrMass, recoTrNsub, recoChTrNsub, genTrNsub, genChTrNsub; 
 };
 jetSubStr myJetSub;
 
@@ -60,11 +63,9 @@ TString recoText = "pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:
 TString reChText = "chSdPt:chSdMass:chZg:chTheta";
 TString genText = "dr:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
+TString trimText  = "trMass:chTrMass:genTrMass:genChTrMass:trNsub:chTrNsub:genTrNsub:genChTrNsub";
 
-TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText;
-
-int kTrim = 1;
-int kVerySoft = 1;
+TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText+":"+trimText;
 
 
 // this is needed to distribute the algorithm to the workers
@@ -73,6 +74,8 @@ ClassImp(JetSubstructure)
 
 void resetSubstr (jetSubStr &jetsub)
 {
+
+
   jetsub.cent = -1 ;
   jetsub.recoPt= -1;
   jetsub.recoRawPt= -1;
@@ -110,6 +113,14 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.genSdRap2 = -10;
   jetsub.genSdPhi2 = -10;
 
+  jetsub.recoTrMass = -1;
+  jetsub.recoChTrMass = -1;
+  jetsub.genTrMass = -1;
+  jetsub.genChTrMass = -1;
+  jetsub.recoTrNsub = -1;
+  jetsub.recoChTrNsub = -1;
+  jetsub.genTrNsub = -1;
+  jetsub.genChTrNsub = -1;
 }
 
 int getMaxPtIndex ( vector<fastjet::PseudoJet>& jets ) {
@@ -616,7 +627,11 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <float> vRecoChSdMass; 
   vector <float> vRecoChSdZ; 
   vector <float> vRecoChSdTheta; 
-
+  //trimming
+  vector <double> vTrMass_reco;
+  vector <double> vChTrMass_reco;
+  vector <double> vTrNsub_reco;
+  
   vector <double> vpt_gen;
   vector <double> veta_gen;
   vector <double> vrap_gen;
@@ -633,11 +648,14 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <float> vSdrap2_gen;
   vector <float> vSdphi2_gen;
 
-  vector <float> vGenChSdPt;
-  vector <float> vGenChSdMass  ;
-  vector <float> vGenChSdZ  ;
-  vector <float> vGenChSdTheta  ;
-
+  vector <float> vChSdPt_gen;
+  vector <float> vChSdMass_gen  ;
+  vector <float> vChSdZ_gen  ;
+  vector <float> vChSdTheta_gen  ;
+  //trimming
+  vector <double> vTrMass_gen;
+  vector <float> vTrNsub_gen;
+  vector <double> vChTrMass_gen;
 
 
 
@@ -647,10 +665,19 @@ EL::StatusCode JetSubstructure :: execute ()
   float beta = 0 ;
   float z_cut = 0.1;
   fastjet::contrib::SoftDrop softdropper(beta, z_cut);
-
-
+  fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, _rSub), 
+                          fastjet::SelectorPtFractionMin(_fCut));
+  
+  if ( (_bkgKill !=0) && (_doTrimming) ) 
+    cout <<endl<<endl<<" bkgKill is not zero while doTrimming is on!!!!!" << endl<<endl<<endl ;
+  
+  if ( _doTrimming ) cout << "Trimming is on" << endl;
+  else cout << "Trimming is off" << endl;
+  cout << "Trimmer: " << trimmer.description()  << endl;
+  // reference : http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetTrimmer.cxx
+    
   ////////////// MC truth particles /////////////
-
+  
   std::vector<fastjet::PseudoJet> truthParticles;
   std::vector<fastjet::PseudoJet> truthCharges;
   if (_isMC){
@@ -745,7 +772,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
     const xAOD::JetFourMom_t jet_4momUnCal = theRecoJet.jetP4("JetSubtractedScaleMomentum"); // uncalib
     const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
-
+    
     fastjet::PseudoJet CalibFourVec = fastjet::PseudoJet ( jet_4momCalib.px(), jet_4momCalib.py(), jet_4momCalib.pz(), jet_4momCalib.energy() );
     fastjet::PseudoJet unCaliFourVec = fastjet::PseudoJet ( jet_4momUnCal.px(), jet_4momUnCal.py(), jet_4momUnCal.pz(), jet_4momUnCal.energy() );
     double jet_pt  = jet_4momCalib.pt() * 0.001 ;
@@ -772,6 +799,8 @@ EL::StatusCode JetSubstructure :: execute ()
     }
 
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
+    
+
     
     const xAOD::JetConstituentVector recoConsts = (*jet_itr)->getConstituents();
     xAOD::JetConstituentVector::iterator itCnst   = recoConsts.begin();
@@ -819,7 +848,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
       
     }
-    
+
     // Cambridge reclustering 
     if ( _saveLog) cout << "Reco re-clustering starts!" << endl;
     fastjet::ClusterSequence recoCamSeq(nonZeroConsts, jetDefCam);
@@ -831,7 +860,8 @@ EL::StatusCode JetSubstructure :: execute ()
     
     hRecoNcam->Fill(jet_pt,cambridgeJet.size());
     
-    if ( cambridgeJet.size() > 0 ) { 
+    // restore negative towers 
+    if ( cambridgeJet.size() > 0 ) {  
       for ( int ij= 0 ; ij < cambridgeJet.size() ; ij++) {
 	if ( _saveLog)	cout<< ij<<"th Cambridge jet pT, eta phi: "<<cambridgeJet[ij].pt() *0.001  << ", "<< cambridgeJet[ij].eta() << ", " << cambridgeJet[ij].phi()<< endl;
 	double subPx = cambridgeJet[ij].px() ; 
@@ -863,8 +893,6 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     vector<fastjet::PseudoJet> corrRecCamJets = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
-    
-    
     // Yongsun:  http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetSoftDrop.cxx line 67.
   
     double thePtrc = -1;
@@ -883,17 +911,35 @@ EL::StatusCode JetSubstructure :: execute ()
     float t_recoChSdMass= -1;
     float t_recoChSdZ= -1 ;
     float t_recoChSdTheta= -1;
-
-    
+    float t_recoTrMass = -1;
+    float t_recoTrNsub = -1;
+    float t_recoChTrMass = -1;
     if ( corrRecCamJets.size() > 0 )   {
-      thePtrc = corrRecCamJets[0].pt() * 0.001;
-      fastjet::PseudoJet sd_jet = softdropper(corrRecCamJets[0]);
+      fastjet::PseudoJet originalJet;
+      // First trim this!! 
+      if ( _doTrimming) {
+	originalJet = trimmer(corrRecCamJets[0]);
+	if (_saveLog) {
+	  cout << " cambridge jet pt = " << originalJet.pt()*0.001 << endl;
+	  cout << "after trimming: " << originalJet.pt()*0.0001 <<endl;
+	  cout <<" nSubJets = " << originalJet.pieces().size() << endl;
+	}
+	t_recoTrMass = originalJet.m() * 0.001; 
+	t_recoTrNsub   = originalJet.pieces().size() ;
+      }
+      else { 
+	originalJet = corrRecCamJets[0]; 
+      }
+      
+      
+      thePtrc = originalJet.pt() * 0.001;
+      fastjet::PseudoJet sd_jet = softdropper(originalJet);
       thesdpt = sd_jet.pt() * 0.001; 
       thesdm =  sd_jet.m() * 0.001; 
       
       if (_saveLog) {
 	cout << "RECO JET softdrop:" << endl;
-	showLadder ( unCaliFourVec, corrRecCamJets[0], sd_jet );
+	showLadder ( unCaliFourVec, originalJet, sd_jet );
       }
       fastjet::PseudoJet parent1, parent2;
       if (  sd_jet.has_parents(parent1, parent2) ) {
@@ -1006,6 +1052,11 @@ EL::StatusCode JetSubstructure :: execute ()
     vRecoChSdMass.push_back(t_recoChSdMass)  ;
     vRecoChSdZ.push_back(t_recoChSdZ)  ;
     vRecoChSdTheta.push_back(t_recoChSdTheta) ;
+    
+    vTrMass_reco.push_back(t_recoTrMass);
+    vTrNsub_reco.push_back(t_recoTrNsub);
+    vChTrMass_reco.push_back(t_recoChTrMass);
+    
     
     corrRecCamJets.clear();
     nonZeroConsts.clear();
@@ -1133,17 +1184,36 @@ EL::StatusCode JetSubstructure :: execute ()
 	float thesdpt2 = -1 ; 
 	float thesdrap2 = -10 ; 
 	float thesdphi2 = -10 ; 
+        float t_genTrMass = -1;
+        float t_genTrNsub = -1;
 
 	hGenNcam->Fill( jet_pt, camJets.size() ) ;
 	
 	if ( camJets.size() > 0 )   {  // If cambridge jet is made .. 
-	  thePtrc = camJets[0].pt() * 0.001;
-	  fastjet::PseudoJet sd_jet = softdropper(camJets[0]);
+	  fastjet::PseudoJet originalJet;
+	  if ( _doTrimming) {
+	    originalJet = trimmer(camJets[0]);
+	    if (_saveLog) {
+	      cout << "Gen cambridge jet pt = " << originalJet.pt()*0.001 << endl;
+	      cout << "Gen after trimming: " << originalJet.pt()*0.0001 <<endl;
+	      cout <<" Gen nSubJets = " << originalJet.pieces().size() << endl;
+	    }
+	    t_genTrMass = originalJet.m() * 0.001;
+	    t_genTrNsub =  originalJet.pieces().size();
+	  }
+	  else {
+	    originalJet = camJets[0];
+	  }
+
+	  
+	  
+	  thePtrc = originalJet.pt() * 0.001;
+	  fastjet::PseudoJet sd_jet = softdropper(originalJet);
 	  thesdm =  sd_jet.m() * 0.001;
 	  thesdpt = sd_jet.pt() * 0.001;
 	  if ( _saveLog) { 
 	    cout << "GEN JET softdrop:" << endl;
-	    showLadder ( jets[i], camJets[0], sd_jet );  
+	    showLadder ( jets[i], originalJet, sd_jet );  
 	  }
 	  
 	  fastjet::PseudoJet parent1, parent2;
@@ -1195,6 +1265,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	vSdrap2_gen.push_back(thesdrap2);
 	vSdphi2_gen.push_back(thesdphi2);
 
+	vTrMass_gen.push_back(t_genTrMass);
+	vTrNsub_gen.push_back(t_genTrNsub);
 
 	camJets.clear();
 	
@@ -1222,6 +1294,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	float t_genChSdMass= -1;
 	float t_genChSdZ= -1;
 	float t_genChSdTheta=-1;
+	float t_genChTrMass = -1;
+
 	hGenNchCam->Fill( jet_pt, camChJets.size() );
 	if ( camChJets.size() > 0 )   {
 	  fastjet::PseudoJet chSd_jet = softdropper(camChJets[0]);
@@ -1241,10 +1315,13 @@ EL::StatusCode JetSubstructure :: execute ()
           }
         }
 	
-	vGenChSdPt.push_back(t_genChSdPt);
-	vGenChSdMass.push_back(t_genChSdMass)  ;
-	vGenChSdZ.push_back(t_genChSdZ)  ;
-	vGenChSdTheta.push_back(t_genChSdTheta) ;
+	vChSdPt_gen.push_back(t_genChSdPt);
+	vChSdMass_gen.push_back(t_genChSdMass)  ;
+	vChSdZ_gen.push_back(t_genChSdZ)  ;
+	vChSdTheta_gen.push_back(t_genChSdTheta) ;
+	
+	vChTrMass_gen.push_back(t_genChTrMass);
+	
 	
 	nGenJetCounter++; // THIS MUST BE AT THE END OF THE jets LOOP! 
       }
@@ -1305,11 +1382,16 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.recoSdRap2 = vSdrap2_reco[ri];
     myJetSub.recoSdPhi2 = vSdphi2_reco[ri];
 
-
     myJetSub.reChSdPt = vRecoChSdPt[ri];
     myJetSub.reChSdMass = vRecoChSdMass[ri];
     myJetSub.reChSdZ = vRecoChSdZ[ri];
     myJetSub.reChSdTheta = vRecoChSdTheta[ri];
+
+    myJetSub.recoTrMass = vTrMass_reco[ri];
+    myJetSub.recoTrNsub = vTrNsub_reco[ri];
+
+    myJetSub.recoChTrMass = vChTrMass_reco[ri];
+
     if (_saveEvtDisplay) { 
       eventDisRecTow->Add(t_recTow[ri]);
       eventDisRecTow1->Add(t_recTow1[ri]);
@@ -1336,10 +1418,15 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.genSdPhi2 = vSdphi2_gen[matchId];
       myJetSub.genSdRap2 = vSdrap2_gen[matchId];
 
-      myJetSub.genChSdPt = vGenChSdPt[matchId];
-      myJetSub.genChSdMass = vGenChSdMass[matchId];
-      myJetSub.genChSdZ = vGenChSdZ[matchId];
-      myJetSub.genChSdTheta = vGenChSdTheta[matchId];
+      myJetSub.genChSdPt = vChSdPt_gen[matchId];
+      myJetSub.genChSdMass = vChSdMass_gen[matchId];
+      myJetSub.genChSdZ = vChSdZ_gen[matchId];
+      myJetSub.genChSdTheta = vChSdTheta_gen[matchId];
+
+      myJetSub.genTrMass = vTrMass_gen[matchId];
+      myJetSub.genTrNsub = vTrNsub_gen[matchId];
+      myJetSub.genChTrMass = vChTrMass_gen[matchId];
+
 
       if (_saveEvtDisplay) {
 	eventDisGen->Add(t_genTow[matchId]);
