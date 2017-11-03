@@ -27,13 +27,22 @@
 #include "xAODTrigger/JetRoIAuxContainer.h"
 #include "xAODForward/ZdcModuleContainer.h"
 
+
+
+#include "fastjet/ClusterSequenceArea.hh"
+#include "fastjet/tools/JetMedianBackgroundEstimator.hh"
+#include "fastjet/tools/BackgroundEstimatorBase.hh"
+#include "fastjet/contrib/ConstituentSubtractor.hh"
+
 #include "JetRec/JetSoftDrop.h"
+#include "JetRecTools/ConstituentSubtractorTool.h"
 #include "fastjet/tools/Filter.hh"
 #include "JetRec/JetTrimmer.h"
 
 using namespace std;
 using namespace JetHelperTools;
 using namespace TrackHelperTools;
+using namespace fastjet;
 
 #define EL_RETURN_CHECK( CONTEXT, EXP )			  \
   do {                                                    \
@@ -668,6 +677,10 @@ EL::StatusCode JetSubstructure :: execute ()
   fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, _rSub), 
                           fastjet::SelectorPtFractionMin(_fCut));
   
+  // algo for background.  
+  fastjet::JetDefinition jet_def_for_rho(fastjet::kt_algorithm, 0.4);
+  fastjet::Selector rho_range_trk =  fastjet::SelectorAbsRapMax(_etaJetCut + _ReclusterRadius ); // 1.2 + 1 = 2.2 
+
   if ( _saveLog) { 
     if ( (_bkgKill !=0) && (_doTrimming) )
       cout <<endl<<endl<<" bkgKill is not zero while doTrimming is on!!!!!" << endl<<endl<<endl ;
@@ -756,6 +769,21 @@ EL::StatusCode JetSubstructure :: execute ()
   }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
   
+  
+  // Background for tracks 
+  // See https://github.com/cms-externals/fastjet-contrib/blob/master/ConstituentSubtractor/example.cc  
+  double ghost_area=0.01;  
+  fastjet::AreaDefinition area_def(fastjet::active_area_explicit_ghosts,fastjet::GhostedAreaSpec(4.0,1,ghost_area));  // in this step, the ghosts are added among the constituents of the jets
+  
+  fastjet::JetMedianBackgroundEstimator bge_rho_trk(rho_range_trk, jet_def_for_rho, area_def);
+  fastjet::BackgroundJetScalarPtDensity *scalarPtDensity = new fastjet::BackgroundJetScalarPtDensity();
+  bge_rho_trk.set_jet_density_class(scalarPtDensity); // this changes the computation of pt of patches from vector sum to scalar sum. Theoretically, the scalar sum seems more reasonable.
+  bge_rho_trk.set_particles(selectedTrks);
+  
+  
+  fastjet::contrib::ConstituentSubtractor subtractor_trk(&bge_rho_trk);
+  cout << " rho = " << bge_rho_trk.rho();
+  cout << " sigma = " << bge_rho_trk.sigma();
   
   
   /////////////   Reco jets /////////////////////////////////////////
