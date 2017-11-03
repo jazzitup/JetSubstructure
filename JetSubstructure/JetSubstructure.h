@@ -47,6 +47,8 @@
 #include "HIEventUtils/HIPileupTool.h"
 #include <iostream>
 
+#include "JetRecTools/ConstituentSubtractorTool.h"
+
 //#include "fastjet/contrib/SoftDrop.hh"
 
 class JetSubstructure : public BaseClass
