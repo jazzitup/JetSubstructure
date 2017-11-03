@@ -291,7 +291,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  eventDisRecTow = new TH2F("eventDisRecTow","",20,-1,1,20,-1,1);
 	  eventDisRecTow1 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow1");
 	  eventDisRecTow2 = (TH2F*)eventDisRecTow->Clone("eventDisRecTow2");
-	  eventDisGen = new TH2F("eventDisGen","",100,-1,1,100,-1,1);
+	  eventDisGen = new TH2F("eventDisGen","",20,-1,1,20,-1,1);
 	  eventDisGen1 = (TH2F*)eventDisGen->Clone("eventDisGen1");
 	  eventDisGen2 = (TH2F*)eventDisGen->Clone("eventDisGen2");
 	  treeOut->Branch("rect","TH2F",&eventDisRecTow,256000,0);
@@ -596,7 +596,7 @@ EL::StatusCode JetSubstructure :: execute ()
   //  h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
   h_centrality->Fill(cent_bin,1); //  weight is set 1 event_weight_fcal);
   
-  cout << "Centrality of this event = " << cent_bin << endl;
+  if ( _saveLog) cout << "Centrality of this event = " << cent_bin << endl;
 
   TH2F* t_recTow[20];
   TH2F* t_recTow1[20];
@@ -668,14 +668,16 @@ EL::StatusCode JetSubstructure :: execute ()
   fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, _rSub), 
                           fastjet::SelectorPtFractionMin(_fCut));
   
-  if ( (_bkgKill !=0) && (_doTrimming) ) 
-    cout <<endl<<endl<<" bkgKill is not zero while doTrimming is on!!!!!" << endl<<endl<<endl ;
-  
-  if ( _doTrimming ) cout << "Trimming is on" << endl;
-  else cout << "Trimming is off" << endl;
-  cout << "Trimmer: " << trimmer.description()  << endl;
+  if ( _saveLog) { 
+    if ( (_bkgKill !=0) && (_doTrimming) )
+      cout <<endl<<endl<<" bkgKill is not zero while doTrimming is on!!!!!" << endl<<endl<<endl ;
+    if ( _doTrimming ) cout << "Trimming is on" << endl;
+    else cout << "Trimming is off" << endl;
+    cout << "Trimmer: " << trimmer.description()  << endl;
+  }
+
   // reference : http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetTrimmer.cxx
-    
+  
   ////////////// MC truth particles /////////////
   
   std::vector<fastjet::PseudoJet> truthParticles;
@@ -1064,14 +1066,15 @@ EL::StatusCode JetSubstructure :: execute ()
     
     nRecoJetCounter++;   // This must cone to the end of the loop!
   }
-
-  if ( nRecoJetCounter == vpt_reco.size())
-    cout << "Count numbers are consistent!!" << endl ;
-  else  cout << "Counts are inconsistent!!"<<endl;
-
-
-
-
+  
+  if (_saveLog) { 
+    if (  (nRecoJetCounter == vpt_reco.size() ) )
+      cout << "Count numbers are consistent!!" << endl ;
+    else  cout << "Counts are inconsistent!!"<<endl;
+  }
+  
+  
+  
 
 
 
