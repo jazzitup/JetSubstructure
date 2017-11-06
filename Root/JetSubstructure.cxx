@@ -773,19 +773,20 @@ EL::StatusCode JetSubstructure :: execute ()
   // Background for tracks 
   // See https://github.com/cms-externals/fastjet-contrib/blob/master/ConstituentSubtractor/example.cc  
   double ghost_area=0.01;  
-  fastjet::AreaDefinition area_def(fastjet::active_area_explicit_ghosts,fastjet::GhostedAreaSpec(4.0,1,ghost_area));  // in this step, the ghosts are added among the constituents of the jets
-  
+  fastjet::AreaDefinition area_def(fastjet::active_area_explicit_ghosts,fastjet::GhostedAreaSpec(_etaJetCut + _ReclusterRadius ,1,ghost_area));  // in this step, the ghosts are added among the constituents of the jets
+  //  fastjet::AreaDefinition area_def(fastjet::active_area_explicit_ghosts);
   fastjet::JetMedianBackgroundEstimator bge_rho_trk(rho_range_trk, jet_def_for_rho, area_def);
   fastjet::BackgroundJetScalarPtDensity *scalarPtDensity = new fastjet::BackgroundJetScalarPtDensity();
   bge_rho_trk.set_jet_density_class(scalarPtDensity); // this changes the computation of pt of patches from vector sum to scalar sum. Theoretically, the scalar sum seems more reasonable.
   bge_rho_trk.set_particles(selectedTrks);
   
   
-  fastjet::contrib::ConstituentSubtractor subtractor_trk(&bge_rho_trk);
-  cout << " rho = " << bge_rho_trk.rho();
-  cout << " sigma = " << bge_rho_trk.sigma();
-  
-  
+  fastjet::contrib::ConstituentSubtractor subtractor_trk(&bge_rho_trk,0,0, 0.25);
+
+
+
+
+  //  cout << subtractor_trk.description() << endl;
   /////////////   Reco jets /////////////////////////////////////////
   
   xAOD::TStore *store = new xAOD::TStore; //For calibration
@@ -810,6 +811,10 @@ EL::StatusCode JetSubstructure :: execute ()
     double jet_rap = CalibFourVec.rapidity();
     double jet_phi = PhiInPI ( jet_4momCalib.phi() );
     double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
+    if (_saveLog) { 
+      cout <<" jet_pt = " << jet_pt << endl;
+      cout <<" jet_eta = " << jet_eta << endl;
+    }
     if (jet_pt < _pTjetCut)          continue;
     if (fabs(jet_eta) > _etaJetCut)  continue;
     
@@ -838,12 +843,15 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet>  nonZeroConsts;
     vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
     vector<bool>  nFlag; // reverse the pT only and subtract
-    
+      
     double ghostE = 0.000001;
     for( ; itCnst != itCnst_E; ++itCnst ) {
       double theEta = (*itCnst)->Eta() ; 
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
+      
+      
+      
       
       if ( _bkgKill == -1 ) { 
 	if ( (*itCnst)->pt() > 0 ) { // normal tower 
@@ -1034,8 +1042,7 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     
-    
-    fastjet::ClusterSequence reChCam(trkConsts, jetDefCam);
+    fastjet::ClusterSequenceArea reChCam(trkConsts, jetDefCam, area_def);
     vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets());
     if ( _saveLog)  {
       cout << "(RECO) Charged Cambridge jets" << endl;
@@ -1044,6 +1051,24 @@ EL::StatusCode JetSubstructure :: execute ()
     
     hRecoNchCam->Fill(jet_pt,camChJets.size() ) ;
     if ( camChJets.size() > 0 )   {
+      // background subtraction 
+      
+      const fastjet::PseudoJet &beforeSubt = camChJets[0];
+      fastjet::PseudoJet afterSubt = subtractor_trk(beforeSubt);
+      if (_saveLog) {
+	cout << endl << subtractor_trk.description() << endl << endl;
+	cout << " rho = " << bge_rho_trk.rho() << endl;
+	cout << " sigma = " << bge_rho_trk.sigma() << endl;
+	cout <<" n_jets_used () = " << bge_rho_trk.n_jets_used () << endl;
+	cout <<" mean_area () = " << bge_rho_trk.mean_area () << endl;
+	cout <<" empty_area () = " << bge_rho_trk.empty_area () << endl;
+	cout <<" n_empty_jets  () = " << bge_rho_trk.n_empty_jets  () << endl;
+	cout <<" before subtraction area, nConst, pt,eta,phi: " ;
+	cout << beforeSubt.area() <<", " << beforeSubt.constituents().size() << ", " << beforeSubt.pt() *0.001 << ", " << beforeSubt.eta() << ", "<< beforeSubt.phi() << endl;
+	cout <<" after subtraction: (no area)" ;
+	cout  << afterSubt.constituents().size() << ", " << afterSubt.pt() *0.001 << ", " << afterSubt.eta() << ", "<< afterSubt.phi() << endl;
+      }
+	
       fastjet::PseudoJet chSd_jet = softdropper(camChJets[0]);
       t_recoChSdMass = chSd_jet.m() * 0.001;
       t_recoChSdPt = chSd_jet.pt() * 0.001;
@@ -1157,7 +1182,7 @@ EL::StatusCode JetSubstructure :: execute ()
       }
       if ( _saveLog ) cout << " Max Truth pT = " << jets[maxPtId].pt()*0.001 << " GeV " << endl ;
       //////////////////////////////////////////////////////////////////
-      
+    
 
       int nGenJetCounter =0;
       for (unsigned i = 0; i < jets.size(); i++) {  // MC anti-kT jets
