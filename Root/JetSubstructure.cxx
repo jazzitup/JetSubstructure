@@ -135,10 +135,8 @@ void resetSubstr (jetSubStr &jetsub)
 int getMaxPtIndex ( vector<fastjet::PseudoJet>& jets ) {
   double max_pt = 0;
   int maxIndex = -1;
-  for (unsigned i = 0; i < jets.size(); i++) {
+  for (int i = 0; i < jets.size(); i++) {
     double jet_pt = jets[i].pt()*0.001;
-    double jet_eta = jets[i].eta();
-    double jet_phi = PhiInPI ( jets[i].phi() );  
     if (jet_pt > max_pt) {
       max_pt = jet_pt;
       maxIndex = i ; 
@@ -333,6 +331,13 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  h_allGen_pt_drap_cent.push_back( temphist_2d);
 	  h_allGen_pt_drap_cent.at(i)->Sumw2();
 
+	  temphist_2d = new TH2D(Form("hTrkPtEta_preCS_cent%i",i),";pT;eta",200,0,200,20,-3,3);
+	  hTrkPtEta_preCS_cent.push_back(temphist_2d);
+	  hTrkPtEta_preCS_cent.at(i)->Sumw2();
+
+	  temphist_2d = new TH2D(Form("hTrkPtEta_postCS_cent%i",i),";pT;eta",200,0,200,20,-3,3);
+	  hTrkPtEta_postCS_cent.push_back(temphist_2d);
+	  hTrkPtEta_postCS_cent.at(i)->Sumw2();
 	}
 	
 	hGenNcam = new TH2D("genCam","; p_{T} GeV/c ; Number of C/A clusters",100,0,1000,6,-0.5,5.5);
@@ -473,8 +478,9 @@ EL::StatusCode JetSubstructure :: initialize ()
 EL::StatusCode JetSubstructure :: execute ()
 {
   
+  bool useReAntiKt = true; 
   
-  // Here you do everything that needs to be done on every single
+    // Here you do everything that needs to be done on every single
   // events, e.g. read input variables, apply cuts, and fill
   // histograms and trees.  This is where most of your actual analysis
   // code will go.
@@ -514,9 +520,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	  isHIJING = false;
 	}
     }
-  
-
-
   
   
   //Get centrality bin and centile. Centile used for MB weighting (from MB_FCal_Normalization.txt)
@@ -671,6 +674,7 @@ EL::StatusCode JetSubstructure :: execute ()
   // algorithm definition 
   fastjet::JetDefinition jetDefCam(fastjet::cambridge_algorithm, _ReclusterRadius);
   fastjet::JetDefinition jetDefAk(fastjet::antikt_algorithm, _ReclusterRadius);
+  fastjet::JetDefinition jetDefAk04(fastjet::antikt_algorithm, 0.4);
   float beta = 0 ;
   float z_cut = 0.1;
   fastjet::contrib::SoftDrop softdropper(beta, z_cut);
@@ -711,6 +715,36 @@ EL::StatusCode JetSubstructure :: execute ()
     }
   }
   
+
+
+  double event_weight = 1;
+  if (_isMC){
+    if ( useReAntiKt )  {
+      ////////// On-the-fly jet finder ///////////////////////////////////////////////
+      if (_saveLog) {
+	cout << "   * Reweighting factor using R=0.4 jet" << endl;
+      }
+      fastjet::ClusterSequence csR04(truthParticles, jetDefAk04);
+      vector<fastjet::PseudoJet> jets04 = fastjet::sorted_by_pt(csR04.inclusive_jets());
+      int maxPtId = getMaxPtIndex ( jets04 ) ;
+      event_weight = 0;
+      cout <<"     * STRANGE! there is no R=0.4 jet" << endl;
+      if (maxPtId > -1)   {
+	if (_saveLog)  {
+	  cout << "      * Max pT (and y,phi) for R=0.4 Jets = " << jets04[maxPtId].pt() * 0.001 << " GeV, " << jets04[maxPtId].rapidity() << ", "<<jets04[maxPtId].phi() << endl;
+	}
+	event_weight = jetcorr->GetJetWeight( jets04[maxPtId].pt() * 0.001, jets04[maxPtId].rapidity(), PhiInPI(jets04[maxPtId].phi()) ); // pt unit needs to be GeV    ToBeFixed  : this value is strange  // phi must be +/- 3.14,  
+	//	cout << "A:  " << (jets04[maxPtId].phi()) << ",  B: " << PhiInPI(jets04[maxPtId].phi()) << endl;
+      }
+      jets04.clear();
+    }
+  }
+  
+  
+  
+  
+  
+
   
   ///////////// tracks ////////////////////////////////////////
   std::vector<fastjet::PseudoJet> selectedTrks;
@@ -766,7 +800,9 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     selectedTrks.push_back( fastjet::PseudoJet ( pionx, piony, pionz, pione ) );
+    hTrkPtEta_preCS_cent.at(cent_bin)->Fill( pt, eta, event_weight); 
     if (isTruthMatched) selGenMatchTrks.push_back( matchPar );
+    
   }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
   
@@ -792,7 +828,7 @@ EL::StatusCode JetSubstructure :: execute ()
   subtractor_trk.set_background_estimator(&bge_rho_trk);
   subtractor_trk.set_common_bge_for_rho_and_rhom(true); // for massless input particles it\
   
-  cout << endl << subtractor_trk.description() << endl << endl;
+  if ( _saveLog)   cout << endl << subtractor_trk.description() << endl ; 
   
   vector<PseudoJet> corrected_selectedTrks = subtractor_trk.subtract_event(selectedTrks, _etaTrkCut);
 
@@ -1139,14 +1175,9 @@ EL::StatusCode JetSubstructure :: execute ()
   }
   
   
-  
-
 
 
   
-  //**Get Truth jets ***
-  double event_weight = 1;
-  bool useReAntiKt = true; 
   
   // truth jet constituent test
   /*  
@@ -1185,17 +1216,6 @@ EL::StatusCode JetSubstructure :: execute ()
       vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
       // Now, new genJet is ready!
       
-      //////////////// event weight /////////////////////////////////////
-      int maxPtId = getMaxPtIndex ( jets ) ;
-      event_weight = 0;  
-      if (_saveLog)      cout << "maxPtId = " << maxPtId << endl;
-      if (maxPtId > -1)   {
-	event_weight = jetcorr->GetJetWeight( jets[maxPtId].pt() * 0.001, jets[maxPtId].eta(), jets[maxPtId].phi() ); // pt unit needs to be GeV    ToBeFixed  : this value is strange
-      }
-      if ( _saveLog ) cout << " Max Truth pT = " << jets[maxPtId].pt()*0.001 << " GeV " << endl ;
-      //////////////////////////////////////////////////////////////////
-    
-
       int nGenJetCounter =0;
       for (unsigned i = 0; i < jets.size(); i++) {  // MC anti-kT jets
 	double jet_pt = jets[i].pt()*0.001;
@@ -1337,8 +1357,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	vTrNsub_gen.push_back(t_genTrNsub);
 
 	camJets.clear();
-	
-      	
 	
 	// Charged Particle reclustering
 	if (_saveLog)	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
