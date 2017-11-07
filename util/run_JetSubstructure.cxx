@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	float dR_truth_matching;
 	int centrality_scheme;
 	int nFilesPerJob;
-	float pTtrkCut, pTjetCut, truthpTjetCut, etaJetCut;
+	float pTtrkCut, etaTrkCut, pTjetCut, truthpTjetCut, etaJetCut;
 	std::string grid_configuration="";
 	string weight_file;
 	string centrality_weight;
@@ -126,7 +126,8 @@ int main(int argc, char *argv[])
 	("reco_iso",boost::program_options::value<bool>(&reco_iso)->default_value(0),"Isolating reco jets?")
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
-	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(4),"Track pT cut")
+	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(0.5),"Track pT cut")
+	("track_eta_cut",boost::program_options::value<float>(&etaTrkCut)->default_value(2.4),"Track eta cut")
 	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
 
 	  ;
@@ -204,6 +205,7 @@ int main(int argc, char *argv[])
 	cout << "Reclustering radius: " << ReclusterRadius << endl;
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
 	cout << "track pT cut: " << pTtrkCut << endl;
+	cout << "track eta cut: " << etaTrkCut << endl;
         cout << "Track Selection: " << trk_cut_level << endl;
 	cout << "======= Background management ======== " << endl;
 	cout << "Kill(// -1: none, 0= 0 GeV, 1 = SoftKill): "<< bkgKill << endl;
@@ -291,6 +293,7 @@ int main(int argc, char *argv[])
 	alg->_saveLog = saveLog;
 	alg->_saveEvtDisplay = saveEvtDisplay;
 	alg->_pTtrkCut = pTtrkCut;
+	alg->_etaTrkCut = etaTrkCut;
         alg->_trk_cut_level = trk_cut_level;
 	//Initialzie trigger
 	alg->SetTrigger_chains();

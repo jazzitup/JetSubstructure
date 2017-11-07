@@ -74,6 +74,7 @@ public:
 	bool _saveLog; //
 	bool _saveEvtDisplay; //
 	float _pTtrkCut; //
+	float _etaTrkCut; //
 	string _trk_cut_level; //
 	//trigger
 	string _trigger_collection; //
