@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
 	int centrality_scheme;
 	int nFilesPerJob;
 	float pTtrkCut, etaTrkCut, pTjetCut, truthpTjetCut, etaJetCut;
+	float pTtrkCutForSD;
 	std::string grid_configuration="";
 	string weight_file;
 	string centrality_weight;
@@ -127,6 +128,7 @@ int main(int argc, char *argv[])
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
 	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(0.5),"Track pT cut")
+	("track_pT_cut_forSD",boost::program_options::value<float>(&pTtrkCutForSD)->default_value(4),"Track pT cut for SoftDrop")
 	("track_eta_cut",boost::program_options::value<float>(&etaTrkCut)->default_value(2.4),"Track eta cut")
 	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
 
@@ -206,6 +208,7 @@ int main(int argc, char *argv[])
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
 	cout << "track pT cut: " << pTtrkCut << endl;
 	cout << "track eta cut: " << etaTrkCut << endl;
+	cout << "track pT cut for SD: " << pTtrkCutForSD << endl;
         cout << "Track Selection: " << trk_cut_level << endl;
 	cout << "======= Background management ======== " << endl;
 	cout << "Kill(// -1: none, 0= 0 GeV, 1 = SoftKill): "<< bkgKill << endl;
@@ -293,6 +296,7 @@ int main(int argc, char *argv[])
 	alg->_saveLog = saveLog;
 	alg->_saveEvtDisplay = saveEvtDisplay;
 	alg->_pTtrkCut = pTtrkCut;
+	alg->_pTtrkCutForSD = pTtrkCutForSD;
 	alg->_etaTrkCut = etaTrkCut;
         alg->_trk_cut_level = trk_cut_level;
 	//Initialzie trigger

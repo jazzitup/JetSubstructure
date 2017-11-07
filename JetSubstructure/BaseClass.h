@@ -75,6 +75,7 @@ public:
 	bool _saveEvtDisplay; //
 	float _pTtrkCut; //
 	float _etaTrkCut; //
+	float _pTtrkCutForSD; //
 	string _trk_cut_level; //
 	//trigger
 	string _trigger_collection; //

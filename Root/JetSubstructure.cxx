@@ -58,7 +58,7 @@ using namespace fastjet;
 
 struct jetSubStr {
   Int_t cent;
-  float weight;
+  float weight, rhoCh;
   float recoPt, recoRawPt, recoEta, recoRap, recoPhi, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2;
   float reChSdPt, reChSdMass, reChSdZ, reChSdTheta;
   float matchDr, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2;
@@ -67,7 +67,7 @@ struct jetSubStr {
 };
 jetSubStr myJetSub;
 
-TString evtText = "cent/I:weight/F";
+TString evtText = "cent/I:weight/F:rhoCh";
 TString recoText = "pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2";
 TString reChText = "chSdPt:chSdMass:chZg:chTheta";
 TString genText = "dr:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2";
@@ -288,6 +288,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	h_centrality = new TH1D("Centrality","Centrality",10,0,10);
 	h_centrality->Sumw2();
 
+	
 	hET_ETsub = new TH3D("hET_ETsub","hET_ETsub",200,0,200,100,-5,5,200,-50,50);
 	hET_ETsub->Sumw2();
 	
@@ -1091,6 +1092,9 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet> trkConsts;
     for ( int ic=0; ic< corrected_selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, corrected_selectedTrks[ic].phi(), corrected_selectedTrks[ic].rapidity() ) <  _ReclusterRadius ) {
+	if ( corrected_selectedTrks[ic].pt()*0.001 < _pTtrkCutForSD )  
+	  continue;
+	
 	trkConsts.push_back( corrected_selectedTrks[ic]) ;	
       }
     }
@@ -1368,7 +1372,10 @@ EL::StatusCode JetSubstructure :: execute ()
         vector<fastjet::PseudoJet> chargeConsts;
         for ( int ic=0; ic< truthCharges.size() ; ic++) {
           if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
-            chargeConsts.push_back( truthCharges[ic]) ;
+            if ( truthCharges[ic].pt() * 0.001 < _pTtrkCutForSD ) 
+	      continue;
+
+	    chargeConsts.push_back( truthCharges[ic]) ;
 	  }
         }
 	fastjet::ClusterSequence reChCam(chargeConsts, jetDefCam);
@@ -1454,6 +1461,7 @@ EL::StatusCode JetSubstructure :: execute ()
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
     myJetSub.cent = cent_bin; 
+    myJetSub.rhoCh = bge_rho_trk.rho() * 0.001;
     myJetSub.recoPt = vpt_reco[ri];
     myJetSub.recoRawPt = vptRaw_reco[ri];
     myJetSub.recoEta = veta_reco[ri];
