@@ -831,8 +831,12 @@ EL::StatusCode JetSubstructure :: execute ()
   if ( _saveLog)   cout << endl << subtractor_trk.description() << endl ; 
   
   vector<PseudoJet> corrected_selectedTrks = subtractor_trk.subtract_event(selectedTrks, _etaTrkCut);
-
-      // background subtraction 
+  // Fill the histogram:
+  for ( int ii =0 ; ii < corrected_selectedTrks.size() ; ii++ ) {
+    hTrkPtEta_postCS_cent.at(cent_bin)->Fill( corrected_selectedTrks[ii].pt()*0.001,  corrected_selectedTrks[ii].eta(), event_weight);
+  }
+  
+  // background subtraction 
   if (_saveLog) {
     cout << endl <<" number of reconstructed tracks: " << selectedTrks.size() << endl;
     cout <<"  pT,eta,phi" << endl;
