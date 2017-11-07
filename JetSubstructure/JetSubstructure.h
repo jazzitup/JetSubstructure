@@ -94,6 +94,9 @@ public:
         TH2D* hRecoSdStat; //!
         TH2D* hRecoSdChStat; //!
 
+	vector<TH2D*> hTrkPtEta_preCS_cent; //!
+	vector<TH2D*> hTrkPtEta_postCS_cent; //!
+
         vector<TH2D*> h_trkGen_pt_dphi_cent; //!
         vector<TH2D*> h_allGen_pt_dphi_cent; //!
         vector<TH2D*> h_trkGen_pt_drap_cent; //!
