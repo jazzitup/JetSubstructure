@@ -97,10 +97,10 @@ public:
 	vector<TH2D*> hTrkPtEta_preCS_cent; //!
 	vector<TH2D*> hTrkPtEta_postCS_cent; //!
 
-        vector<TH2D*> h_trkGen_pt_dphi_cent; //!
-        vector<TH2D*> h_allGen_pt_dphi_cent; //!
-        vector<TH2D*> h_trkGen_pt_drap_cent; //!
-        vector<TH2D*> h_allGen_pt_drap_cent; //!
+        vector<TH3D*> h_trkGen_pt_dphi_cent; //!
+        vector<TH3D*> h_allGen_pt_dphi_cent; //!
+        vector<TH3D*> h_trkGen_pt_drap_cent; //!
+        vector<TH3D*> h_allGen_pt_drap_cent; //!
 	
 	vector<TH3D*> h_reco_jet_cent; //!
 	vector<TH3D*> h_reco_jet_cent_matched; //!

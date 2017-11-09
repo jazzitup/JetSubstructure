@@ -132,6 +132,7 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.genChTrNsub = -1;
 }
 
+
 int getMaxPtIndex ( vector<fastjet::PseudoJet>& jets ) {
   double max_pt = 0;
   int maxIndex = -1;
@@ -315,22 +316,41 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	//	jetTree->Branch("bran","");
 	
 	TH2D* temphist_2d;
+	TH3D* temphist_3d;
+
+	const int nJetPtBinForEff = 9;
+	double jetPtBinForEff[nJetPtBinForEff+1] = {0,100,150,200,250,300,350,400,600,1000};
+	const int nTrkPtBinForEff = 15;
+	double trkPtBinForEff[nTrkPtBinForEff+1] = {0,0.5,0.7,0.8,0.9,1,1.5,2,4,6,8,14,20,40,100,200};
+	const int nDphiDetaBinForEff = 20;
+	double dPhiBinForEff[nDphiDetaBinForEff+1];
+	double dEtaBinForEff[nDphiDetaBinForEff+1];
+	for ( int i=0 ; i<= nDphiDetaBinForEff ; i++) {
+	  dPhiBinForEff[i] = -1 + i*0.1;
+	  dEtaBinForEff[i] = -1 + i*0.1;
+	}
+	
 	for (int i=0;i<nCentbins;i++)  {
-	  temphist_2d = new TH2D(Form("h_trkGen_pt_dphi_cent%i",i),";pt;dphi",100,0,1000,20,-1,1);
-	  h_trkGen_pt_dphi_cent.push_back( temphist_2d);
+	  temphist_3d = new TH3D(Form("h_trkGen_dphi_cent%i",i),";pt;dphi",
+				 nJetPtBinForEff, jetPtBinForEff, nTrkPtBinForEff, trkPtBinForEff, nDphiDetaBinForEff, dPhiBinForEff);
+	  h_trkGen_pt_dphi_cent.push_back( temphist_3d);
 	  h_trkGen_pt_dphi_cent.at(i)->Sumw2();
 
-	  temphist_2d = new TH2D(Form("h_allGen_pt_dphi_cent%i",i),";pt;dphi",100,0,1000,20,-1,1);
-	  h_allGen_pt_dphi_cent.push_back( temphist_2d);
+	  temphist_3d = new TH3D(Form("h_allGen_dphi_cent%i",i),";pt;dphi",
+				 nJetPtBinForEff, jetPtBinForEff, nTrkPtBinForEff, trkPtBinForEff, nDphiDetaBinForEff, dPhiBinForEff);
+	  h_allGen_pt_dphi_cent.push_back( temphist_3d);
 	  h_allGen_pt_dphi_cent.at(i)->Sumw2();
 
-	  temphist_2d = new TH2D(Form("h_trkGen_pt_drap_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
-	  h_trkGen_pt_drap_cent.push_back( temphist_2d);
+	  temphist_3d = new TH3D(Form("h_trkGen_drap_cent%i",i),";pt;deta",
+				 nJetPtBinForEff, jetPtBinForEff, nTrkPtBinForEff, trkPtBinForEff, nDphiDetaBinForEff, dEtaBinForEff);
+	  h_trkGen_pt_drap_cent.push_back( temphist_3d);
 	  h_trkGen_pt_drap_cent.at(i)->Sumw2();
-	
-	  temphist_2d = new TH2D(Form("h_allGen_pt_drap_cent%i",i),";pt;deta",100,0,1000,20,-1,1);
-	  h_allGen_pt_drap_cent.push_back( temphist_2d);
+
+	  temphist_3d = new TH3D(Form("h_allGen_drap_cent%i",i),";pt;deta",
+				 nJetPtBinForEff, jetPtBinForEff, nTrkPtBinForEff, trkPtBinForEff, nDphiDetaBinForEff, dEtaBinForEff);
+	  h_allGen_pt_drap_cent.push_back( temphist_3d);
 	  h_allGen_pt_drap_cent.at(i)->Sumw2();
+
 
 	  temphist_2d = new TH2D(Form("hTrkPtEta_preCS_cent%i",i),";pT;eta",200,0,200,20,-3,3);
 	  hTrkPtEta_preCS_cent.push_back(temphist_2d);
@@ -371,6 +391,8 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  wk()->addOutput (h_allGen_pt_dphi_cent.at(i));
 	  wk()->addOutput (h_trkGen_pt_drap_cent.at(i));
 	  wk()->addOutput (h_allGen_pt_drap_cent.at(i));
+	  wk()->addOutput (hTrkPtEta_preCS_cent.at(i));
+	  wk()->addOutput (hTrkPtEta_postCS_cent.at(i));
 	}
 	
 	
@@ -478,8 +500,12 @@ EL::StatusCode JetSubstructure :: initialize ()
 
 EL::StatusCode JetSubstructure :: execute ()
 {
-  
   bool useReAntiKt = true; 
+
+
+  
+
+
   
     // Here you do everything that needs to be done on every single
   // events, e.g. read input variables, apply cuts, and fill
@@ -696,7 +722,7 @@ EL::StatusCode JetSubstructure :: execute ()
   ////////////// MC truth particles /////////////
   
   std::vector<fastjet::PseudoJet> truthParticles;
-  std::vector<fastjet::PseudoJet> truthCharges;
+  std::vector<fastjet::PseudoJet> truthChargesAna;
   if (_isMC){
     const xAOD::TruthParticleContainer * genParCont = 0;
     ANA_CHECK(event->retrieve( genParCont, "TruthParticles"));
@@ -709,8 +735,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	
 	truthParticles.push_back( (*truth_itr)->p4() );   // To be used for anti-kT jet reconstrucutre 
 	
-	if ( (fabs((*truth_itr)->charge()) > 0 ) && ( ptTrk > _pTtrkCut ) && ( (*truth_itr)->p4().Eta() < _etaTrkCut )  ) 
-	  truthCharges.push_back( (*truth_itr)->p4() ) ; // For softdrop
+	if ( (fabs((*truth_itr)->charge()) > 0 ) && ( ptTrk > _pTtrkCut ) && ( fabs((*truth_itr)->p4().Eta()) < _etaTrkCut )  ) 
+	  truthChargesAna.push_back( (*truth_itr)->p4() ) ; // For softdrop
 	
       }
     }
@@ -764,7 +790,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
     if ( fabs(eta) > _etaTrkCut ) 
       continue;
-
+    
     
     
     if(!m_trackSelectorTool->accept(*trk, *vtx_itr )) 
@@ -1098,19 +1124,19 @@ EL::StatusCode JetSubstructure :: execute ()
 	trkConsts.push_back( corrected_selectedTrks[ic]) ;	
       }
     }
-    
+  
     // Tracking efficiency calculation 
     if ( _isMC) {  
       for ( int ic=0; ic< selGenMatchTrks.size() ; ic++) {
 	if ( DeltaR ( jet_phi, jet_rap, selGenMatchTrks[ic].phi(), selGenMatchTrks[ic].rapidity() ) <  _ReclusterRadius ) {
-	  h_trkGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, DeltaPhi(selGenMatchTrks[ic].phi(), jet_phi) ) ;
-	  h_trkGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt,    selGenMatchTrks[ic].rapidity() - jet_rap );
+	  h_trkGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, selGenMatchTrks[ic].pt()*0.001, DeltaPhi(selGenMatchTrks[ic].phi(), jet_phi) ) ;
+	  h_trkGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt, selGenMatchTrks[ic].pt()*0.001, selGenMatchTrks[ic].rapidity() - jet_rap );
 	}
       }
-      for ( int ic=0; ic< truthCharges.size() ; ic++) {
-	if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
-	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, DeltaPhi(truthCharges[ic].phi(), jet_phi) ) ;
-	  h_allGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt,    truthCharges[ic].rapidity() - jet_rap );
+      for ( int ic=0; ic< truthChargesAna.size() ; ic++) {
+	if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _ReclusterRadius ) {
+	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, truthChargesAna[ic].pt()*0.001, DeltaPhi(truthChargesAna[ic].phi(), jet_phi) ) ;
+	  h_allGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt, truthChargesAna[ic].pt()*0.001, truthChargesAna[ic].rapidity() - jet_rap );
 	}
       }
     }
@@ -1370,12 +1396,12 @@ EL::StatusCode JetSubstructure :: execute ()
 	if (_saveLog)	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
 	if (_saveLog)	cout << "(Truth) Charged particle clustering starts" << endl;
         vector<fastjet::PseudoJet> chargeConsts;
-        for ( int ic=0; ic< truthCharges.size() ; ic++) {
-          if ( DeltaR ( jet_phi, jet_rap, truthCharges[ic].phi(), truthCharges[ic].rapidity() ) <  _ReclusterRadius ) {
-            if ( truthCharges[ic].pt() * 0.001 < _pTtrkCutForSD ) 
+        for ( int ic=0; ic< truthChargesAna.size() ; ic++) {
+          if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _ReclusterRadius ) {
+            if ( truthChargesAna[ic].pt() * 0.001 < _pTtrkCutForSD ) 
 	      continue;
 
-	    chargeConsts.push_back( truthCharges[ic]) ;
+	    chargeConsts.push_back( truthChargesAna[ic]) ;
 	  }
         }
 	fastjet::ClusterSequence reChCam(chargeConsts, jetDefCam);
@@ -1423,7 +1449,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	nGenJetCounter++; // THIS MUST BE AT THE END OF THE jets LOOP! 
       }
       truthParticles.clear();
-      truthCharges.clear();
+      truthChargesAna.clear();
     }
     
     else  { // If to use the AOD container
