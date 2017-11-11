@@ -351,7 +351,6 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  h_allGen_pt_drap_cent.push_back( temphist_3d);
 	  h_allGen_pt_drap_cent.at(i)->Sumw2();
 
-
 	  temphist_2d = new TH2D(Form("hTrkPtEta_preCS_cent%i",i),";pT;eta",200,0,200,20,-3,3);
 	  hTrkPtEta_preCS_cent.push_back(temphist_2d);
 	  hTrkPtEta_preCS_cent.at(i)->Sumw2();
@@ -755,7 +754,6 @@ EL::StatusCode JetSubstructure :: execute ()
       vector<fastjet::PseudoJet> jets04 = fastjet::sorted_by_pt(csR04.inclusive_jets());
       int maxPtId = getMaxPtIndex ( jets04 ) ;
       event_weight = 0;
-      cout <<"     * STRANGE! there is no R=0.4 jet" << endl;
       if (maxPtId > -1)   {
 	if (_saveLog)  {
 	  cout << "      * Max pT (and y,phi) for R=0.4 Jets = " << jets04[maxPtId].pt() * 0.001 << " GeV, " << jets04[maxPtId].rapidity() << ", "<<jets04[maxPtId].phi() << endl;
@@ -849,7 +847,7 @@ EL::StatusCode JetSubstructure :: execute ()
   bge_rho_trk.set_particles(selectedTrks);
 
   fastjet::contrib::ConstituentSubtractor subtractor_trk; 
-  subtractor_trk.set_max_standardDeltaR(0.25); 
+  subtractor_trk.set_max_standardDeltaR(_csMaxR); 
   subtractor_trk.set_alpha(0);
   subtractor_trk.set_ghost_area(ghost_area);  // same 
   subtractor_trk.set_background_estimator(&bge_rho_trk);
@@ -1135,7 +1133,7 @@ EL::StatusCode JetSubstructure :: execute ()
       }
       for ( int ic=0; ic< truthChargesAna.size() ; ic++) {
 	if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _ReclusterRadius ) {
-	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, truthChargesAna[ic].pt()*0.001, DeltaPhi(truthChargesAna[ic].phi(), jet_phi) ) ;
+	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, truthChargesAna[ic].pt()*0.001, DeltaPhi( truthChargesAna[ic].phi(), jet_phi) ) ;
 	  h_allGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt, truthChargesAna[ic].pt()*0.001, truthChargesAna[ic].rapidity() - jet_rap );
 	}
       }

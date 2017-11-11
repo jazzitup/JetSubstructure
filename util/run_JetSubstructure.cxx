@@ -76,6 +76,9 @@ int main(int argc, char *argv[])
 	bool doTrimming; // 
 	float fCut; //  Functioning only when doTrimming = true;
 	float rSub; //  Functioning only when doTrimming = true;
+	
+	float csMaxR;
+	
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
 	boost::program_options::options_description cmd_only_options("command line only options");
@@ -102,6 +105,7 @@ int main(int argc, char *argv[])
 	("doTrimming",boost::program_options::value<bool>(&doTrimming)->default_value(false),"Trimming?")
 	("fCut",boost::program_options::value<float>(&fCut)->default_value(0.09),"Reclustering ratius")
 	("rSub",boost::program_options::value<float>(&rSub)->default_value(0.2),"Reclustering ratius")
+	("csMaxR",boost::program_options::value<float>(&csMaxR)->default_value(0.25),"CS max R")
 	("isHerwig",boost::program_options::value<int>(&isHerwig)->default_value(0),"Pythia or Herwig")
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
@@ -215,7 +219,8 @@ int main(int argc, char *argv[])
 	cout << "doTrimming:    "<< doTrimming << endl;
 	cout << "doTrimming*fCut: "   << fCut * doTrimming << endl;
 	cout << "doTrimming*rSub: "   << rSub * doTrimming << endl;
-	
+	cout <<"======== Constituent Subtraction ====== " <<endl;
+	cout <<" csMaxR: " << csMaxR << endl;
 	if (truth_iso) {cout << "Isolating truth jets" << endl;}
 	if (reco_iso) {cout << "Isolating reco jets" << endl;}
 
@@ -282,6 +287,7 @@ int main(int argc, char *argv[])
 	alg->_doTrimming = doTrimming;
 	alg->_fCut = fCut;
 	alg->_rSub = rSub;
+	alg->_csMaxR = csMaxR;
 	alg->_isHerwig = isHerwig;
 	alg->_dR_truth_matching = dR_truth_matching;
 	alg->_etaJetCut=etaJetCut;

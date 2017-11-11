@@ -86,6 +86,7 @@ public:
 	bool _applyReweighting; //
 	bool _hasHI; //
 	
+	float _csMaxR; //
 	
 	bool event_isTriggered[10]; //!	//TODO
 	bool trigger[10]; //!	//TODO
