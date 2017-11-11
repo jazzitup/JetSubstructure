@@ -49,7 +49,7 @@ public:
 	int _isMC; //
 	string _dataset; //
 	int _isMB; //
-	int _bkgKill; //
+	int _towerBkgKill; //
 	bool _doTrimming; //
 	float _fCut; //
 	float _rSub; //
@@ -73,9 +73,10 @@ public:
 	float _ReclusterRadius; //
 	bool _saveLog; //
 	bool _saveEvtDisplay; //
-	float _pTtrkCut; //
+	float _pTtrkCutReco; //
+	float _pTtrkCutTruth; //
 	float _etaTrkCut; //
-	float _pTtrkCutForSD; //
+	float _ptCutPostCS; //
 	string _trk_cut_level; //
 	//trigger
 	string _trigger_collection; //

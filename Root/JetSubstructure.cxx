@@ -709,8 +709,8 @@ EL::StatusCode JetSubstructure :: execute ()
   
 
   if ( _saveLog) { 
-    if ( (_bkgKill !=0) && (_doTrimming) )
-      cout <<endl<<endl<<" bkgKill is not zero while doTrimming is on!!!!!" << endl<<endl<<endl ;
+    if ( (_towerBkgKill !=0) && (_doTrimming) )
+      cout <<endl<<endl<<" towerBkgKill is not zero while doTrimming is on!!!!!" << endl<<endl<<endl ;
     if ( _doTrimming ) cout << "Trimming is on" << endl;
     else cout << "Trimming is off" << endl;
     cout << "Trimmer: " << trimmer.description()  << endl;
@@ -734,7 +734,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	
 	truthParticles.push_back( (*truth_itr)->p4() );   // To be used for anti-kT jet reconstrucutre 
 	
-	if ( (fabs((*truth_itr)->charge()) > 0 ) && ( ptTrk > _pTtrkCut ) && ( fabs((*truth_itr)->p4().Eta()) < _etaTrkCut )  ) 
+	if ( (fabs((*truth_itr)->charge()) > 0 ) && ( ptTrk > _pTtrkCutTruth ) && ( fabs((*truth_itr)->p4().Eta()) < _etaTrkCut )  ) 
 	  truthChargesAna.push_back( (*truth_itr)->p4() ) ; // For softdrop
 	
       }
@@ -781,16 +781,14 @@ EL::StatusCode JetSubstructure :: execute ()
     float pt = trk->pt()/1000.;
     float eta = trk->eta();
     float phi = trk->phi();
-    if (_saveLog)   cout << "   * Track pt, eta, phi = " << pt <<", "<<eta<<", "<<phi<<endl;
+    if (_saveLog)   cout << " ==== Track pt, eta, phi = " << pt <<", "<<eta<<", "<<phi<<endl;
     
-    if ( pt < _pTtrkCut ) 
+    if ( pt < _pTtrkCutReco ) 
       continue;
     
     if ( fabs(eta) > _etaTrkCut ) 
       continue;
-    
-    
-    
+        
     if(!m_trackSelectorTool->accept(*trk, *vtx_itr )) 
       continue;
     if (_saveLog)    cout << "     passed selection cut "<< endl;
@@ -948,7 +946,7 @@ EL::StatusCode JetSubstructure :: execute ()
       
       
       
-      if ( _bkgKill == -1 ) { 
+      if ( _towerBkgKill == -1 ) { 
 	if ( (*itCnst)->pt() > 0 ) { // normal tower 
 	  nonZeroConsts.push_back(thisConst);
 	  toBeSubtracted.push_back ( fastjet::PseudoJet ( 0.000001, 0.000001, 0.000001, 0.000002 )) ; // place holder
@@ -965,14 +963,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	  nFlag.push_back(true);
 	}
       }
-      else if ( _bkgKill == 0 ) {  // Just ignore negative towers
+      else if ( _towerBkgKill == 0 ) {  // Just ignore negative towers
 	if ( (*itCnst)->pt() > 0 ) {
 	  nonZeroConsts.push_back(thisConst);
 	  toBeSubtracted.push_back ( fastjet::PseudoJet ( 0.000001, 0.000001, 0.000001, 0.000002 )) ; // place holder
           nFlag.push_back (false);
 	}
       }
-      else if ( _bkgKill == 1 ) { // soft kill
+      else if ( _towerBkgKill == 1 ) { // soft kill
 	cout << "No SoftKilling module deployed yet" << endl; 
       }
     
@@ -1116,7 +1114,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet> trkConsts;
     for ( int ic=0; ic< corrected_selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, corrected_selectedTrks[ic].phi(), corrected_selectedTrks[ic].rapidity() ) <  _ReclusterRadius ) {
-	if ( corrected_selectedTrks[ic].pt()*0.001 < _pTtrkCutForSD )  
+	if ( corrected_selectedTrks[ic].pt()*0.001 < _ptCutPostCS )  
 	  continue;
 	
 	trkConsts.push_back( corrected_selectedTrks[ic]) ;	
@@ -1396,9 +1394,6 @@ EL::StatusCode JetSubstructure :: execute ()
         vector<fastjet::PseudoJet> chargeConsts;
         for ( int ic=0; ic< truthChargesAna.size() ; ic++) {
           if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _ReclusterRadius ) {
-            if ( truthChargesAna[ic].pt() * 0.001 < _pTtrkCutForSD ) 
-	      continue;
-
 	    chargeConsts.push_back( truthChargesAna[ic]) ;
 	  }
         }

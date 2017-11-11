@@ -56,8 +56,11 @@ int main(int argc, char *argv[])
 	float dR_truth_matching;
 	int centrality_scheme;
 	int nFilesPerJob;
-	float pTtrkCut, etaTrkCut, pTjetCut, truthpTjetCut, etaJetCut;
-	float pTtrkCutForSD;
+	float pTjetCut, truthpTjetCut, etaJetCut;	
+
+	float etaTrkCut;
+	float pTtrkCutReco, pTtrkCutTruth; 
+	float ptCutPostCS;
 	std::string grid_configuration="";
 	string weight_file;
 	string centrality_weight;
@@ -72,7 +75,7 @@ int main(int argc, char *argv[])
 	bool saveEvtDisplay;
 	string trk_cut_level;
 
-	int bkgKill; // -1: none, 0= 0 GeV, 1 = SoftKill
+	int towerBkgKill; // -1: none, 0= 0 GeV, 1 = SoftKill
 	bool doTrimming; // 
 	float fCut; //  Functioning only when doTrimming = true;
 	float rSub; //  Functioning only when doTrimming = true;
@@ -101,7 +104,7 @@ int main(int argc, char *argv[])
 	("truth_jet_collection",boost::program_options::value<std::string>(&truth_jet_collection)->default_value("antikt4Truth"),"Truth jet collection")
 	("dataset",boost::program_options::value<string>(&dataset)->default_value("PbPb_5p02"),"Type of input data")
 	("isMB",boost::program_options::value<int>(&isMB)->default_value(0),"MB or HP")
-	("bkgKill",boost::program_options::value<int>(&bkgKill)->default_value(0),"Background subtraction method")
+	("towerBkgKill",boost::program_options::value<int>(&towerBkgKill)->default_value(0),"Background subtraction method")
 	("doTrimming",boost::program_options::value<bool>(&doTrimming)->default_value(false),"Trimming?")
 	("fCut",boost::program_options::value<float>(&fCut)->default_value(0.09),"Reclustering ratius")
 	("rSub",boost::program_options::value<float>(&rSub)->default_value(0.2),"Reclustering ratius")
@@ -131,8 +134,9 @@ int main(int argc, char *argv[])
 	("reco_iso",boost::program_options::value<bool>(&reco_iso)->default_value(0),"Isolating reco jets?")
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
-	("track_pT_cut",boost::program_options::value<float>(&pTtrkCut)->default_value(0.5),"Track pT cut")
-	("track_pT_cut_forSD",boost::program_options::value<float>(&pTtrkCutForSD)->default_value(4),"Track pT cut for SoftDrop")
+	("truth_track_pT_cut",boost::program_options::value<float>(&pTtrkCutTruth)->default_value(1),"Truth pT cut")
+	("reco_track_pT_cut",boost::program_options::value<float>(&pTtrkCutReco)->default_value(1),"Reco pT cut")
+	("reco_track_pT_cut_postCS",boost::program_options::value<float>(&ptCutPostCS)->default_value(1),"Track pT cut for SoftDrop")
 	("track_eta_cut",boost::program_options::value<float>(&etaTrkCut)->default_value(2.4),"Track eta cut")
 	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
 
@@ -210,17 +214,20 @@ int main(int argc, char *argv[])
 	cout << "Do C/A reclustering?" << ReclusterCA << endl;
 	cout << "Reclustering radius: " << ReclusterRadius << endl;
 	cout << "jet isolation pT cut: "<< pt_iso << endl;
-	cout << "track pT cut: " << pTtrkCut << endl;
-	cout << "track eta cut: " << etaTrkCut << endl;
-	cout << "track pT cut for SD: " << pTtrkCutForSD << endl;
         cout << "Track Selection: " << trk_cut_level << endl;
 	cout << "======= Background management ======== " << endl;
-	cout << "Kill(// -1: none, 0= 0 GeV, 1 = SoftKill): "<< bkgKill << endl;
-	cout << "doTrimming:    "<< doTrimming << endl;
-	cout << "doTrimming*fCut: "   << fCut * doTrimming << endl;
-	cout << "doTrimming*rSub: "   << rSub * doTrimming << endl;
+	cout << "Tower fuctuation Kill(// -1: none, 0= 0 GeV, 1 = SoftKill): "<< towerBkgKill << endl;
+	cout << "Trimming (1:yes,  0:no) :    "<< doTrimming << endl;
+	cout << "    doTrimming*fCut: "   << fCut * doTrimming << endl;
+	cout << "    doTrimming*rSub: "   << rSub * doTrimming << endl;
 	cout <<"======== Constituent Subtraction ====== " <<endl;
 	cout <<" csMaxR: " << csMaxR << endl;
+	cout <<"======== Track Selection  ====== " <<endl;
+	cout << "eta cut: " << etaTrkCut << endl;
+	cout << "Truth track pT cut          : " << pTtrkCutTruth << " GeV" <<endl;
+	cout << "Reco  track pT cut          : " << pTtrkCutReco << " GeV"<< endl;
+	cout << "Reco  track pT cut after CS : " << ptCutPostCS << " GeV" << endl;
+
 	if (truth_iso) {cout << "Isolating truth jets" << endl;}
 	if (reco_iso) {cout << "Isolating reco jets" << endl;}
 
@@ -283,7 +290,7 @@ int main(int argc, char *argv[])
 	alg->_centrality_scheme = centrality_scheme;
 	alg->_jet_radius = jet_radius;
 	alg->_isMB = isMB;
-	alg->_bkgKill = bkgKill;
+	alg->_towerBkgKill = towerBkgKill;
 	alg->_doTrimming = doTrimming;
 	alg->_fCut = fCut;
 	alg->_rSub = rSub;
@@ -301,8 +308,9 @@ int main(int argc, char *argv[])
 	alg->_ReclusterRadius=ReclusterRadius;
 	alg->_saveLog = saveLog;
 	alg->_saveEvtDisplay = saveEvtDisplay;
-	alg->_pTtrkCut = pTtrkCut;
-	alg->_pTtrkCutForSD = pTtrkCutForSD;
+	alg->_pTtrkCutReco = pTtrkCutReco;
+	alg->_pTtrkCutTruth = pTtrkCutTruth;
+	alg->_ptCutPostCS = ptCutPostCS;
 	alg->_etaTrkCut = etaTrkCut;
         alg->_trk_cut_level = trk_cut_level;
 	//Initialzie trigger
