@@ -698,9 +698,9 @@ EL::StatusCode JetSubstructure :: execute ()
 
 
   // algorithm definition 
-  fastjet::JetDefinition jetDefCam(fastjet::cambridge_algorithm, _ReclusterRadius);
-  fastjet::JetDefinition jetDefAk(fastjet::antikt_algorithm, _ReclusterRadius);
-  fastjet::JetDefinition jetDefAk04(fastjet::antikt_algorithm, 0.4);
+  fastjet::JetDefinition jetDefCam(fastjet::cambridge_algorithm, _JetRadiusAna);
+  fastjet::JetDefinition jetDefAk(fastjet::antikt_algorithm, _JetRadiusAna);
+  fastjet::JetDefinition jetDefAk04(fastjet::antikt_algorithm, 0.4);  // Used for event reweighting factor
   float beta = 0 ;
   float z_cut = 0.1;
   fastjet::contrib::SoftDrop softdropper(beta, z_cut);
@@ -833,12 +833,12 @@ EL::StatusCode JetSubstructure :: execute ()
   // Background for tracks 
   // See https://github.com/cms-externals/fastjet-contrib/blob/master/ConstituentSubtractor/example.cc  
   // algo for background.  
-  double ghost_area=0.01;  
-  double R_bkg = 0.4; 
-  fastjet::JetDefinition jet_def_for_rho(fastjet::kt_algorithm, R_bkg);
+  //  double _ghost_area=0.01;  
+  //  double _Rktjet_bkg = 0.4; 
+  fastjet::JetDefinition jet_def_for_rho(fastjet::kt_algorithm, _Rktjet_bkg);
   fastjet::AreaDefinition area_def(fastjet::active_area_explicit_ghosts,fastjet::GhostedAreaSpec(_etaTrkCut,1)); // the area definiton is used only for the jet backgroud estimator. It is not important for the ConstituentSubtractor when subtracting the whole event - this is not true when subtracting the individual jets
 
-  fastjet::Selector rho_range_trk =  fastjet::SelectorAbsEtaMax(_etaTrkCut - R_bkg);
+  fastjet::Selector rho_range_trk =  fastjet::SelectorAbsEtaMax(_etaTrkCut - _Rktjet_bkg);
   fastjet::JetMedianBackgroundEstimator bge_rho_trk(rho_range_trk, jet_def_for_rho, area_def);
   fastjet::BackgroundJetScalarPtDensity *scalarPtDensity = new fastjet::BackgroundJetScalarPtDensity();
   bge_rho_trk.set_jet_density_class(scalarPtDensity); // this changes the computation of pt of patches from vector sum to scalar sum. The scalar sum seems more reasonable.
@@ -847,7 +847,7 @@ EL::StatusCode JetSubstructure :: execute ()
   fastjet::contrib::ConstituentSubtractor subtractor_trk; 
   subtractor_trk.set_max_standardDeltaR(_csMaxR); 
   subtractor_trk.set_alpha(0);
-  subtractor_trk.set_ghost_area(ghost_area);  // same 
+  subtractor_trk.set_ghost_area(_ghost_area);  // same 
   subtractor_trk.set_background_estimator(&bge_rho_trk);
   subtractor_trk.set_common_bge_for_rho_and_rhom(true); // for massless input particles it\
   
@@ -1113,7 +1113,7 @@ EL::StatusCode JetSubstructure :: execute ()
     if (_saveLog)    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl << "(RECO) Charged track clustering starts" << endl;
     vector<fastjet::PseudoJet> trkConsts;
     for ( int ic=0; ic< corrected_selectedTrks.size() ; ic++) {
-      if ( DeltaR ( jet_phi, jet_rap, corrected_selectedTrks[ic].phi(), corrected_selectedTrks[ic].rapidity() ) <  _ReclusterRadius ) {
+      if ( DeltaR ( jet_phi, jet_rap, corrected_selectedTrks[ic].phi(), corrected_selectedTrks[ic].rapidity() ) <  _JetRadiusAna ) {
 	if ( corrected_selectedTrks[ic].pt()*0.001 < _ptCutPostCS )  
 	  continue;
 	
@@ -1124,13 +1124,13 @@ EL::StatusCode JetSubstructure :: execute ()
     // Tracking efficiency calculation 
     if ( _isMC) {  
       for ( int ic=0; ic< selGenMatchTrks.size() ; ic++) {
-	if ( DeltaR ( jet_phi, jet_rap, selGenMatchTrks[ic].phi(), selGenMatchTrks[ic].rapidity() ) <  _ReclusterRadius ) {
+	if ( DeltaR ( jet_phi, jet_rap, selGenMatchTrks[ic].phi(), selGenMatchTrks[ic].rapidity() ) <  _JetRadiusAna ) {
 	  h_trkGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, selGenMatchTrks[ic].pt()*0.001, DeltaPhi(selGenMatchTrks[ic].phi(), jet_phi) ) ;
 	  h_trkGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt, selGenMatchTrks[ic].pt()*0.001, selGenMatchTrks[ic].rapidity() - jet_rap );
 	}
       }
       for ( int ic=0; ic< truthChargesAna.size() ; ic++) {
-	if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _ReclusterRadius ) {
+	if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _JetRadiusAna ) {
 	  h_allGen_pt_dphi_cent.at(cent_bin)->Fill( jet_pt, truthChargesAna[ic].pt()*0.001, DeltaPhi( truthChargesAna[ic].phi(), jet_phi) ) ;
 	  h_allGen_pt_drap_cent.at(cent_bin)->Fill( jet_pt, truthChargesAna[ic].pt()*0.001, truthChargesAna[ic].rapidity() - jet_rap );
 	}
@@ -1393,7 +1393,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	if (_saveLog)	cout << "(Truth) Charged particle clustering starts" << endl;
         vector<fastjet::PseudoJet> chargeConsts;
         for ( int ic=0; ic< truthChargesAna.size() ; ic++) {
-          if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _ReclusterRadius ) {
+          if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _JetRadiusAna ) {
 	    chargeConsts.push_back( truthChargesAna[ic]) ;
 	  }
         }

@@ -69,8 +69,7 @@ public:
 	double _pt_iso; //
 	bool _truth_iso; //
 	bool _reco_iso; //
-	bool _ReclusterCA; //
-	float _ReclusterRadius; //
+	float _JetRadiusAna; //
 	bool _saveLog; //
 	bool _saveEvtDisplay; //
 	float _pTtrkCutReco; //
@@ -88,6 +87,8 @@ public:
 	bool _hasHI; //
 	
 	float _csMaxR; //
+	float _Rktjet_bkg; //
+	float _ghost_area; //
 	
 	bool event_isTriggered[10]; //!	//TODO
 	bool trigger[10]; //!	//TODO

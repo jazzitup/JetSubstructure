@@ -64,16 +64,16 @@ int main(int argc, char *argv[])
 	std::string grid_configuration="";
 	string weight_file;
 	string centrality_weight;
-	double pt_iso;
-	bool truth_iso;
-	bool reco_iso;
 	std::string output_file_name="ntuple";
 	bool applyReweighting;
-	bool  ReclusterCA;
-	float ReclusterRadius;
+	float JetRadiusAna;
 	bool saveLog;
 	bool saveEvtDisplay;
 	string trk_cut_level;
+	
+	float ghost_area;
+	float Rktjet_bkg;
+
 
 	int towerBkgKill; // -1: none, 0= 0 GeV, 1 = SoftKill
 	bool doTrimming; // 
@@ -116,8 +116,7 @@ int main(int argc, char *argv[])
 	("saveEvtDisplay",boost::program_options::value<bool>(&saveEvtDisplay)->default_value(false),"Save the log?")
 	("isGridJob",boost::program_options::value<bool>(&isGridJob)->default_value(0),"is it grid job?")
 	("isCondor",boost::program_options::value<bool>(&isCondor)->default_value(0),"is it running on condor?")
-	("ReclusterCA",boost::program_options::value<bool>(&ReclusterCA)->default_value(0),"Do Cambridge Aachen?")
-	("ReclusterRadius",boost::program_options::value<float>(&ReclusterRadius)->default_value(1.0),"Reclustering ratius")
+	("JetRadiusAna",boost::program_options::value<float>(&JetRadiusAna)->default_value(1.0),"Jet Radius for analysis")
 	("input_directory",boost::program_options::value<std::string>(&input_directory)->default_value("/afs/cern.ch/work/m/mrybar/xAOD/"),"name of input directory containing all files")
 	("submit_directory",boost::program_options::value<std::string>(&submitDir)->default_value("submitDir"),"name of output directory")
 	("InDS,i",boost::program_options::value<std::string>(&InDS)->default_value(""),"InDS for grid job")
@@ -129,9 +128,6 @@ int main(int argc, char *argv[])
 	("jet_eta_cut",boost::program_options::value<float>(&etaJetCut)->default_value(1.2),"Jet eta cut")
 	("jet_pT_cut",boost::program_options::value<float>(&pTjetCut)->default_value(10.),"Jet pT cut")
 	("truth_jet_pT_cut",boost::program_options::value<float>(&truthpTjetCut)->default_value(10.),"Truth jet pT cut")
-	("pt_iso",boost::program_options::value<double>(&pt_iso)->default_value(-1),"Jet pT isolation requirement")
-	("truth_iso",boost::program_options::value<bool>(&truth_iso)->default_value(0),"Isolating truth jets?")
-	("reco_iso",boost::program_options::value<bool>(&reco_iso)->default_value(0),"Isolating reco jets?")
 	("applyReweighting",boost::program_options::value<bool>(&applyReweighting)->default_value(0),"apply reweighting to match shape between data and MC?")
 	("grid_configuration",boost::program_options::value<std::string>(&grid_configuration)->default_value(""),"Settings for grid configuration")
 	("truth_track_pT_cut",boost::program_options::value<float>(&pTtrkCutTruth)->default_value(1),"Truth pT cut")
@@ -139,6 +135,8 @@ int main(int argc, char *argv[])
 	("reco_track_pT_cut_postCS",boost::program_options::value<float>(&ptCutPostCS)->default_value(1),"Track pT cut for SoftDrop")
 	("track_eta_cut",boost::program_options::value<float>(&etaTrkCut)->default_value(2.4),"Track eta cut")
 	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
+	("ghost_area",boost::program_options::value<float>(&ghost_area)->default_value(0.005),"Ghost area")
+	("Rktjet_bkg",boost::program_options::value<float>(&Rktjet_bkg)->default_value(0.4),"Rktjet_bkg")
 
 	  ;
 
@@ -211,16 +209,16 @@ int main(int argc, char *argv[])
 	cout << "Centrality scheme: "<< centrality_scheme << endl;
 	cout << "jet pt cut: "<< pTjetCut << endl;
 	cout << "jet |eta| cut: "<< etaJetCut << endl;
-	cout << "Do C/A reclustering?" << ReclusterCA << endl;
-	cout << "Reclustering radius: " << ReclusterRadius << endl;
-	cout << "jet isolation pT cut: "<< pt_iso << endl;
+	cout <<" Nominal jet radius :  " << JetRadiusAna << endl;
         cout << "Track Selection: " << trk_cut_level << endl;
-	cout << "======= Background management ======== " << endl;
+	cout << "============ Calo Tower Background  ============= " << endl;
 	cout << "Tower fuctuation Kill(// -1: none, 0= 0 GeV, 1 = SoftKill): "<< towerBkgKill << endl;
 	cout << "Trimming (1:yes,  0:no) :    "<< doTrimming << endl;
 	cout << "    doTrimming*fCut: "   << fCut * doTrimming << endl;
 	cout << "    doTrimming*rSub: "   << rSub * doTrimming << endl;
-	cout <<"======== Constituent Subtraction ====== " <<endl;
+	cout <<"============== Constituent Subtraction =========== " <<endl;
+	cout <<" Radius of kt jet: " <<  Rktjet_bkg << endl;
+	cout <<" Ghost Area:       " <<  ghost_area << endl;
 	cout <<" csMaxR: " << csMaxR << endl;
 	cout <<"======== Track Selection  ====== " <<endl;
 	cout << "eta cut: " << etaTrkCut << endl;
@@ -228,8 +226,6 @@ int main(int argc, char *argv[])
 	cout << "Reco  track pT cut          : " << pTtrkCutReco << " GeV"<< endl;
 	cout << "Reco  track pT cut after CS : " << ptCutPostCS << " GeV" << endl;
 
-	if (truth_iso) {cout << "Isolating truth jets" << endl;}
-	if (reco_iso) {cout << "Isolating reco jets" << endl;}
 
 	if (strcmp (grid_configuration.c_str(),"") != 0)  cout << "Additional grid configuration: " << grid_configuration.c_str() << endl;
 
@@ -300,12 +296,8 @@ int main(int argc, char *argv[])
 	alg->_etaJetCut=etaJetCut;
 	alg->_pTjetCut=pTjetCut;
 	alg->_truthpTjetCut=truthpTjetCut;
-	alg->_pt_iso=pt_iso;
 	alg->_applyReweighting=applyReweighting;
-	alg->_truth_iso=truth_iso;
-	alg->_reco_iso=reco_iso;
-	alg->_ReclusterCA=ReclusterCA;
-	alg->_ReclusterRadius=ReclusterRadius;
+	alg->_JetRadiusAna=JetRadiusAna;
 	alg->_saveLog = saveLog;
 	alg->_saveEvtDisplay = saveEvtDisplay;
 	alg->_pTtrkCutReco = pTtrkCutReco;
@@ -313,6 +305,10 @@ int main(int argc, char *argv[])
 	alg->_ptCutPostCS = ptCutPostCS;
 	alg->_etaTrkCut = etaTrkCut;
         alg->_trk_cut_level = trk_cut_level;
+        alg->_ghost_area = ghost_area;
+        alg->_Rktjet_bkg = Rktjet_bkg;
+
+
 	//Initialzie trigger
 	alg->SetTrigger_chains();
 	job.algsAdd( alg );
