@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
 	bool applyReweighting;
 	float JetRadiusAna;
 	bool saveLog;
+	bool saveNtuple;
 	bool saveEvtDisplay;
 	string trk_cut_level;
 	
@@ -113,6 +114,7 @@ int main(int argc, char *argv[])
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
 	("saveLog",boost::program_options::value<bool>(&saveLog)->default_value(false),"Save the log?")
+        ("saveNtuple",boost::program_options::value<bool>(&saveNtuple)->default_value(true),"Save Ntuple?")
 	("saveEvtDisplay",boost::program_options::value<bool>(&saveEvtDisplay)->default_value(false),"Save the log?")
 	("isGridJob",boost::program_options::value<bool>(&isGridJob)->default_value(0),"is it grid job?")
 	("isCondor",boost::program_options::value<bool>(&isCondor)->default_value(0),"is it running on condor?")
@@ -227,7 +229,10 @@ int main(int argc, char *argv[])
 	cout << "Truth track pT cut          : " << pTtrkCutTruth << " GeV" <<endl;
 	cout << "Reco  track pT cut          : " << pTtrkCutReco << " GeV"<< endl;
 	cout << "Reco  track pT cut after CS : " << ptCutPostCS << " GeV" << endl;
-
+	cout << "*_*_*_*_ Log & output _*_*_*_*_*_*_*_*_*_*_*_*" <<endl;
+	cout << "Save log?                   : " << saveLog << endl; 
+	cout << "Save event display?         : " << saveEvtDisplay << endl; 
+	cout << "Save ntuple?                : " << saveNtuple << endl; 
 
 	if (strcmp (grid_configuration.c_str(),"") != 0)  cout << "Additional grid configuration: " << grid_configuration.c_str() << endl;
 
@@ -300,8 +305,6 @@ int main(int argc, char *argv[])
 	alg->_truthpTjetCut=truthpTjetCut;
 	alg->_applyReweighting=applyReweighting;
 	alg->_JetRadiusAna=JetRadiusAna;
-	alg->_saveLog = saveLog;
-	alg->_saveEvtDisplay = saveEvtDisplay;
 	alg->_pTtrkCutReco = pTtrkCutReco;
 	alg->_pTtrkCutTruth = pTtrkCutTruth;
 	alg->_ptCutPostCS = ptCutPostCS;
@@ -310,6 +313,9 @@ int main(int argc, char *argv[])
         alg->_ghost_area = ghost_area;
         alg->_Rktjet_bkg = Rktjet_bkg;
         alg->_alphaSubtr = alphaSubtr;
+	alg->_saveLog = saveLog;
+	alg->_saveNtuple = saveNtuple;
+	alg->_saveEvtDisplay = saveEvtDisplay;
 
 
 	//Initialzie trigger

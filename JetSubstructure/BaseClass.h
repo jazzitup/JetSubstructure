@@ -71,6 +71,7 @@ public:
 	bool _reco_iso; //
 	float _JetRadiusAna; //
 	bool _saveLog; //
+	bool _saveNtuple; //
 	bool _saveEvtDisplay; //
 	float _pTtrkCutReco; //
 	float _pTtrkCutTruth; //

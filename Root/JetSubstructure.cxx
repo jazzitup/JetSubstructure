@@ -358,6 +358,21 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  temphist_2d = new TH2D(Form("hTrkPtEta_postCS_cent%i",i),";pT;eta",200,0,200,20,-3,3);
 	  hTrkPtEta_postCS_cent.push_back(temphist_2d);
 	  hTrkPtEta_postCS_cent.at(i)->Sumw2();
+
+	  temphist_3d = new TH3D(Form("h_trkBkgPt_trkPt_eta_cent%i",i),"",
+                                 1020, -2,100, 400,0,200, 12,-2.4,2.4);
+	  h_trkBkgPt_trkPt_eta_cent.push_back(temphist_3d);
+	  h_trkBkgPt_trkPt_eta_cent.at(i)->Sumw2();
+
+	  temphist_3d = new TH3D(Form("h_bkgSubt_prePt_postPt_eta_cent%i",i),"",
+                                 1000, 0,100, 1000,0,100, 12,-2.4,2.4);
+	  h_bkgSubt_prePt_postPt_eta_cent.push_back(temphist_3d);
+	  h_bkgSubt_prePt_postPt_eta_cent.at(i)->Sumw2();
+	  
+	  temphist_2d = new TH2D(Form("h_bkgSubt_prePt_postPt_eta_cent%i",i),"",
+				 100,0,1,1000,0,100);
+	  h_dRSubt_trkPt_cent.push_back(temphist_2d);
+	  h_dRSubt_trkPt_cent.at(i)->Sumw2();
 	}
 	
 	hGenNcam = new TH2D("genCam","; p_{T} GeV/c ; Number of C/A clusters",100,0,1000,6,-0.5,5.5);
@@ -374,7 +389,8 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	wk()->addOutput (h_RejectionHisto);
 	wk()->addOutput (h_centrality);
 	wk()->addOutput (hET_ETsub);
-	wk()->addOutput (treeOut);
+
+	if ( _saveNtuple ) wk()->addOutput (treeOut);
 
 	wk()->addOutput (hGenNcam);
 	wk()->addOutput (hGenNchCam);
@@ -392,6 +408,9 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  wk()->addOutput (h_allGen_pt_drap_cent.at(i));
 	  wk()->addOutput (hTrkPtEta_preCS_cent.at(i));
 	  wk()->addOutput (hTrkPtEta_postCS_cent.at(i));
+	  wk()->addOutput (h_trkBkgPt_trkPt_eta_cent.at(i));
+	  wk()->addOutput (h_bkgSubt_prePt_postPt_eta_cent.at(i));
+	  wk()->addOutput (h_dRSubt_trkPt_cent.at(i));
 	}
 	
 	
@@ -821,11 +840,11 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
     }
-    
+  
     selectedTrks.push_back( fastjet::PseudoJet ( pionx, piony, pionz, pione ) );
-    hTrkPtEta_preCS_cent.at(cent_bin)->Fill( pt, eta, event_weight); 
+    //    hTrkPtEta_preCS_cent.at(cent_bin)->Fill( pt, eta, event_weight);  this is done below! 
     if (isTruthMatched) selGenMatchTrks.push_back( matchPar );
-    
+  
   }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
   
@@ -854,11 +873,46 @@ EL::StatusCode JetSubstructure :: execute ()
   if ( _saveLog)   cout << endl << subtractor_trk.description() << endl ; 
   
   vector<PseudoJet> corrected_selectedTrks = subtractor_trk.subtract_event(selectedTrks, _etaTrkCut);
-  // Fill the histogram:
+
+  // Fill the histograms:
+  for ( int ii =0 ; ii < selectedTrks.size() ; ii++ ) {
+    hTrkPtEta_preCS_cent.at(cent_bin)->Fill( selectedTrks[ii].pt()*0.001, selectedTrks[ii].eta(), event_weight);
+  }
   for ( int ii =0 ; ii < corrected_selectedTrks.size() ; ii++ ) {
     hTrkPtEta_postCS_cent.at(cent_bin)->Fill( corrected_selectedTrks[ii].pt()*0.001,  corrected_selectedTrks[ii].eta(), event_weight);
   }
-  
+  for ( int ii =0 ; ii < selectedTrks.size() ; ii++ ) {
+    float ipt = selectedTrks[ii].pt()*0.001;
+    float ieta = selectedTrks[ii].eta();
+    float iphi = selectedTrks[ii].phi();
+
+    float maxR = 0.2; 
+    int jMatch = -1;
+    for ( int jj =0 ; jj < corrected_selectedTrks.size() ; ii++ ) {
+      float jpt = corrected_selectedTrks[jj].pt()*0.001;
+      float jeta = corrected_selectedTrks[jj].eta();
+      float jphi = corrected_selectedTrks[jj].phi();
+      float drij = DeltaR( iphi, ieta, jphi, jeta) ;
+      if ( drij < maxR )   {
+	maxR = drij;
+	jMatch = jj ; 
+      }
+    }
+    if ( jMatch > -1 ) {
+      float jmpt = corrected_selectedTrks[jMatch].pt()*0.001;
+      float jmeta = corrected_selectedTrks[jMatch].eta();
+      float jmphi = corrected_selectedTrks[jMatch].phi();
+
+      h_bkgSubt_prePt_postPt_eta_cent.at(cent_bin)->Fill( ipt, jmpt, ieta, event_weight);
+      h_trkBkgPt_trkPt_eta_cent.at(cent_bin)->Fill( ipt-jmpt, ipt, ieta, event_weight);
+      h_dRSubt_trkPt_cent.at(cent_bin)->Fill( maxR, ipt, event_weight);
+    }
+    else {  // If not matched.  
+      h_bkgSubt_prePt_postPt_eta_cent.at(cent_bin)->Fill( ipt, 0.0, ieta, event_weight);
+      h_trkBkgPt_trkPt_eta_cent.at(cent_bin)->Fill( ipt, ipt, ieta, event_weight);
+    }
+    
+  }
   // background subtraction 
   if (_saveLog) {
     cout << endl <<" number of reconstructed tracks: " << selectedTrks.size() << endl;

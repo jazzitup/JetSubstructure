@@ -111,6 +111,10 @@ public:
 	vector<TH3D*> h_gen_reclst_ratio_cent; //!
 	vector<TH3D*> h_reco_reclst_ratio_cent; //!
 	
+	vector<TH3D*> h_trkBkgPt_trkPt_eta_cent; //!
+	vector<TH3D*> h_bkgSubt_prePt_postPt_eta_cent; //!
+	vector<TH2D*> h_dRSubt_trkPt_cent; //!
+
 	//Prescale sets
 	TFile * f_trigger_RunNumber_prescale; //!
 	TH2F * h2_trigger_RunNumber_prescale; //!
