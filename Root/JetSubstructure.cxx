@@ -359,20 +359,39 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  hTrkPtEta_postCS_cent.push_back(temphist_2d);
 	  hTrkPtEta_postCS_cent.at(i)->Sumw2();
 
-	  temphist_3d = new TH3D(Form("h_trkBkgPt_trkPt_eta_cent%i",i),"",
-                                 1020, -2,100, 400,0,200, 12,-2.4,2.4);
-	  h_trkBkgPt_trkPt_eta_cent.push_back(temphist_3d);
-	  h_trkBkgPt_trkPt_eta_cent.at(i)->Sumw2();
 
-	  temphist_3d = new TH3D(Form("h_bkgSubt_prePt_postPt_eta_cent%i",i),"",
-                                 1000, 0,100, 1000,0,100, 12,-2.4,2.4);
-	  h_bkgSubt_prePt_postPt_eta_cent.push_back(temphist_3d);
-	  h_bkgSubt_prePt_postPt_eta_cent.at(i)->Sumw2();
+
+	  temphist_2d = new TH2D(Form("h_trkPt_trkBkgPt_cent%i",i),"",
+                                 200,0,100, 220, -2,20);
+	  h_trkPt_trkBkgPt_cent.push_back(temphist_2d);
+	  h_trkPt_trkBkgPt_cent.at(i)->Sumw2();
+
+	  temphist_2d = new TH2D(Form("h_trkPt_trkBkgPt_jetCone_cent%i",i),"",
+                                 200,0,100, 220, -2,20);
+	  h_trkPt_trkBkgPt_jetCone_cent.push_back(temphist_2d);
+	  h_trkPt_trkBkgPt_jetCone_cent.at(i)->Sumw2();
+
+
+	  temphist_2d = new TH2D(Form("h_bkgSubt_prePt_postPt_cent%i",i),"",
+                                 1000, 0,100, 1000,0,100);
+	  h_bkgSubt_prePt_postPt_cent.push_back(temphist_2d);
+	  h_bkgSubt_prePt_postPt_cent.at(i)->Sumw2();
 	  
-	  temphist_2d = new TH2D(Form("h_bkgSubt_prePt_postPt_eta_cent%i",i),"",
-				 100,0,1,1000,0,100);
+	  temphist_2d = new TH2D(Form("h_bkgSubt_prePt_postPt_jetCone_cent%i",i),"",
+                                 1000, 0,100, 1000,0,100);
+	  h_bkgSubt_prePt_postPt_jetCone_cent.push_back(temphist_2d);
+	  h_bkgSubt_prePt_postPt_jetCone_cent.at(i)->Sumw2();
+
+
+	  temphist_2d = new TH2D(Form("h_dRSubt_trkPt_cent%i",i),"",
+				 110,0,0.011,1000,0,100);
 	  h_dRSubt_trkPt_cent.push_back(temphist_2d);
 	  h_dRSubt_trkPt_cent.at(i)->Sumw2();
+	  
+	  temphist_2d = new TH2D(Form("h_dRSubt_trkPt_jetCone_cent%i",i),"",
+				 110,0,0.011,1000,0,100);
+	  h_dRSubt_trkPt_jetCone_cent.push_back(temphist_2d);
+	  h_dRSubt_trkPt_jetCone_cent.at(i)->Sumw2();
 	}
 	
 	hGenNcam = new TH2D("genCam","; p_{T} GeV/c ; Number of C/A clusters",100,0,1000,6,-0.5,5.5);
@@ -408,9 +427,13 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  wk()->addOutput (h_allGen_pt_drap_cent.at(i));
 	  wk()->addOutput (hTrkPtEta_preCS_cent.at(i));
 	  wk()->addOutput (hTrkPtEta_postCS_cent.at(i));
-	  wk()->addOutput (h_trkBkgPt_trkPt_eta_cent.at(i));
-	  wk()->addOutput (h_bkgSubt_prePt_postPt_eta_cent.at(i));
+
+	  wk()->addOutput (h_trkPt_trkBkgPt_cent.at(i));
+	  wk()->addOutput (h_bkgSubt_prePt_postPt_cent.at(i));
 	  wk()->addOutput (h_dRSubt_trkPt_cent.at(i));
+	  wk()->addOutput (h_trkPt_trkBkgPt_jetCone_cent.at(i));
+	  wk()->addOutput (h_bkgSubt_prePt_postPt_jetCone_cent.at(i));
+	  wk()->addOutput (h_dRSubt_trkPt_jetCone_cent.at(i));
 	}
 	
 	
@@ -784,7 +807,27 @@ EL::StatusCode JetSubstructure :: execute ()
     }
   }
   
-  
+  //  find the reco jet cones  
+  xAOD::TStore *store = new xAOD::TStore; //For calibration
+  const xAOD::JetContainer* reco_jets = 0;
+  ANA_CHECK(event->retrieve( reco_jets, _reco_jet_collection.c_str() ));
+  xAOD::JetContainer::const_iterator jetcone_itr = reco_jets->begin();
+  xAOD::JetContainer::const_iterator jetcone_end = reco_jets->end();
+  std::vector<float> etaJetConeExc;
+  std::vector<float> phiJetConeExc;
+  for( ; jetcone_itr != jetcone_end; ++jetcone_itr ) {
+    xAOD::Jet theRecoJet;
+    theRecoJet.makePrivateStore( **jetcone_itr );
+    const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!!
+    float jet_pt  = jet_4momCalib.pt() * 0.001 ;
+    float jet_eta = jet_4momCalib.eta();
+    float jet_phi = jet_4momCalib.phi();
+    if (jet_pt < 150)                             continue; // hard coded
+    if (fabs(jet_eta) > _etaJetCut )  continue;
+    
+    etaJetConeExc.push_back(jet_eta);
+    phiJetConeExc.push_back(jet_phi);
+  }
   
   
   
@@ -886,30 +929,33 @@ EL::StatusCode JetSubstructure :: execute ()
     float ieta = selectedTrks[ii].eta();
     float iphi = selectedTrks[ii].phi();
 
-    float maxR = 0.2; 
+    float minR = 0.01; 
     int jMatch = -1;
-    for ( int jj =0 ; jj < corrected_selectedTrks.size() ; ii++ ) {
+    for ( int jj =0 ; jj < corrected_selectedTrks.size() ; jj++ ) {
       float jpt = corrected_selectedTrks[jj].pt()*0.001;
       float jeta = corrected_selectedTrks[jj].eta();
       float jphi = corrected_selectedTrks[jj].phi();
       float drij = DeltaR( iphi, ieta, jphi, jeta) ;
-      if ( drij < maxR )   {
-	maxR = drij;
+      if ( drij < minR )   {
+	minR = drij;
 	jMatch = jj ; 
+      }  
+    }
+    float jmpt = 0;    // if no tracks are found in distane of 0.01
+    if ( jMatch > -1 ) { 
+      jmpt = corrected_selectedTrks[jMatch].pt()*0.001;
+    }
+    h_bkgSubt_prePt_postPt_cent.at(cent_bin)->Fill( ipt, jmpt, event_weight);
+    h_trkPt_trkBkgPt_cent.at(cent_bin)->Fill( ipt, ipt-jmpt, event_weight);
+    h_dRSubt_trkPt_cent.at(cent_bin)->Fill( minR, ipt, event_weight);
+    
+    for ( int ijc = 0 ; ijc < etaJetConeExc.size() ; ijc++)   {  // If it is in jet cone    
+      float drTrkJet = DeltaR( phiJetConeExc[ijc], etaJetConeExc[ijc], iphi, ieta) ;
+      if (  drTrkJet < _JetRadiusAna ) { 
+	h_bkgSubt_prePt_postPt_jetCone_cent.at(cent_bin)->Fill( ipt, jmpt, event_weight);
+	h_trkPt_trkBkgPt_jetCone_cent.at(cent_bin)->Fill( ipt, ipt-jmpt,  event_weight);
+	h_dRSubt_trkPt_jetCone_cent.at(cent_bin)->Fill( minR, ipt, event_weight);
       }
-    }
-    if ( jMatch > -1 ) {
-      float jmpt = corrected_selectedTrks[jMatch].pt()*0.001;
-      float jmeta = corrected_selectedTrks[jMatch].eta();
-      float jmphi = corrected_selectedTrks[jMatch].phi();
-
-      h_bkgSubt_prePt_postPt_eta_cent.at(cent_bin)->Fill( ipt, jmpt, ieta, event_weight);
-      h_trkBkgPt_trkPt_eta_cent.at(cent_bin)->Fill( ipt-jmpt, ipt, ieta, event_weight);
-      h_dRSubt_trkPt_cent.at(cent_bin)->Fill( maxR, ipt, event_weight);
-    }
-    else {  // If not matched.  
-      h_bkgSubt_prePt_postPt_eta_cent.at(cent_bin)->Fill( ipt, 0.0, ieta, event_weight);
-      h_trkBkgPt_trkPt_eta_cent.at(cent_bin)->Fill( ipt, ipt, ieta, event_weight);
     }
     
   }
@@ -935,11 +981,6 @@ EL::StatusCode JetSubstructure :: execute ()
 
 
   /////////////   Reco jets /////////////////////////////////////////
-  
-  xAOD::TStore *store = new xAOD::TStore; //For calibration
-  const xAOD::JetContainer* reco_jets = 0;
-  ANA_CHECK(event->retrieve( reco_jets, _reco_jet_collection.c_str() ));
-  
   xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
   xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
   int nRecoJetCounter=0;
