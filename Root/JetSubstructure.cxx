@@ -798,7 +798,7 @@ EL::StatusCode JetSubstructure :: execute ()
     if(fabs(d0) > d0_cut) continue;
     if (_saveLog)    cout << "     passed the d0 cut " << endl;
     
-    double pionMass = 139.570 ; // in MeV
+    double pionMass = 0; // 139.570 ; // in MeV
     double pionx = trk->p4().Px(); // Oct 24th, Yongsun confiremd p4() is in MeV unit
     double piony = trk->p4().Py();
     double pionz = trk->p4().Pz();
@@ -846,7 +846,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
   fastjet::contrib::ConstituentSubtractor subtractor_trk; 
   subtractor_trk.set_max_standardDeltaR(_csMaxR); 
-  subtractor_trk.set_alpha(0);
+  subtractor_trk.set_alpha(_alphaSubtr);
   subtractor_trk.set_ghost_area(_ghost_area);  // same 
   subtractor_trk.set_background_estimator(&bge_rho_trk);
   subtractor_trk.set_common_bge_for_rho_and_rhom(true); // for massless input particles it\

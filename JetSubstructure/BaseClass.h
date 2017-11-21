@@ -89,6 +89,7 @@ public:
 	float _csMaxR; //
 	float _Rktjet_bkg; //
 	float _ghost_area; //
+	float _alphaSubtr; //
 	
 	bool event_isTriggered[10]; //!	//TODO
 	bool trigger[10]; //!	//TODO

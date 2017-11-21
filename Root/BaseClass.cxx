@@ -28,7 +28,7 @@ BaseClass :: BaseClass ()
 
 BaseClass :: BaseClass (const BaseClass& base)  {
 
-	_isMC = base._isMC;
+  /*	_isMC = base._isMC;
 	_dataset = base._dataset;
 	_isMB = base._isMB;
 	_isHerwig = base._isHerwig;
@@ -48,9 +48,8 @@ BaseClass :: BaseClass (const BaseClass& base)  {
 	_hasHI=base._hasHI;
 	_truth_iso=base._truth_iso;
 	_reco_iso=base._reco_iso;
-	_ReclusterCA=base._ReclusterCA;
-	_ReclusterRadius=base._ReclusterRadius;
         _trk_cut_level=base._trk_cut_level;
+  */
 }
 
 

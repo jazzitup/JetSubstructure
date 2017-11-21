@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	
 	float ghost_area;
 	float Rktjet_bkg;
-
+	float alphaSubtr; 
 
 	int towerBkgKill; // -1: none, 0= 0 GeV, 1 = SoftKill
 	bool doTrimming; // 
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 	("isMB",boost::program_options::value<int>(&isMB)->default_value(0),"MB or HP")
 	("towerBkgKill",boost::program_options::value<int>(&towerBkgKill)->default_value(0),"Background subtraction method")
 	("doTrimming",boost::program_options::value<bool>(&doTrimming)->default_value(false),"Trimming?")
-	("fCut",boost::program_options::value<float>(&fCut)->default_value(0.09),"Reclustering ratius")
+	("fCut",boost::program_options::value<float>(&fCut)->default_value(0.09),"fCut")
 	("rSub",boost::program_options::value<float>(&rSub)->default_value(0.2),"Reclustering ratius")
 	("csMaxR",boost::program_options::value<float>(&csMaxR)->default_value(0.25),"CS max R")
 	("isHerwig",boost::program_options::value<int>(&isHerwig)->default_value(0),"Pythia or Herwig")
@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
 	("nFilesPerJob",boost::program_options::value<int>(&nFilesPerJob)->default_value(1),"Number of files per grid job")
 	("ghost_area",boost::program_options::value<float>(&ghost_area)->default_value(0.005),"Ghost area")
 	("Rktjet_bkg",boost::program_options::value<float>(&Rktjet_bkg)->default_value(0.4),"Rktjet_bkg")
+	("alphaSubtr",boost::program_options::value<float>(&alphaSubtr)->default_value(1),"alphaSubtr")
 
 	  ;
 
@@ -220,6 +221,7 @@ int main(int argc, char *argv[])
 	cout <<" Radius of kt jet: " <<  Rktjet_bkg << endl;
 	cout <<" Ghost Area:       " <<  ghost_area << endl;
 	cout <<" csMaxR: " << csMaxR << endl;
+	cout <<" alpha (1=kT like): "<< alphaSubtr << endl;
 	cout <<"======== Track Selection  ====== " <<endl;
 	cout << "eta cut: " << etaTrkCut << endl;
 	cout << "Truth track pT cut          : " << pTtrkCutTruth << " GeV" <<endl;
@@ -307,6 +309,7 @@ int main(int argc, char *argv[])
         alg->_trk_cut_level = trk_cut_level;
         alg->_ghost_area = ghost_area;
         alg->_Rktjet_bkg = Rktjet_bkg;
+        alg->_alphaSubtr = alphaSubtr;
 
 
 	//Initialzie trigger
