@@ -384,12 +384,12 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 
 
 	  temphist_2d = new TH2D(Form("h_dRSubt_trkPt_cent%i",i),"",
-				 110,0,0.011,1000,0,100);
+				 110,0,0.0000011,1000,0,100);
 	  h_dRSubt_trkPt_cent.push_back(temphist_2d);
 	  h_dRSubt_trkPt_cent.at(i)->Sumw2();
 	  
 	  temphist_2d = new TH2D(Form("h_dRSubt_trkPt_jetCone_cent%i",i),"",
-				 110,0,0.011,1000,0,100);
+				 110,0,0.0000011,1000,0,100);
 	  h_dRSubt_trkPt_jetCone_cent.push_back(temphist_2d);
 	  h_dRSubt_trkPt_jetCone_cent.at(i)->Sumw2();
 	}
@@ -971,7 +971,7 @@ EL::StatusCode JetSubstructure :: execute ()
     float ieta = selectedTrks[ii].eta();
     float iphi = selectedTrks[ii].phi();
 
-    float minR = 0.01; 
+    float minR = 0.0001; 
     int jMatch = -1;
     for ( int jj =0 ; jj < corrected_selectedTrks.size() ; jj++ ) {
       float jpt = corrected_selectedTrks[jj].pt()*0.001;
