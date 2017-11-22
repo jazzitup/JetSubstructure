@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 
 	main_options.add_options()
 	("output_file",boost::program_options::value<std::string>(&output_file_name)->default_value("ntuple"),"name of output root file")
-	("grl",boost::program_options::value<std::string>(&grl)->default_value("GRL_pPb_5p02TeV_2013.xml"),"grl file name")
+	("grl,g",boost::program_options::value<std::string>(&grl)->default_value("GRL_pPb_5p02TeV_2013.xml"),"grl file name")
 	("trk_cut_level,C",boost::program_options::value<std::string>(&trk_cut_level)->default_value("ppTight"),"Trk cut level")
 	("reco_jet_collection",boost::program_options::value<std::string>(&reco_jet_collection)->default_value("antikt4HIItrEM"),"Jet collection")
 	("test_reco_jet_collection",boost::program_options::value<std::string>(&test_reco_jet_collection)->default_value("none"),"Test Jet collection")
