@@ -91,7 +91,12 @@ public:
 	float _Rktjet_bkg; //
 	float _ghost_area; //
 	float _alphaSubtr; //
-	
+	float _ptCutJetConeExc; //
+
+	float _beta; //
+	float _z_cut; //
+
+
 	bool event_isTriggered[10]; //!	//TODO
 	bool trigger[10]; //!	//TODO
 	int jet_isTriggered[10]; //! //TODO

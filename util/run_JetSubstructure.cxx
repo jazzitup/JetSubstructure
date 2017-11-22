@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	float dR_truth_matching;
 	int centrality_scheme;
 	int nFilesPerJob;
-	float pTjetCut, truthpTjetCut, etaJetCut;	
+	float pTjetCut, truthpTjetCut, etaJetCut, ptCutJetConeExc;	
 
 	float etaTrkCut;
 	float pTtrkCutReco, pTtrkCutTruth; 
@@ -80,8 +80,11 @@ int main(int argc, char *argv[])
 	bool doTrimming; // 
 	float fCut; //  Functioning only when doTrimming = true;
 	float rSub; //  Functioning only when doTrimming = true;
-	
 	float csMaxR;
+	
+	float beta; 
+	float z_cut;
+
 	
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
@@ -110,6 +113,8 @@ int main(int argc, char *argv[])
 	("fCut",boost::program_options::value<float>(&fCut)->default_value(0.09),"fCut")
 	("rSub",boost::program_options::value<float>(&rSub)->default_value(0.2),"Reclustering ratius")
 	("csMaxR",boost::program_options::value<float>(&csMaxR)->default_value(0.25),"CS max R")
+        ("beta",boost::program_options::value<float>(&beta)->default_value(0.),"beta for SoftDrop")
+        ("z_cut",boost::program_options::value<float>(&z_cut)->default_value(0.1),"z_cut for SoftDrop")
 	("isHerwig",boost::program_options::value<int>(&isHerwig)->default_value(0),"Pythia or Herwig")
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
@@ -140,6 +145,7 @@ int main(int argc, char *argv[])
 	("ghost_area",boost::program_options::value<float>(&ghost_area)->default_value(0.005),"Ghost area")
 	("Rktjet_bkg",boost::program_options::value<float>(&Rktjet_bkg)->default_value(0.4),"Rktjet_bkg")
 	("alphaSubtr",boost::program_options::value<float>(&alphaSubtr)->default_value(1),"alphaSubtr")
+	("ptCutJetConeExc",boost::program_options::value<float>(&ptCutJetConeExc)->default_value(80.),"Jet pT cut for exclusion area")
 
 	  ;
 
@@ -224,6 +230,10 @@ int main(int argc, char *argv[])
 	cout <<" Ghost Area:       " <<  ghost_area << endl;
 	cout <<" csMaxR: " << csMaxR << endl;
 	cout <<" alpha (1=kT like): "<< alphaSubtr << endl;
+	cout <<" Jet pT cut for Exclusion area alpha: " << ptCutJetConeExc << endl;
+	cout <<"=================== Soft Drop ==================== " <<endl;
+	cout <<"     beta         : " << beta << endl;    
+	cout <<"     z_cut        : " << z_cut<< endl;    
 	cout <<"======== Track Selection  ====== " <<endl;
 	cout << "eta cut: " << etaTrkCut << endl;
 	cout << "Truth track pT cut          : " << pTtrkCutTruth << " GeV" <<endl;
@@ -298,6 +308,8 @@ int main(int argc, char *argv[])
 	alg->_fCut = fCut;
 	alg->_rSub = rSub;
 	alg->_csMaxR = csMaxR;
+	alg->_beta = beta;
+	alg->_z_cut = z_cut;
 	alg->_isHerwig = isHerwig;
 	alg->_dR_truth_matching = dR_truth_matching;
 	alg->_etaJetCut=etaJetCut;
@@ -313,6 +325,7 @@ int main(int argc, char *argv[])
         alg->_ghost_area = ghost_area;
         alg->_Rktjet_bkg = Rktjet_bkg;
         alg->_alphaSubtr = alphaSubtr;
+	alg->_ptCutJetConeExc= ptCutJetConeExc;
 	alg->_saveLog = saveLog;
 	alg->_saveNtuple = saveNtuple;
 	alg->_saveEvtDisplay = saveEvtDisplay;

@@ -743,9 +743,8 @@ EL::StatusCode JetSubstructure :: execute ()
   fastjet::JetDefinition jetDefCam(fastjet::cambridge_algorithm, _JetRadiusAna);
   fastjet::JetDefinition jetDefAk(fastjet::antikt_algorithm, _JetRadiusAna);
   fastjet::JetDefinition jetDefAk04(fastjet::antikt_algorithm, 0.4);  // Used for event reweighting factor
-  float beta = 0 ;
-  float z_cut = 0.1;
-  fastjet::contrib::SoftDrop softdropper(beta, z_cut);
+  fastjet::contrib::SoftDrop softdropper(_beta, _z_cut);
+  if ( _saveLog) cout << softdropper.description() << endl;
   fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, _rSub), 
                           fastjet::SelectorPtFractionMin(_fCut));
   
@@ -807,14 +806,39 @@ EL::StatusCode JetSubstructure :: execute ()
     }
   }
   
-  //  find the reco jet cones  
+
+  //  find the jet cone for exclusion area in background estimation procedure 
+  const xAOD::JetContainer* reco_jets_forExclusion = 0;
+  ANA_CHECK(event->retrieve( reco_jets_forExclusion, "DFAntiKt4HIJets" ) );
+  xAOD::JetContainer::const_iterator jetExclu_itr = reco_jets_forExclusion->begin();
+  xAOD::JetContainer::const_iterator jetExclu_end = reco_jets_forExclusion->end();
+  std::vector<float> etaJetExclu;
+  std::vector<float> phiJetExclu;
+  for( ; jetExclu_itr != jetExclu_end; ++jetExclu_itr ) {
+    xAOD::Jet theRecoJet;
+    theRecoJet.makePrivateStore( **jetExclu_itr );
+    const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!!
+    float jet_pt  = jet_4momCalib.pt() * 0.001 ;
+    float jet_eta = jet_4momCalib.eta();
+    float jet_phi = jet_4momCalib.phi();
+    if (jet_pt < _ptCutJetConeExc)
+      continue;
+    if (fabs(jet_eta) > _etaTrkCut - 0.4)    // because we are using DFAntiKt4HIJets
+      continue;  
+
+    etaJetExclu.push_back(jet_eta);
+    phiJetExclu.push_back(jet_phi);
+  }
+  if (_saveLog)  cout << endl << " There are " << etaJetExclu.size() << " exclusion cones (pT > " << _ptCutJetConeExc << " GeV)" << endl;
+  
+  //  find the reco jet cones for analysis 
   xAOD::TStore *store = new xAOD::TStore; //For calibration
   const xAOD::JetContainer* reco_jets = 0;
   ANA_CHECK(event->retrieve( reco_jets, _reco_jet_collection.c_str() ));
   xAOD::JetContainer::const_iterator jetcone_itr = reco_jets->begin();
   xAOD::JetContainer::const_iterator jetcone_end = reco_jets->end();
-  std::vector<float> etaJetConeExc;
-  std::vector<float> phiJetConeExc;
+  std::vector<float> etaJetCone150;
+  std::vector<float> phiJetCone150;
   for( ; jetcone_itr != jetcone_end; ++jetcone_itr ) {
     xAOD::Jet theRecoJet;
     theRecoJet.makePrivateStore( **jetcone_itr );
@@ -822,12 +846,16 @@ EL::StatusCode JetSubstructure :: execute ()
     float jet_pt  = jet_4momCalib.pt() * 0.001 ;
     float jet_eta = jet_4momCalib.eta();
     float jet_phi = jet_4momCalib.phi();
-    if (jet_pt < 150)                             continue; // hard coded
-    if (fabs(jet_eta) > _etaJetCut )  continue;
+    if (jet_pt < 150)     
+      continue; // hard coded
+    if (fabs(jet_eta) > _etaJetCut )  
+      continue;
     
-    etaJetConeExc.push_back(jet_eta);
-    phiJetConeExc.push_back(jet_phi);
+    etaJetCone150.push_back(jet_eta);
+    phiJetCone150.push_back(jet_phi);
   }
+  
+  
   
   
   
@@ -835,6 +863,7 @@ EL::StatusCode JetSubstructure :: execute ()
   
   ///////////// tracks ////////////////////////////////////////
   std::vector<fastjet::PseudoJet> selectedTrks;
+  std::vector<fastjet::PseudoJet> selAndExcldTrks; // after jet cone exclusion
   std::vector<fastjet::PseudoJet> selGenMatchTrks;
   
   const xAOD::TrackParticleContainer* recoTracks = 0;
@@ -885,11 +914,24 @@ EL::StatusCode JetSubstructure :: execute ()
     }
   
     selectedTrks.push_back( fastjet::PseudoJet ( pionx, piony, pionz, pione ) );
-    //    hTrkPtEta_preCS_cent.at(cent_bin)->Fill( pt, eta, event_weight);  this is done below! 
     if (isTruthMatched) selGenMatchTrks.push_back( matchPar );
-  
-  }
+    
+    /////// Jet cone excluded  //////
+    bool isExcluded = false;
+    for ( int jj =0 ; jj < etaJetExclu.size() ; jj++ ) {
+      float drTrkJet = DeltaR( phiJetExclu[jj], etaJetExclu[jj], phi, eta );
+      if ( drTrkJet < 0.4 )   
+	isExcluded = true; 
+    }
+    if ( isExcluded == false ) {
+      selAndExcldTrks.push_back(fastjet::PseudoJet ( pionx, piony, pionz, pione )) ;
+    }
+    ////////////////////  
+
+
+}
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
+  if (_saveLog) cout << "         Out of exclusion cone : " << selAndExcldTrks.size() << endl;
   
   
   // Background for tracks 
@@ -904,14 +946,14 @@ EL::StatusCode JetSubstructure :: execute ()
   fastjet::JetMedianBackgroundEstimator bge_rho_trk(rho_range_trk, jet_def_for_rho, area_def);
   fastjet::BackgroundJetScalarPtDensity *scalarPtDensity = new fastjet::BackgroundJetScalarPtDensity();
   bge_rho_trk.set_jet_density_class(scalarPtDensity); // this changes the computation of pt of patches from vector sum to scalar sum. The scalar sum seems more reasonable.
-  bge_rho_trk.set_particles(selectedTrks);
+  bge_rho_trk.set_particles(selAndExcldTrks);
 
   fastjet::contrib::ConstituentSubtractor subtractor_trk; 
   subtractor_trk.set_max_standardDeltaR(_csMaxR); 
   subtractor_trk.set_alpha(_alphaSubtr);
   subtractor_trk.set_ghost_area(_ghost_area);  // same 
   subtractor_trk.set_background_estimator(&bge_rho_trk);
-  subtractor_trk.set_common_bge_for_rho_and_rhom(true); // for massless input particles it\
+  subtractor_trk.set_common_bge_for_rho_and_rhom(false); // for massless input particles it\
   
   if ( _saveLog)   cout << endl << subtractor_trk.description() << endl ; 
   
@@ -949,8 +991,8 @@ EL::StatusCode JetSubstructure :: execute ()
     h_trkPt_trkBkgPt_cent.at(cent_bin)->Fill( ipt, ipt-jmpt, event_weight);
     h_dRSubt_trkPt_cent.at(cent_bin)->Fill( minR, ipt, event_weight);
     
-    for ( int ijc = 0 ; ijc < etaJetConeExc.size() ; ijc++)   {  // If it is in jet cone    
-      float drTrkJet = DeltaR( phiJetConeExc[ijc], etaJetConeExc[ijc], iphi, ieta) ;
+    for ( int ijc = 0 ; ijc < etaJetCone150.size() ; ijc++)   {  // If it is in jet cone    
+      float drTrkJet = DeltaR( phiJetCone150[ijc], etaJetCone150[ijc], iphi, ieta) ;
       if (  drTrkJet < _JetRadiusAna ) { 
 	h_bkgSubt_prePt_postPt_jetCone_cent.at(cent_bin)->Fill( ipt, jmpt, event_weight);
 	h_trkPt_trkBkgPt_jetCone_cent.at(cent_bin)->Fill( ipt, ipt-jmpt,  event_weight);
@@ -1665,6 +1707,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
   corrected_selectedTrks.clear();
   selectedTrks.clear();
+  selAndExcldTrks.clear();
   vpt_reco.clear();
   vptRaw_reco.clear();
   veta_reco.clear();
