@@ -303,12 +303,25 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  eventDisGen = new TH2F("eventDisGen","",20,-1,1,20,-1,1);
 	  eventDisGen1 = (TH2F*)eventDisGen->Clone("eventDisGen1");
 	  eventDisGen2 = (TH2F*)eventDisGen->Clone("eventDisGen2");
+	  eventDisTrk = new TH2F("eventDisTrk","",20,-1,1,20,-1,1);
+          eventDisTrk1 = (TH2F*)eventDisTrk->Clone("eventDisTrk1");
+          eventDisTrk2 = (TH2F*)eventDisTrk->Clone("eventDisTrk2");
+	  eventDisChg = new TH2F("eventDisChg","",20,-1,1,20,-1,1);
+          eventDisChg1 = (TH2F*)eventDisChg->Clone("eventDisChg1");
+          eventDisChg2 = (TH2F*)eventDisChg->Clone("eventDisChg2");
+
 	  treeOut->Branch("rect","TH2F",&eventDisRecTow,256000,0);
 	  treeOut->Branch("rect1","TH2F",&eventDisRecTow1,256000,0);
 	  treeOut->Branch("rect2","TH2F",&eventDisRecTow2,256000,0);
 	  treeOut->Branch("genp","TH2F",&eventDisGen,256000,0);
 	  treeOut->Branch("genp1","TH2F",&eventDisGen1,256000,0);
 	  treeOut->Branch("genp2","TH2F",&eventDisGen2,256000,0);
+	  treeOut->Branch("trk","TH2F",&eventDisTrk,256000,0);
+	  treeOut->Branch("trk1","TH2F",&eventDisTrk1,256000,0);
+	  treeOut->Branch("trk2","TH2F",&eventDisTrk2,256000,0);
+	  treeOut->Branch("chg","TH2F",&eventDisChg,256000,0);
+	  treeOut->Branch("chg1","TH2F",&eventDisChg1,256000,0);
+	  treeOut->Branch("chg2","TH2F",&eventDisChg2,256000,0);
 	}
 	
 
@@ -685,6 +698,13 @@ EL::StatusCode JetSubstructure :: execute ()
   TH2F* t_genTow1[20];
   TH2F* t_genTow2[20];
 
+  TH2F* t_trkTow[20];
+  TH2F* t_trkTow1[20];
+  TH2F* t_trkTow2[20];
+  TH2F* t_chgTow[20];
+  TH2F* t_chgTow1[20];
+  TH2F* t_chgTow2[20];
+
 
   vector <double> vpt_reco;
   vector <double> vptRaw_reco;  
@@ -760,7 +780,7 @@ EL::StatusCode JetSubstructure :: execute ()
   // reference : http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetTrimmer.cxx
   
   ////////////// MC truth particles /////////////
-  
+
   std::vector<fastjet::PseudoJet> truthParticles;
   std::vector<fastjet::PseudoJet> truthChargesAna;
   if (_isMC){
@@ -1020,7 +1040,7 @@ EL::StatusCode JetSubstructure :: execute ()
     sorted2.clear();
   }
 
-
+  
 
   /////////////   Reco jets /////////////////////////////////////////
   xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
@@ -1050,7 +1070,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
     // WARNING! THERE MUST BE NO CONTINUE COMMAND FROM NOW ON IN THIS LOOP!!!!! 
     //    nRecoJetCounter++;    will be written at the end of this loop.
-    
+  
     if (_saveEvtDisplay) {
       eventDisRecTow->Reset();
       eventDisRecTow1->Reset();
@@ -1061,12 +1081,20 @@ EL::StatusCode JetSubstructure :: execute ()
       t_recTow[nRecoJetCounter]->Reset();
       t_recTow1[nRecoJetCounter]->Reset();
       t_recTow2[nRecoJetCounter]->Reset();
-    }
 
+      t_trkTow[nRecoJetCounter] = (TH2F*)eventDisTrk->Clone(Form("trk_i%d",nRecoJetCounter));
+      t_trkTow1[nRecoJetCounter] = (TH2F*)eventDisTrk->Clone(Form("trk1_i%d",nRecoJetCounter));
+      t_trkTow2[nRecoJetCounter] = (TH2F*)eventDisTrk->Clone(Form("trk2_i%d",nRecoJetCounter));
+      t_trkTow[nRecoJetCounter]->Reset();
+      t_trkTow1[nRecoJetCounter]->Reset();
+      t_trkTow2[nRecoJetCounter]->Reset();
+
+    }
+  
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
     
 
-    
+  
     const xAOD::JetConstituentVector recoConsts = (*jet_itr)->getConstituents();
     xAOD::JetConstituentVector::iterator itCnst   = recoConsts.begin();
     xAOD::JetConstituentVector::iterator itCnst_E = recoConsts.end();
@@ -1079,9 +1107,6 @@ EL::StatusCode JetSubstructure :: execute ()
       double theEta = (*itCnst)->Eta() ; 
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
-      
-      
-      
       
       if ( _towerBkgKill == -1 ) { 
 	if ( (*itCnst)->pt() > 0 ) { // normal tower 
@@ -1159,7 +1184,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
     }
-    
+      
     vector<fastjet::PseudoJet> corrRecCamJets = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
     // Yongsun:  http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetSoftDrop.cxx line 67.
   
@@ -1255,6 +1280,9 @@ EL::StatusCode JetSubstructure :: execute ()
 	  continue;
 	
 	trkConsts.push_back( corrected_selectedTrks[ic]) ;	
+	if (_saveEvtDisplay)
+	  t_trkTow[nRecoJetCounter]->Fill(corrected_selectedTrks[ic].rapidity() - jet_rap, DeltaPhi(corrected_selectedTrks[ic].phi(), jet_phi), corrected_selectedTrks[ic].pt()*0.001 );
+	
       }
     }
   
@@ -1293,10 +1321,23 @@ EL::StatusCode JetSubstructure :: execute ()
 	t_recoChSdTheta =  DeltaR( parent1.phi(), parent1.rapidity(), parent2.phi(), parent2.rapidity() ) ;
 	t_recoChSdZ     = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
 	if ( _saveLog)  logSubJets( parent1, parent2 ) ;
+	//Fill the histogram
+	if (_saveEvtDisplay) {
+	  vector<fastjet::PseudoJet> sub1 =  parent1.constituents() ;
+	  vector<fastjet::PseudoJet> sub2 =  parent2.constituents() ;
+	  for ( int ic = 0 ; ic< sub1.size() ; ic++)
+	    t_trkTow1[nRecoJetCounter]->Fill( sub1[ic].eta() - jet_rap, DeltaPhi( sub1[ic].phi(), jet_phi), sub1[ic].pt() * 0.001 );
+	  for ( int ic = 0 ; ic< sub2.size() ; ic++)
+	    t_trkTow2[nRecoJetCounter]->Fill( sub2[ic].eta() - jet_rap, DeltaPhi( sub2[ic].phi(), jet_phi), sub2[ic].pt() * 0.001 );
+	  sub1.clear();
+	  sub2.clear();
+	}
+	
       }
       else {
 	hRecoSdChStat->Fill(jet_pt, 0);
       }
+      
     }
     
     
@@ -1343,34 +1384,6 @@ EL::StatusCode JetSubstructure :: execute ()
   
   
 
-
-  
-  
-  // truth jet constituent test
-  /*  
-      cout << " Don't use useReAntiKt=0 option yet.." << endl;
-      const xAOD::JetContainer* truth_jets = 0;
-      ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
-      
-      xAOD::JetContainer::const_iterator truth_jet_itr = truth_jets->begin();
-      xAOD::JetContainer::const_iterator truth_jet_end = truth_jets->end();
-      
-      for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr ) {
-      xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
-      double pt     = (jet_truth_4mom.pt() * 0.001 );
-      double eta    = (jet_truth_4mom.eta());
-      double phi    = (jet_truth_4mom.phi());
-      
-      xAOD::JetConstituentVector vec1 = (*truth_jet_itr)->getConstituents();
-      cout << " n const = " << vec1.size() << endl; 
-      cout << "pt0 = " << vec1[0]->pt() << endl;
-      cout << "pt1 = " << vec1[1]->pt() << endl;
-      }
-      /////// end of test  
-      
-      */
-  
-    
   if (_isMC){
     if ( useReAntiKt )  {
       ////////// On-the-fly jet finder ///////////////////////////////////////////////
@@ -1382,7 +1395,7 @@ EL::StatusCode JetSubstructure :: execute ()
       fastjet::ClusterSequence cs(truthParticles, jetDefAk);
       vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
       // Now, new genJet is ready!
-      
+    
       int nGenJetCounter =0;
       for (unsigned i = 0; i < jets.size(); i++) {  // MC anti-kT jets
 	double jet_pt = jets[i].pt()*0.001;
@@ -1397,15 +1410,25 @@ EL::StatusCode JetSubstructure :: execute ()
 	  eventDisGen->Reset();
 	  eventDisGen1->Reset();
 	  eventDisGen2->Reset();
-	  t_genTow[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp_i%d",nRecoJetCounter));
-	  t_genTow1[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp1_i%d",nRecoJetCounter));
-	  t_genTow2[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp2_i%d",nRecoJetCounter));
+	  t_genTow[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp_i%d",nGenJetCounter));
+	  t_genTow1[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp1_i%d",nGenJetCounter));
+	  t_genTow2[nGenJetCounter] = (TH2F*)eventDisGen->Clone(Form("genp2_i%d",nGenJetCounter));
 	  t_genTow[nGenJetCounter]->Reset();
 	  t_genTow1[nGenJetCounter]->Reset();
 	  t_genTow2[nGenJetCounter]->Reset();
+
+          eventDisChg->Reset();
+          eventDisChg1->Reset();
+          eventDisChg2->Reset();
+          t_chgTow[nGenJetCounter] = (TH2F*)eventDisChg->Clone(Form("chg_i%d",nGenJetCounter));
+          t_chgTow1[nGenJetCounter] = (TH2F*)eventDisChg->Clone(Form("chg1_i%d",nGenJetCounter));    
+          t_chgTow2[nGenJetCounter] = (TH2F*)eventDisChg->Clone(Form("chg2_i%d",nGenJetCounter));
+          t_chgTow[nGenJetCounter]->Reset();
+          t_chgTow1[nGenJetCounter]->Reset();
+          t_chgTow2[nGenJetCounter]->Reset();
 	}
-
-
+      
+      
 	// Truth recluster by C/A
 	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
 	if (_saveEvtDisplay) {
@@ -1614,6 +1637,7 @@ EL::StatusCode JetSubstructure :: execute ()
       eventDisGen1->Reset();
       eventDisGen2->Reset();
     }
+
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
     myJetSub.cent = cent_bin; 
@@ -1650,9 +1674,17 @@ EL::StatusCode JetSubstructure :: execute ()
       eventDisRecTow->Add(t_recTow[ri]);
       eventDisRecTow1->Add(t_recTow1[ri]);
       eventDisRecTow2->Add(t_recTow2[ri]);
+      eventDisTrk->Add(t_trkTow[ri]);
+      eventDisTrk1->Add(t_trkTow1[ri]);
+      eventDisTrk2->Add(t_trkTow2[ri]);
       delete t_recTow[ri];
       delete t_recTow1[ri];
       delete t_recTow2[ri];
+      delete t_trkTow[ri];
+      delete t_trkTow1[ri];
+      delete t_trkTow2[ri];
+
+
     }
     if (matchId != -1) {
       myJetSub.matchDr = drMin;

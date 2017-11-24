@@ -83,6 +83,14 @@ public:
 	TH2F* eventDisGen; //!
 	TH2F* eventDisGen1; //!
 	TH2F* eventDisGen2; //!
+	TH2F* eventDisTrk; //!
+	TH2F* eventDisTrk1; //!
+	TH2F* eventDisTrk2; //!
+	TH2F* eventDisChg; //!
+	TH2F* eventDisChg1; //!
+	TH2F* eventDisChg2; //!
+
+
 
 	TH2D* hGenNcam; //!
         TH2D* hGenNchCam; //!
