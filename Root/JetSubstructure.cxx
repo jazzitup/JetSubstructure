@@ -760,7 +760,10 @@ EL::StatusCode JetSubstructure :: execute ()
 
 
   // algorithm definition 
-  fastjet::JetDefinition jetDefCam(fastjet::cambridge_algorithm, _JetRadiusAna);
+  fastjet::JetDefinition jetDefReclus(fastjet::cambridge_algorithm, _JetRadiusAna);
+  if ( _defJetRecl == 0)   jetDefRecls.set_jet_algorithm( fastjet::cambridge_algorithm ) ;
+  else if ( _defJetRecl == 1)   jetDefRecls.set_jet_algorithm( fastjet::kt_algorithm ) ;
+
   fastjet::JetDefinition jetDefAk(fastjet::antikt_algorithm, _JetRadiusAna);
   fastjet::JetDefinition jetDefAk04(fastjet::antikt_algorithm, 0.4);  // Used for event reweighting factor
   fastjet::contrib::SoftDrop softdropper(_beta, _z_cut);
@@ -1144,7 +1147,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
     // Cambridge reclustering 
     if ( _saveLog) cout << "Reco re-clustering starts!" << endl;
-    fastjet::ClusterSequence recoCamSeq(nonZeroConsts, jetDefCam);
+    fastjet::ClusterSequence recoCamSeq(nonZeroConsts, jetDefReclus);
     vector<fastjet::PseudoJet> cambridgeJet = recoCamSeq.inclusive_jets();
     vector<int> pIndex = recoCamSeq.particle_jet_indices( cambridgeJet);
     if ( _saveLog)  {
@@ -1303,7 +1306,7 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     
-    fastjet::ClusterSequence reChCam(trkConsts, jetDefCam);
+    fastjet::ClusterSequence reChCam(trkConsts, jetDefReclus);
     vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets());
     if ( _saveLog)  {
       cout << "(RECO) Charged Cambridge jets" << endl;
@@ -1439,7 +1442,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	    t_genTow[nGenJetCounter]->Fill(theRap - jet_rap, DeltaPhi(thePhi, jet_phi), thePt ) ;
 	  }
 	}
-	fastjet::ClusterSequence reCam(akConsts, jetDefCam);
+	fastjet::ClusterSequence reCam(akConsts, jetDefReclus);
 	vector<fastjet::PseudoJet> camJets = fastjet::sorted_by_pt(reCam.inclusive_jets()); // return a vector of jets sorted into decreasing energy
 	
 	
@@ -1557,7 +1560,18 @@ EL::StatusCode JetSubstructure :: execute ()
 	    chargeConsts.push_back( truthChargesAna[ic]) ;
 	  }
         }
-	fastjet::ClusterSequence reChCam(chargeConsts, jetDefCam);
+	
+	if (_saveEvtDisplay) {
+	  for ( int ic = 0 ; ic< chargeConsts.size() ; ic++)  {
+	    double theRap  = chargeConsts[ic].rapidity();
+	    double thePhi  = PhiInPI( chargeConsts[ic].phi() );
+	    double thePt   = chargeConsts[ic].pt() * 0.001;
+	    t_chgTow[nGenJetCounter]->Fill(theRap - jet_rap, DeltaPhi(thePhi, jet_phi), thePt ) ;
+	  }
+	}
+	
+
+	fastjet::ClusterSequence reChCam(chargeConsts, jetDefReclus);
         vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets()); 
 	if ( _saveLog)  {
 	  cout << "(Truth) Charged Cambridge jets" << endl;
@@ -1584,6 +1598,20 @@ EL::StatusCode JetSubstructure :: execute ()
 	    t_genChSdZ     = std::min( parent1.pt(),  parent2.pt() ) / ( parent1.pt() +  parent2.pt() ) ;
 	    if (_saveLog)	    cout << " Charged Softdrop jet splits into:" << endl;
             if ( _saveLog)       logSubJets( parent1, parent2 ) ;
+	  
+	    if (_saveEvtDisplay) {
+              vector<fastjet::PseudoJet> sub1 =  parent1.constituents() ;
+              vector<fastjet::PseudoJet> sub2 =  parent2.constituents() ;
+              for ( int ic = 0 ; ic< sub1.size() ; ic++)
+                t_chgTow1[nGenJetCounter]->Fill( sub1[ic].rapidity() - jet_rap, DeltaPhi( sub1[ic].phi(), jet_phi), sub1[ic].pt() * 0.001 );
+              for ( int ic = 0 ; ic< sub2.size() ; ic++)
+                t_chgTow2[nGenJetCounter]->Fill( sub2[ic].rapidity() - jet_rap, DeltaPhi( sub2[ic].phi(), jet_phi), sub2[ic].pt() * 0.001 );
+              sub1.clear();
+              sub2.clear();
+            }
+
+
+	    
 	  }
 	  else {
 	    hGenSdChStat->Fill(jet_pt, 0);
@@ -1636,6 +1664,12 @@ EL::StatusCode JetSubstructure :: execute ()
       eventDisGen->Reset();
       eventDisGen1->Reset();
       eventDisGen2->Reset();
+      eventDisChg->Reset();
+      eventDisChg1->Reset();
+      eventDisChg2->Reset();
+      eventDisTrk->Reset();
+      eventDisTrk1->Reset();
+      eventDisTrk2->Reset();
     }
 
     //	  cout << " myJetsub is reset" << endl;
@@ -1718,9 +1752,15 @@ EL::StatusCode JetSubstructure :: execute ()
 	eventDisGen->Add(t_genTow[matchId]);
 	eventDisGen1->Add(t_genTow1[matchId]);
 	eventDisGen2->Add(t_genTow2[matchId]);
+	eventDisChg->Add(t_chgTow[matchId]);
+	eventDisChg1->Add(t_chgTow1[matchId]);
+	eventDisChg2->Add(t_chgTow2[matchId]);
 	delete t_genTow[matchId];
 	delete t_genTow1[matchId];
 	delete t_genTow2[matchId];
+	delete t_chgTow[matchId];
+	delete t_chgTow1[matchId];
+	delete t_chgTow2[matchId];
       }
 
     }

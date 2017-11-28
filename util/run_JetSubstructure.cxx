@@ -72,6 +72,8 @@ int main(int argc, char *argv[])
 	bool saveEvtDisplay;
 	string trk_cut_level;
 	
+	int defJetRecl; 
+
 	float ghost_area;
 	float Rktjet_bkg;
 	float alphaSubtr; 
@@ -146,6 +148,7 @@ int main(int argc, char *argv[])
 	("Rktjet_bkg",boost::program_options::value<float>(&Rktjet_bkg)->default_value(0.4),"Rktjet_bkg")
 	("alphaSubtr",boost::program_options::value<float>(&alphaSubtr)->default_value(1),"alphaSubtr")
 	("ptCutJetConeExc",boost::program_options::value<float>(&ptCutJetConeExc)->default_value(80.),"Jet pT cut for exclusion area")
+	("defJetRecl",boost::program_options::value<int>(&defJetRecl)->default_value(0),"defJetRecl")
 
 	  ;
 
@@ -232,6 +235,7 @@ int main(int argc, char *argv[])
 	cout <<" alpha (1=kT like): "<< alphaSubtr << endl;
 	cout <<" Jet pT cut for Exclusion area alpha: " << ptCutJetConeExc << endl;
 	cout <<"=================== Soft Drop ==================== " <<endl;
+	cout <<" Reclustering algo (0=Cambridge, 1=kT): " << defJetRecl << endl;
 	cout <<"     beta         : " << beta << endl;    
 	cout <<"     z_cut        : " << z_cut<< endl;    
 	cout <<"======== Track Selection  ====== " <<endl;
@@ -308,6 +312,7 @@ int main(int argc, char *argv[])
 	alg->_fCut = fCut;
 	alg->_rSub = rSub;
 	alg->_csMaxR = csMaxR;
+	alg->_defJetRecl = defJetRecl;
 	alg->_beta = beta;
 	alg->_z_cut = z_cut;
 	alg->_isHerwig = isHerwig;

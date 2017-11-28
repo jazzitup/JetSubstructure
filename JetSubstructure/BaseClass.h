@@ -87,6 +87,7 @@ public:
 	bool _applyReweighting; //
 	bool _hasHI; //
 	
+	int _defJetRecl; //
 	float _csMaxR; //
 	float _Rktjet_bkg; //
 	float _ghost_area; //
