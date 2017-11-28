@@ -372,7 +372,9 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  hTrkPtEta_postCS_cent.push_back(temphist_2d);
 	  hTrkPtEta_postCS_cent.at(i)->Sumw2();
 
-
+	  temphist_2d = new TH2D(Form("hTrkPtEta_genMatch_cent%i",i),";pT;eta",200,0,200,20,-3,3);
+	  hTrkPtEta_genMatch_cent.push_back(temphist_2d);
+	  hTrkPtEta_genMatch_cent.at(i)->Sumw2();
 
 	  temphist_2d = new TH2D(Form("h_trkPt_trkBkgPt_cent%i",i),"",
                                  200,0,100, 220, -2,20);
@@ -440,7 +442,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	  wk()->addOutput (h_allGen_pt_drap_cent.at(i));
 	  wk()->addOutput (hTrkPtEta_preCS_cent.at(i));
 	  wk()->addOutput (hTrkPtEta_postCS_cent.at(i));
-
+	  wk()->addOutput (hTrkPtEta_genMatch_cent.at(i));
 	  wk()->addOutput (h_trkPt_trkBkgPt_cent.at(i));
 	  wk()->addOutput (h_bkgSubt_prePt_postPt_cent.at(i));
 	  wk()->addOutput (h_dRSubt_trkPt_cent.at(i));
@@ -761,8 +763,8 @@ EL::StatusCode JetSubstructure :: execute ()
 
   // algorithm definition 
   fastjet::JetDefinition jetDefReclus(fastjet::cambridge_algorithm, _JetRadiusAna);
-  if ( _defJetRecl == 0)   jetDefRecls.set_jet_algorithm( fastjet::cambridge_algorithm ) ;
-  else if ( _defJetRecl == 1)   jetDefRecls.set_jet_algorithm( fastjet::kt_algorithm ) ;
+  if ( _defJetRecl == 0)   jetDefReclus.set_jet_algorithm( fastjet::cambridge_algorithm ) ;
+  else if ( _defJetRecl == 1)   jetDefReclus.set_jet_algorithm( fastjet::kt_algorithm ) ;
 
   fastjet::JetDefinition jetDefAk(fastjet::antikt_algorithm, _JetRadiusAna);
   fastjet::JetDefinition jetDefAk04(fastjet::antikt_algorithm, 0.4);  // Used for event reweighting factor
@@ -989,6 +991,11 @@ EL::StatusCode JetSubstructure :: execute ()
   for ( int ii =0 ; ii < corrected_selectedTrks.size() ; ii++ ) {
     hTrkPtEta_postCS_cent.at(cent_bin)->Fill( corrected_selectedTrks[ii].pt()*0.001,  corrected_selectedTrks[ii].eta(), event_weight);
   }
+  for ( int ii =0 ; ii < selGenMatchTrks.size() ; ii++ ) {
+    hTrkPtEta_genMatch_cent.at(cent_bin)->Fill( selGenMatchTrks[ii].pt()*0.001,  selGenMatchTrks[ii].eta(), event_weight);
+  }
+
+
   for ( int ii =0 ; ii < selectedTrks.size() ; ii++ ) {
     float ipt = selectedTrks[ii].pt()*0.001;
     float ieta = selectedTrks[ii].eta();
@@ -1024,6 +1031,7 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
   }
+
   // background subtraction 
   if (_saveLog) {
     cout << endl <<" number of reconstructed tracks: " << selectedTrks.size() << endl;

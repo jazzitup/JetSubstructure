@@ -72,7 +72,6 @@ int main(int argc, char *argv[])
 	bool saveEvtDisplay;
 	string trk_cut_level;
 	
-	int defJetRecl; 
 
 	float ghost_area;
 	float Rktjet_bkg;
@@ -86,7 +85,8 @@ int main(int argc, char *argv[])
 	
 	float beta; 
 	float z_cut;
-
+	
+	int defJetRecl;
 	
 	//Boost configuration
 	//1) command line only: options can only be given on command line, not in config file
