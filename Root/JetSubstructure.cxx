@@ -60,7 +60,7 @@ struct jetSubStr {
   Int_t cent;
   float weight, rhoCh;
   float recoMass, recoPt, recoRawPt, recoEta, recoRap, recoPhi, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2;
-  float recoChPt, recoChMass, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
+  float recoChPt, recoChMass, recoChMassRaw, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
   float matchDr, genMass, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2;
   float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
   float recoDels, genDels, recoTrMass, genTrMass, recoTrNsub, genTrNsub ;   // trimming 
@@ -69,7 +69,7 @@ jetSubStr myJetSub;
 
 TString evtText = "cent/I:weight/F:rhoCh";
 TString recoText = "mass:pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2";
-TString reChText = "chPt:chMass:chSdPt:chSdMass:chZg:chTheta";
+TString reChText = "chPt:chMass:chMassRaw:chSdPt:chSdMass:chZg:chTheta";
 TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
 TString trimText  = "dels:genDels:trMass:genTrMass:trNsub:genTrNsub";
@@ -124,6 +124,7 @@ void resetSubstr (jetSubStr &jetsub)
 
   jetsub.recoChPt = -1;
   jetsub.recoChMass = -10;
+  jetsub.recoChMassRaw = -10;
   jetsub.recoDels = -10;
   jetsub.genDels = -10;
   jetsub.recoTrMass = -1;
@@ -735,6 +736,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
   vector <float> vChPt_reco; 
   vector <float> vChMass_reco; 
+  vector <float> vChMassRaw_reco; 
 
   //trimming
   vector <float> vTrMass_reco;
@@ -1243,6 +1245,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
     float t_recoChPt = -1 ;
     float t_recoChMass= -100;
+    float t_recoChMassRaw= -100;
 
 
     vector<fastjet::PseudoJet> corrRecCamJets = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
@@ -1304,13 +1307,20 @@ EL::StatusCode JetSubstructure :: execute ()
       if ( DeltaR ( jet_phi, jet_rap, corrected_selectedTrks[ic].phi(), corrected_selectedTrks[ic].rapidity() ) <  _JetRadiusAna ) {
 	if ( corrected_selectedTrks[ic].pt()*0.001 < _ptCutPostCS )  
 	  continue;
-	
 	trkConsts.push_back( corrected_selectedTrks[ic]) ;	
 	if (_saveEvtDisplay)
 	  t_trkTow[nRecoJetCounter]->Fill(corrected_selectedTrks[ic].rapidity() - jet_rap, DeltaPhi(corrected_selectedTrks[ic].phi(), jet_phi), corrected_selectedTrks[ic].pt()*0.001 );
-	
       }
     }
+    vector<fastjet::PseudoJet> trkConstsRaw;
+    for ( int ic=0; ic< selectedTrks.size() ; ic++) {
+      if ( DeltaR ( jet_phi, jet_rap, selectedTrks[ic].phi(), selectedTrks[ic].rapidity() ) <  _JetRadiusAna ) {
+	trkConstsRaw.push_back( selectedTrks[ic]) ;	
+      }
+    }
+    
+    
+    
     // Calculate charged pT sum and charged mass 
     fastjet::PseudoJet trkSum = fastjet::PseudoJet(0,0,0,0);
     for ( int ii=0; ii< trkConsts.size() ; ii++) {
@@ -1323,6 +1333,13 @@ EL::StatusCode JetSubstructure :: execute ()
       cout << " pT of trk Sum        = " << trkSum.pt() *0.001<< endl;
       cout << " mass =                  " << trkSum.m() *0.001<< endl;
     }
+    // Raw charged mass 
+    fastjet::PseudoJet trkSumRaw = fastjet::PseudoJet(0,0,0,0);
+    for ( int ii=0; ii< trkConstsRaw.size() ; ii++)       {
+      trkSumRaw = trkSumRaw + trkConstsRaw[ii] ;
+    }
+    t_recoChMassRaw =  trkSumRaw.m() *0.001 ; 
+    
 
     // Tracking efficiency calculation 
     if ( _isMC) {  
@@ -1405,6 +1422,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
     vChPt_reco.push_back(t_recoChPt);
     vChMass_reco.push_back(t_recoChMass)  ;
+    vChMassRaw_reco.push_back(t_recoChMassRaw)  ;
 
     vTrMass_reco.push_back(t_recoTrMass);
     vTrNsub_reco.push_back(t_recoTrNsub);
@@ -1727,6 +1745,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
     myJetSub.recoChPt = vChPt_reco[ri];
     myJetSub.recoChMass = vChMass_reco[ri];
+    myJetSub.recoChMassRaw = vChMassRaw_reco[ri];
 
 
     myJetSub.recoTrMass = vTrMass_reco[ri];
@@ -1829,6 +1848,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
   vChPt_reco.clear();
   vChMass_reco.clear();
+  vChMassRaw_reco.clear();
   
   vMass_gen.clear();
   vpt_gen.clear();
