@@ -96,6 +96,8 @@ public:
 
 	float _beta; //
 	float _z_cut; //
+	
+	float _chParticleMassMeV; //
 
 
 	bool event_isTriggered[10]; //!	//TODO

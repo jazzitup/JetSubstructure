@@ -61,7 +61,7 @@ struct jetSubStr {
   Int_t cent;
   float weight, rhoCh;
   float recoMass, recoPt, recoRawPt, recoEta, recoRap, recoPhi, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2;
-  float recoChPt, recoChMass, recoChMassRaw, recoChMassGm, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
+  float recoChPt, recoChMass, recoChMassRaw, recoChMassRcSubt, recoChMassGm, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
   float matchDr, genMass, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2;
   float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
   float recoDels, genDels, recoTrMass, genTrMass, recoTrNsub, genTrNsub ;   // trimming 
@@ -70,7 +70,7 @@ jetSubStr myJetSub;
 
 TString evtText = "cent/I:weight/F:rhoCh";
 TString recoText = "mass:pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2";
-TString reChText = "chPt:chMass:chMassRaw:chMassGm:chSdPt:chSdMass:chZg:chTheta";
+TString reChText = "chPt:chMass:chMassRaw:chMassRcSubt:chMassGm:chSdPt:chSdMass:chZg:chTheta";
 TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
 TString trimText  = "dels:genDels:trMass:genTrMass:trNsub:genTrNsub";
@@ -126,6 +126,7 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.recoChPt = -1;
   jetsub.recoChMass = -10;
   jetsub.recoChMassRaw = -10;
+  jetsub.recoChMassRcSubt = -10;
   jetsub.recoChMassGm = -10;
   jetsub.recoDels = -10;
   jetsub.genDels = -10;
@@ -478,6 +479,12 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	f_d0_cut = new TF1("f1", "[0]*exp([1]*x)+[2]*exp([3]*x)", 0.4, 500);
         f_d0_cut->SetParameters(0.472367, -0.149934, 0.193095, 0.000337765);
 
+	// *~*~*~*~*~UEE estimatior *~*~*~*~*~*~*~*~*~*~*~*~*~* //
+	uee = new UEEstimator();
+	uee->ptBkgrThreshold = 10; // cones with track with _trkptBkgrThreshold GeV excluded
+	uee->jetptBkgrThreshold = 90; // cones with proximity of jet with _jetptBkgrThreshold GeV excluded
+	uee->m_maxjetdeltaR = 0.8; // definition of "proximity" to a real jet
+
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -756,6 +763,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <float> vChPt_reco; 
   vector <float> vChMass_reco; 
   vector <float> vChMassRaw_reco; 
+  vector <float> vChMassRcSubt_reco; 
   vector <float> vChMassGm_reco; 
 
   //trimming
@@ -963,7 +971,7 @@ EL::StatusCode JetSubstructure :: execute ()
     _vTrkEtaForRC.push_back(eta);
     _vTrkPhiForRC.push_back(phi);
     
-    double pionMass = 0; // 139.570 ; // in MeV
+    double pionMass = _chParticleMassMeV; // 139.570 ; // in MeV
     double pionx = trk->p4().Px(); // Oct 24th, Yongsun confiremd p4() is in MeV unit
     double piony = trk->p4().Py();
     double pionz = trk->p4().Pz();
@@ -1008,11 +1016,6 @@ EL::StatusCode JetSubstructure :: execute ()
   if (_saveLog) cout << "         Out of exclusion cone : " << selAndExcldTrks.size() << endl;
 
 
-  // *~*~*~*~*~UEE estimatior *~*~*~*~*~*~*~*~*~*~*~*~*~* //
-  uee = new UEEstimator();
-  uee->ptBkgrThreshold = 10; // cones with track with _trkptBkgrThreshold GeV excluded
-  uee->jetptBkgrThreshold = 90; // cones with proximity of jet with _jetptBkgrThreshold GeV excluded
-  uee->m_maxjetdeltaR = 0.8; // definition of "proximity" to a real jet
   //Get reaction plane (maybe not needed for first iteration):
   uee->Psi = GetEventPlaneUsingEventShape(calos);
   uee->ExcludeConesByJetandTrack(_vTrkPtForRC,_vTrkEtaForRC,_vTrkPhiForRC,_vJetPtForRC,_vJetEtaForRC,_vJetPhiForRC);
@@ -1294,6 +1297,7 @@ EL::StatusCode JetSubstructure :: execute ()
     float t_recoChPt      = -1 ;
     float t_recoChMass    = -100;
     float t_recoChMassRaw = -100;
+    float t_recoChMassRcSubt = -100;
     float t_recoChMassGm  = -100;
 
 
@@ -1441,13 +1445,21 @@ EL::StatusCode JetSubstructure :: execute ()
       trkSumRaw = trkSumRaw + trkConstsRaw[ii] ;
     }
     t_recoChMassRaw =  trkSumRaw.m() *0.001 ; 
+
+    // Random cone subtracted mass 
+    fastjet::PseudoJet trkSumRcBkg = fastjet::PseudoJet( sumPxBkg*1000., sumPyBkg*1000., sumPzBkg*1000., sumEBkg*1000.); // in MeV
+    fastjet::PseudoJet trkSumRcSubt = trkSumRaw - trkSumRcBkg; 
+    t_recoChMassRcSubt =  trkSumRcSubt.m() *0.001 ; 
+
     // Gne Massched track mass 
     fastjet::PseudoJet trkSumGm = fastjet::PseudoJet(0,0,0,0);
     for ( int ii=0; ii< trkConstsGm.size() ; ii++)       {
       trkSumGm = trkSumGm + trkConstsGm[ii] ;
     }
     t_recoChMassGm =  trkSumGm.m() *0.001 ; 
-    
+   
+
+
 
     // Tracking efficiency calculation 
     if ( _isMC) {  
@@ -1531,6 +1543,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vChPt_reco.push_back(t_recoChPt);
     vChMass_reco.push_back(t_recoChMass)  ;
     vChMassRaw_reco.push_back(t_recoChMassRaw)  ;
+    vChMassRcSubt_reco.push_back(t_recoChMassRcSubt)  ;
     vChMassGm_reco.push_back(t_recoChMassGm)  ;
 
     vTrMass_reco.push_back(t_recoTrMass);
@@ -1855,6 +1868,7 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.recoChPt = vChPt_reco[ri];
     myJetSub.recoChMass = vChMass_reco[ri];
     myJetSub.recoChMassRaw = vChMassRaw_reco[ri];
+    myJetSub.recoChMassRcSubt = vChMassRcSubt_reco[ri];
     myJetSub.recoChMassGm = vChMassGm_reco[ri];
 
 
@@ -1936,7 +1950,6 @@ EL::StatusCode JetSubstructure :: execute ()
   // Clear vectors
   store->clear();
   delete store;
-  delete uee;
 
   corrected_selectedTrks.clear();
   selectedTrks.clear();
@@ -1960,6 +1973,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vChPt_reco.clear();
   vChMass_reco.clear();
   vChMassRaw_reco.clear();
+  vChMassRcSubt_reco.clear();
   vChMassGm_reco.clear();
   
   vMass_gen.clear();

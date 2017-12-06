@@ -72,6 +72,7 @@ int main(int argc, char *argv[])
 	bool saveEvtDisplay;
 	string trk_cut_level;
 	
+	float chParticleMassMeV;
 
 	float ghost_area;
 	float Rktjet_bkg;
@@ -149,6 +150,7 @@ int main(int argc, char *argv[])
 	("alphaSubtr",boost::program_options::value<float>(&alphaSubtr)->default_value(1),"alphaSubtr")
 	("ptCutJetConeExc",boost::program_options::value<float>(&ptCutJetConeExc)->default_value(80.),"Jet pT cut for exclusion area")
 	("defJetRecl",boost::program_options::value<int>(&defJetRecl)->default_value(0),"defJetRecl")
+        ("chParticleMassMeV",boost::program_options::value<float>(&chParticleMassMeV)->default_value(0),"Charged Particle Mass in MeV")
 
 	  ;
 
@@ -247,7 +249,7 @@ int main(int argc, char *argv[])
 	cout << "Save log?                   : " << saveLog << endl; 
 	cout << "Save event display?         : " << saveEvtDisplay << endl; 
 	cout << "Save ntuple?                : " << saveNtuple << endl; 
-
+	cout << "Charged Particle Mass (0MeV): " << chParticleMassMeV  << " MeV" << endl;
 	if (strcmp (grid_configuration.c_str(),"") != 0)  cout << "Additional grid configuration: " << grid_configuration.c_str() << endl;
 
 	cout << "********************************" << endl << endl << endl;
@@ -334,6 +336,7 @@ int main(int argc, char *argv[])
 	alg->_saveLog = saveLog;
 	alg->_saveNtuple = saveNtuple;
 	alg->_saveEvtDisplay = saveEvtDisplay;
+	alg->_chParticleMassMeV = chParticleMassMeV;
 
 
 	//Initialzie trigger
