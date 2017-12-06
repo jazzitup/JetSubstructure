@@ -42,6 +42,7 @@
 
 #include "fastjet/JetDefinition.hh"
 #include "JetSubstructure/TrackHelperTools.h"
+#include "JetSubstructure/UEEstimator.h"
 #include "TMath.h"
 #include "ZdcAnalysis/ZdcAnalysisTool.h"
 #include "HIEventUtils/HIPileupTool.h"
@@ -66,7 +67,8 @@ public:
 public:
 	// Tree *myTree; //!
 	// TH1 *myHist; //!
-	
+
+	UEEstimator* uee; //!
 	
 	vector<TH3D*> h_resp_cent; //!
 	JetCorrector* jetcorr; //!

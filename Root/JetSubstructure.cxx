@@ -21,6 +21,7 @@
 #include "TH2.h"
 #include "TH3.h"
 #include <JetSubstructure/JetSubstructure.h>
+#include <JetSubstructure/UEEstimator.h>
 #include <TFile.h>
 
 #include "xAODTrigger/JetRoIContainer.h"
@@ -237,6 +238,22 @@ void logSubJets( fastjet::PseudoJet &parent1, fastjet::PseudoJet &parent2 ) {
   constSub1.clear();
   constSub2.clear();
 }
+
+
+float GetEventPlaneUsingEventShape(const xAOD::HIEventShapeContainer* calos){
+  float psi_2;
+  {
+    float FCal_Et=(calos->at(5)->et()*0.001*0.001);
+    double qx_2=(calos->at(5)->etCos().at(1));
+    double qy_2=(calos->at(5)->etSin().at(1));
+    float N_psi_2 = std::atan2(qy_2,qx_2);
+    psi_2 = N_psi_2/2.0;
+    //break;
+  }
+  //}
+  return psi_2;
+}
+
 
 
 
@@ -612,6 +629,7 @@ EL::StatusCode JetSubstructure :: execute ()
   //Get centrality bin and centile. Centile used for MB weighting (from MB_FCal_Normalization.txt)
   double FCalEt = 0;
   int cent_bin = 0;
+  int cent_bin_scheme30 = 0;
   //  double event_weight_fcal = 1;
   //Centrality
   const xAOD::HIEventShapeContainer* calos=0;
@@ -619,7 +637,7 @@ EL::StatusCode JetSubstructure :: execute ()
   if (_centrality_scheme>1)	  {
     FCalEt=calos->at(5)->et()*1e-6;
     cent_bin = GetCentralityBin(_centrality_scheme, FCalEt, isHIJING);
-    
+    cent_bin_scheme30 = GetCentralityBin(30, FCalEt, isHIJING);
     //    event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
     //    if (_isMC && isHIJING) event_weight_fcal = 1;
   }
@@ -633,7 +651,7 @@ EL::StatusCode JetSubstructure :: execute ()
       h_RejectionHisto->Fill(2.5);
       keep = false;
     }}
-  
+
 
   //Vertex : 
   const xAOD::VertexContainer * vertices = 0;
@@ -852,6 +870,11 @@ EL::StatusCode JetSubstructure :: execute ()
   xAOD::JetContainer::const_iterator jetExclu_end = reco_jets_forExclusion->end();
   std::vector<float> etaJetExclu;
   std::vector<float> phiJetExclu;
+
+  std::vector<float> _vJetPtForRC;
+  std::vector<float> _vJetEtaForRC;
+  std::vector<float> _vJetPhiForRC;
+
   for( ; jetExclu_itr != jetExclu_end; ++jetExclu_itr ) {
     xAOD::Jet theRecoJet;
     theRecoJet.makePrivateStore( **jetExclu_itr );
@@ -859,6 +882,10 @@ EL::StatusCode JetSubstructure :: execute ()
     float jet_pt  = jet_4momCalib.pt() * 0.001 ;
     float jet_eta = jet_4momCalib.eta();
     float jet_phi = jet_4momCalib.phi();
+    _vJetPtForRC.push_back(jet_pt);  // GeV!
+    _vJetEtaForRC.push_back(jet_eta);
+    _vJetPhiForRC.push_back(jet_phi);
+
     if (jet_pt < _ptCutJetConeExc)
       continue;
     if (fabs(jet_eta) > _etaTrkCut - 0.4)    // because we are using DFAntiKt4HIJets
@@ -904,6 +931,11 @@ EL::StatusCode JetSubstructure :: execute ()
   std::vector<fastjet::PseudoJet> selAndExcldTrks; // after jet cone exclusion
   std::vector<fastjet::PseudoJet> selGenMatchTrks;
   
+  std::vector<float> _vTrkPtForRC;
+  std::vector<float> _vTrkEtaForRC;
+  std::vector<float> _vTrkPhiForRC;
+
+
   const xAOD::TrackParticleContainer* recoTracks = 0;
   EL_RETURN_CHECK("execute",event->retrieve( recoTracks, "InDetTrackParticles"));
   for (const auto& trk : *recoTracks) {
@@ -926,6 +958,10 @@ EL::StatusCode JetSubstructure :: execute ()
     double d0_cut = f_d0_cut->Eval(pt);  // Make sure the unit is GeV!!!!
     if(fabs(d0) > d0_cut) continue;
     if (_saveLog)    cout << "     passed the d0 cut " << endl;
+    
+    _vTrkPtForRC.push_back(pt);  // GeV!!!!
+    _vTrkEtaForRC.push_back(eta);
+    _vTrkPhiForRC.push_back(phi);
     
     double pionMass = 0; // 139.570 ; // in MeV
     double pionx = trk->p4().Px(); // Oct 24th, Yongsun confiremd p4() is in MeV unit
@@ -950,7 +986,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
     }
-  
+    
     selectedTrks.push_back( fastjet::PseudoJet ( pionx, piony, pionz, pione ) );
     if (isTruthMatched) selGenMatchTrks.push_back( matchPar );
     
@@ -970,6 +1006,16 @@ EL::StatusCode JetSubstructure :: execute ()
 }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
   if (_saveLog) cout << "         Out of exclusion cone : " << selAndExcldTrks.size() << endl;
+
+
+  // *~*~*~*~*~UEE estimatior *~*~*~*~*~*~*~*~*~*~*~*~*~* //
+  uee = new UEEstimator();
+  uee->ptBkgrThreshold = 10; // cones with track with _trkptBkgrThreshold GeV excluded
+  uee->jetptBkgrThreshold = 90; // cones with proximity of jet with _jetptBkgrThreshold GeV excluded
+  uee->m_maxjetdeltaR = 0.8; // definition of "proximity" to a real jet
+  //Get reaction plane (maybe not needed for first iteration):
+  uee->Psi = GetEventPlaneUsingEventShape(calos);
+  uee->ExcludeConesByJetandTrack(_vTrkPtForRC,_vTrkEtaForRC,_vTrkPhiForRC,_vJetPtForRC,_vJetEtaForRC,_vJetPhiForRC);
   
   
   // Background for tracks 
@@ -1305,6 +1351,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
     // Charged Particle reclustering
     if (_saveLog)    cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl << "(RECO) Charged track clustering starts" << endl;
+    // tracks in jet cone after CS
     vector<fastjet::PseudoJet> trkConsts;
     for ( int ic=0; ic< corrected_selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, corrected_selectedTrks[ic].phi(), corrected_selectedTrks[ic].rapidity() ) <  _JetRadiusAna ) {
@@ -1315,12 +1362,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	  t_trkTow[nRecoJetCounter]->Fill(corrected_selectedTrks[ic].rapidity() - jet_rap, DeltaPhi(corrected_selectedTrks[ic].phi(), jet_phi), corrected_selectedTrks[ic].pt()*0.001 );
       }
     }
+    // tracks in jet cone before CS
     vector<fastjet::PseudoJet> trkConstsRaw;
     for ( int ic=0; ic< selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, selectedTrks[ic].phi(), selectedTrks[ic].rapidity() ) <  _JetRadiusAna ) {
 	trkConstsRaw.push_back( selectedTrks[ic]) ;	
       }
     }
+    // tracks matched to gen particle
     vector<fastjet::PseudoJet> trkConstsGm;
     for ( int ic=0; ic< selGenMatchTrks.size() ; ic++) {
       if ( DeltaR (jet_phi, jet_rap, selGenMatchTrks[ic].phi(), selGenMatchTrks[ic].rapidity() ) <  _JetRadiusAna ) {
@@ -1328,6 +1377,44 @@ EL::StatusCode JetSubstructure :: execute ()
       }
     }
     
+    // tracks in random cone :
+    if ( _saveLog) 	cout << "_vTrkPtForRC.size() = " << _vTrkPtForRC.size() << endl; 
+    if ( _saveLog) 	cout << "selectedTrks.size() = " << selectedTrks.size() << endl; 
+    if ( _vTrkPtForRC.size() != selectedTrks.size() )   
+      cout << " Error!!  _vTrkPtForRC.size() and selectedTrks.size() are not same!!! " << endl;
+
+    float sumPxBkg = 0;
+    float sumPyBkg = 0;
+    float sumPzBkg = 0;
+    float sumEBkg = 0;
+    for ( int ic=0 ; ic< selectedTrks.size() ; ic++) { 
+      float iTrkPt = selectedTrks[ic].pt() * 0.001;
+      float iTrkEta = selectedTrks[ic].eta();
+      float iTrkPhi = selectedTrks[ic].phi();
+      uee->FindCone(iTrkPt, iTrkEta, iTrkPhi);
+
+      float deltaRBkgr = uee->GetDeltaRToConeAxis();
+      if (deltaRBkgr <= _JetRadiusAna) {
+      float iTrkPx = selectedTrks[ic].px()* 0.001;
+      float iTrkPy = selectedTrks[ic].py()* 0.001;
+      float iTrkPz = selectedTrks[ic].pz()* 0.001;
+      float iTrkE  = selectedTrks[ic].e() * 0.001;
+	//    w_eta  = uee->CalculateEtaWeight(pt,eta,jet_eta,cent_bin_fine);
+	float w_eta  = uee->CalculateEtaWeight(iTrkPt, iTrkEta, jet_eta, cent_bin_scheme30);
+	float w_ncones = uee->GetNConesWeight();
+	float w_flow=1;
+	w_flow = uee->CalculateFlowWeight( iTrkPt, iTrkEta, iTrkPhi, jet_phi,  FCalEt ); //Flow correction
+	float w_bkgr = w_eta * w_ncones * w_flow;
+	float EtaBkgr = uee->GetetaOfConeAxis();
+	float PhiBkgr = uee->GetphiOfConeAxis();
+	sumPxBkg = sumPxBkg + iTrkPx*w_bkgr ;  
+	sumPyBkg = sumPyBkg + iTrkPy*w_bkgr ;  
+	sumPzBkg = sumPzBkg + iTrkPz*w_bkgr ;  
+	sumEBkg = sumEBkg + iTrkE*w_bkgr ;  
+      }
+    }
+    if ( _saveLog)
+      cout << "Sum of charged particle background px,py,pz,E = " << sumPxBkg<<", " << sumPyBkg<<", " << sumPzBkg << ",   " << sumEBkg << endl;
     
     
     // Calculate charged pT sum and charged mass 
@@ -1843,6 +1930,7 @@ EL::StatusCode JetSubstructure :: execute ()
   // Clear vectors
   store->clear();
   delete store;
+  delete uee;
 
   corrected_selectedTrks.clear();
   selectedTrks.clear();
