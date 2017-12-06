@@ -22,6 +22,8 @@ class UEEstimator
     Float_t _etaOfCone;
     Float_t _phiOfCone;
     Float_t _deltaRToConeAxis;
+    Float_t _deltaEtaToConeAxis;
+    Float_t _deltaPhiToConeAxis;
     Float_t _maxConePt;
     Int_t _maxConeIndex;
     TFile * _f_weights;
@@ -83,6 +85,8 @@ class UEEstimator
       _etaOfCone = 0;	// eta position of a cone found for a given particle
       _phiOfCone = 0;	// phi position of a cone found for a given particle
       _deltaRToConeAxis = 0;	// distance between a position of a cone found for a given particle and that particle
+      _deltaEtaToConeAxis = 0;	//
+      _deltaPhiToConeAxis = 0;	//
       _maxConePt = 0; //maximum track pt asociated with the cone
       _maxConeIndex = -1;
 
@@ -90,6 +94,8 @@ class UEEstimator
 
     // helping functions
     Float_t GetDeltaRToConeAxis() {return _deltaRToConeAxis;}
+    Float_t GetDeltaEtaToConeAxis() {return _deltaEtaToConeAxis;}
+    Float_t GetDeltaPhiToConeAxis() {return _deltaPhiToConeAxis;}
     Float_t GetetaOfConeAxis() {return _etaOfCone;}
     Float_t GetphiOfConeAxis() {return _phiOfCone;}
     Float_t GetMaxConepT() {return _maxConePt;}

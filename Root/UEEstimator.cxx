@@ -116,6 +116,9 @@ void UEEstimator::FindCone(float trk_pt,float trk_eta,float trk_phi)
 //@       that will be associated with this background particle, also store this deltaR in _deltaRToConeAxis 
 {
    Float_t deltaROrthMin=999.;
+   Float_t deltaEtaOrthMin=999.;
+   Float_t deltaPhiOrthMin=999.;
+
    for (int iEta=0; iEta<_nEta; iEta++)
      {for (int iPhi=0; iPhi<_nPhi; iPhi++)
         {if (! _bkgrCones[iPhi*_nEta+iEta]) continue;
@@ -123,8 +126,12 @@ void UEEstimator::FindCone(float trk_pt,float trk_eta,float trk_phi)
          Float_t theEta = (iEta*2./_nEta -1 + 1./_nEta)*2.0;
          Float_t deltaR = DeltaR( trk_phi, trk_eta, thePhi, theEta );
          if (deltaR < deltaROrthMin)
-           {deltaROrthMin = deltaR;
-            _etaOfCone = theEta;
+           {
+	     deltaROrthMin = deltaR;
+	     deltaEtaOrthMin = trk_eta - theEta; 
+	     deltaPhiOrthMin = DeltaPhi(trk_phi, thePhi);
+	     
+	     _etaOfCone = theEta;
             _phiOfCone = thePhi;
             _maxConePt = _bkgrCones_hpT[iPhi*_nEta+iEta];
             _maxConeIndex = iPhi*_nEta+iEta;
@@ -133,6 +140,8 @@ void UEEstimator::FindCone(float trk_pt,float trk_eta,float trk_phi)
      }
 
    _deltaRToConeAxis = deltaROrthMin;
+   _deltaEtaToConeAxis = deltaEtaOrthMin;
+   _deltaPhiToConeAxis = deltaPhiOrthMin;
 
 }
 
