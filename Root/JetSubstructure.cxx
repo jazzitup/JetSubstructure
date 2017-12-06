@@ -1394,12 +1394,9 @@ EL::StatusCode JetSubstructure :: execute ()
       uee->FindCone(iTrkPt, iTrkEta, iTrkPhi);
 
       float deltaRBkgr = uee->GetDeltaRToConeAxis();
+      float deltaEtaBkgr = uee->GetDeltaEtaToConeAxis();
+      float deltaPhiBkgr = uee->GetDeltaPhiToConeAxis();
       if (deltaRBkgr <= _JetRadiusAna) {
-      float iTrkPx = selectedTrks[ic].px()* 0.001;
-      float iTrkPy = selectedTrks[ic].py()* 0.001;
-      float iTrkPz = selectedTrks[ic].pz()* 0.001;
-      float iTrkE  = selectedTrks[ic].e() * 0.001;
-	//    w_eta  = uee->CalculateEtaWeight(pt,eta,jet_eta,cent_bin_fine);
 	float w_eta  = uee->CalculateEtaWeight(iTrkPt, iTrkEta, jet_eta, cent_bin_scheme30);
 	float w_ncones = uee->GetNConesWeight();
 	float w_flow=1;
@@ -1407,10 +1404,19 @@ EL::StatusCode JetSubstructure :: execute ()
 	float w_bkgr = w_eta * w_ncones * w_flow;
 	float EtaBkgr = uee->GetetaOfConeAxis();
 	float PhiBkgr = uee->GetphiOfConeAxis();
-	sumPxBkg = sumPxBkg + iTrkPx*w_bkgr ;  
-	sumPyBkg = sumPyBkg + iTrkPy*w_bkgr ;  
-	sumPzBkg = sumPzBkg + iTrkPz*w_bkgr ;  
-	sumEBkg = sumEBkg + iTrkE*w_bkgr ;  
+
+	if ( _saveLog)      cout << "deta, dephi in random cone  = " << deltaEtaBkgr <<",  "<<deltaPhiBkgr << endl;
+	float newEta = jet_eta + deltaEtaBkgr;
+	float newPhi = jet_phi + deltaPhiBkgr;
+	float newTrkPx = iTrkPt * cos(newPhi);
+	float newTrkPy = iTrkPt * sin(newPhi);
+	float newTrkPz = iTrkPt * sinh(newEta);
+	float newTrkE  = iTrkPt * cosh(newEta);
+
+	sumPxBkg = sumPxBkg + newTrkPx*w_bkgr ;  
+	sumPyBkg = sumPyBkg + newTrkPy*w_bkgr ;  
+	sumPzBkg = sumPzBkg + newTrkPz*w_bkgr ;  
+	sumEBkg = sumEBkg + newTrkE*w_bkgr ;  
       }
     }
     if ( _saveLog)
