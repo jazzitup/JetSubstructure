@@ -1396,9 +1396,6 @@ EL::StatusCode JetSubstructure :: execute ()
     float sumPxBkg = 0;
     float sumPyBkg = 0;
     float sumPzBkg = 0;
-    float sumPxBkg2 = 0;
-    float sumPyBkg2 = 0;
-    float sumPzBkg2 = 0;
     float sumEBkg = 0;
     float sumEBkg2 = 0;
     float nChBkg = 0;
@@ -1429,21 +1426,16 @@ EL::StatusCode JetSubstructure :: execute ()
 	float newTrkPx = iTrkPt * cos(newPhi);
 	float newTrkPy = iTrkPt * sin(newPhi);
 	float newTrkPz = iTrkPt * sinh(newEta);
-	float newTrkE  = iTrkPt * cosh(newEta);
+	float newTrkP  = iTrkPt * cosh(newEta);
+	float newTrkE  = sqrt( newTrkP*newTrkP + _chParticleMassMeV*_chParticleMassMeV*0.000001);
 
-	float newTrkPx2 = iTrkPt * cos(jet_phi);
-	float newTrkPy2 = iTrkPt * sin(jet_phi);
-	float newTrkPz2 = iTrkPt * sinh(jet_eta);
-	float newTrkE2  = iTrkPt * cosh(jet_eta);
+
+	float newTrkE2  = newTrkP;
 
 	sumPxBkg = sumPxBkg + newTrkPx*w_bkgr ;  
 	sumPyBkg = sumPyBkg + newTrkPy*w_bkgr ;  
 	sumPzBkg = sumPzBkg + newTrkPz*w_bkgr ;  
 	sumEBkg = sumEBkg + newTrkE*w_bkgr ;  
-
-	sumPxBkg2 = sumPxBkg2 + newTrkPx2*w_bkgr ;  
-	sumPyBkg2 = sumPyBkg2 + newTrkPy2*w_bkgr ;  
-	sumPzBkg2 = sumPzBkg2 + newTrkPz2*w_bkgr ;  
 	sumEBkg2 = sumEBkg2 + newTrkE2*w_bkgr ;  
 
 	nChBkg = nChBkg +  w_bkgr;
@@ -1475,35 +1467,41 @@ EL::StatusCode JetSubstructure :: execute ()
 
     // Random cone subtracted mass 
     fastjet::PseudoJet trkSumRcBkg = fastjet::PseudoJet( sumPxBkg*1000., sumPyBkg*1000., sumPzBkg*1000., sumEBkg*1000.); // in MeV
-    fastjet::PseudoJet trkSumRcBkg2 = fastjet::PseudoJet( sumPxBkg2*1000., sumPyBkg2*1000., sumPzBkg2*1000., sumEBkg2*1000.); // in MeV
+    fastjet::PseudoJet trkSumRcBkg2 = fastjet::PseudoJet( sumPxBkg*1000., sumPyBkg*1000., sumPzBkg*1000., sumEBkg2*1000.); // in MeV
     fastjet::PseudoJet trkSumRcSubt = trkSumRaw - trkSumRcBkg; 
     fastjet::PseudoJet trkSumRcSubt2 = trkSumRaw - trkSumRcBkg2; 
     t_recoChPtRcSubt =  trkSumRcSubt.pt() *0.001 ; 
     t_recoChMassRcSubt =  trkSumRcSubt.m() *0.001 ; 
     t_recoChMassRcSubt2 =  trkSumRcSubt2.m() *0.001 ; 
     
-    if (_saveLog) { 
-      cout << "cent = " << cent_bin << endl;
-      cout << "N^ch in Raw = " << trkConstsRaw.size() << endl;
-      cout << "N^ch(weighted) in Bkg = " << nChBkg << endl;
-      cout << "N^ch(number  ) in Bkg = " << nChBkgCounts << endl;
-      cout << "ChMassRcSubt1 = " << t_recoChMassRcSubt << endl;
-      cout << "ChMassRcSubt2 = " << t_recoChMassRcSubt2 << endl;
-      cout << " trkSumRaw pt,pz,E: " << trkSumRaw.pt() <<",  " <<trkSumRaw.pz() <<",  " << trkSumRaw.e() << endl;
-      cout << "  DR from Jet axis: " <<  DeltaR(jet_phi, jet_eta, trkSumRaw.phi(), trkSumRaw.eta()) << endl;
-      cout << "  DR of bkg1      : " <<  DeltaR(jet_phi, jet_eta, trkSumRcBkg.phi(), trkSumRcBkg.eta()) << endl;
-      cout << "  DR of bkg2      : " <<  DeltaR(jet_phi, jet_eta, trkSumRcBkg2.phi(), trkSumRcBkg2.eta()) << endl;
-      cout << " trkSumRcBkg pt,pz,E: " << trkSumRcBkg.pt() <<",  " <<trkSumRcBkg.pz() <<", " << trkSumRcBkg.e() << endl;
-      cout << " trkSumRcSubt pt,pz,E: " << trkSumRcSubt.pt() <<",  " <<trkSumRcSubt.pz() <<", " << trkSumRcSubt.e() << endl;
-      
-    }
     
-    // Gne Massched track mass 
+    // Gne Massched track mass
     fastjet::PseudoJet trkSumGm = fastjet::PseudoJet(0,0,0,0);
     for ( int ii=0; ii< trkConstsGm.size() ; ii++)       {
       trkSumGm = trkSumGm + trkConstsGm[ii] ;
     }
-    t_recoChMassGm =  trkSumGm.m() *0.001 ; 
+    t_recoChMassGm =  trkSumGm.m() *0.001 ;
+
+
+    if (_saveLog) { 
+      cout << "cent = " << cent_bin << endl;
+
+      cout << "N^ch in Raw = " << trkConstsRaw.size() << endl;
+      cout << "N^ch(weighted) in Bkg = " << nChBkg << endl;
+      cout << "N^ch(number  ) in Bkg = " << nChBkgCounts << endl;
+      cout << "trkSumRcSubt pT / jet pT = " << trkSumRcSubt.pt() / jet_pt /1000 << endl;
+      cout << "Gen Match M   = " << t_recoChMassGm << endl;
+      cout << "ChMassRcSubt1 = " << t_recoChMassRcSubt << endl;
+      cout << "ChMassRcSubt2 = " << t_recoChMassRcSubt2 << endl;
+      cout << " trkSumRaw pt,pz,E: " << trkSumRaw.pt()*0.001 <<",  " <<trkSumRaw.pz()*0.001 <<",  " << trkSumRaw.e()*0.001 << endl;
+      cout << "  DR from Jet axis: " <<  DeltaR(jet_phi, jet_eta, trkSumRaw.phi(), trkSumRaw.eta()) << endl;
+      cout << "  DR of bkg1      : " <<  DeltaR(jet_phi, jet_eta, trkSumRcBkg.phi(), trkSumRcBkg.eta()) << endl;
+      cout << "  DR of bkg2      : " <<  DeltaR(jet_phi, jet_eta, trkSumRcBkg2.phi(), trkSumRcBkg2.eta()) << endl;
+      cout << " trkSumRcBkg pt,pz,E: " << trkSumRcBkg.pt()*0.001 <<",  " <<trkSumRcBkg.pz()*0.001 <<", " << trkSumRcBkg.e()*0.001 << endl;
+      cout << " trkSumRcSubt pt,pz,E: " << trkSumRcSubt.pt()*0.001 <<",  " <<trkSumRcSubt.pz()*0.001 <<", " << trkSumRcSubt.e()*0.001 << endl;
+      
+    }
+    
    
 
 
