@@ -60,22 +60,22 @@ using namespace fastjet;
 struct jetSubStr {
   Int_t cent;
   float weight, rhoCh;
-  float recoMass, recoPt, recoRawPt, recoEta, recoRap, recoPhi, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2;
-  float recoChPt, recoChMass, recoChMassRaw, recoChPtRcSubt, recoChMassRcSubt, recoChMassRcSubt2, recoChMassGm, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
-  float matchDr, genMass, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2;
+  float recoMass, recoPt, recoRawPt, recoEta, recoRap, recoPhi, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2, recoSdArea1, recoSdArea2;
+  float recoChPt, recoChMass, recoChPtRaw, recoChMassRaw, recoChMassGm, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
+  float matchDr, genMass, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2, genSdArea1, genSdArea2 ;
   float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
   float recoDels, genDels, recoTrMass, genTrMass, recoTrNsub, genTrNsub ;   // trimming 
-  float nChRaw, nChBkg, nChBkgNoWgt, drChJetBkg, drChJetBkg2 ;  
+  float nTrkRaw, nTrkBkg, nTrkBkgNoWgt,  recoChPtRcSubt, recoChMassRcSubt, drTrkJetBkg, maxTrkPt ;   // random cone
 };
 jetSubStr myJetSub;
 
 TString evtText = "cent/I:weight/F:rhoCh";
-TString recoText = "mass:pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2";
-TString reChText = "chPt:chMass:chMassRaw:chPtRcSubt:chMassRcSubt:chMassRcSubt2:chMassGm:chSdPt:chSdMass:chZg:chTheta";
-TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2";
+TString recoText = "mass:pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2:sda1:sda2";
+TString reChText = "chPtCSubt:chMassCSubt:chPtRaw:chMassRaw:chMassGm:chSdPt:chSdMass:chZg:chTheta"; 
+TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2:genSda1:genSda2";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
 TString trimText  = "dels:genDels:trMass:genTrMass:trNsub:genTrNsub";
-TString rcText  = "nChRaw:nChBkg:nChBkgNoWgt:drChJetBkg:drChJetBkg2";
+TString rcText  = "nTrkRaw:nTrkBkg:nTrkBkgNoWgt:chMassRcSubt:chPtRcSubt:drTrkJetBkg:maxTrkPt";
 
 TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText+":"+trimText+":"+rcText;
 
@@ -105,7 +105,8 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.recoSdPt2 = -1;
   jetsub.recoSdRap2 = -100;
   jetsub.recoSdPhi2 = -100;
-
+  jetsub.recoSdArea1 = -1;
+  jetsub.recoSdArea2 = -1;
 
   jetsub.genPt=-1;
   jetsub.genEta=-10;
@@ -124,13 +125,15 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.genSdPt2 = -1;
   jetsub.genSdRap2 = -10;
   jetsub.genSdPhi2 = -10;
+  jetsub.genSdArea1 = -1;
+  jetsub.genSdArea2 = -1;
 
   jetsub.recoChPt = -1;
   jetsub.recoChMass = -10;
+  jetsub.recoChPtRaw = -10;
   jetsub.recoChMassRaw = -10;
   jetsub.recoChPtRcSubt = -10;
   jetsub.recoChMassRcSubt = -10;
-  jetsub.recoChMassRcSubt2 = -10;
   jetsub.recoChMassGm = -10;
   jetsub.recoDels = -10;
   jetsub.genDels = -10;
@@ -766,10 +769,10 @@ EL::StatusCode JetSubstructure :: execute ()
 
   vector <float> vChPt_reco; 
   vector <float> vChMass_reco; 
+  vector <float> vChPtRaw_reco; 
   vector <float> vChMassRaw_reco; 
   vector <float> vChPtRcSubt_reco; 
   vector <float> vChMassRcSubt_reco; 
-  vector <float> vChMassRcSubt2_reco; 
   vector <float> vChMassGm_reco; 
 
   //trimming
@@ -808,8 +811,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <float> vNChBkg;
   vector <float> vNChBkgNoWgt;
   vector <float> vDrChJetBkg;
-  vector <float> vDrChJetBkg2;
-
+  vector <float> vMaxTrkPt;
 
 
   // algorithm definition 
@@ -1308,17 +1310,18 @@ EL::StatusCode JetSubstructure :: execute ()
 
     float t_recoChPt      = -1 ;
     float t_recoChMass    = -100;
+    float t_recoChPtRaw = -100;
     float t_recoChMassRaw = -100;
     float t_recoChPtRcSubt = -100;
     float t_recoChMassRcSubt = -100;
-    float t_recoChMassRcSubt2 = -100;
     float t_recoChMassGm  = -100;
 
     float t_recoNChRaw = -1 ;  
     float t_recoNChBkg = -1 ;  
     float t_recoNChBkgNoWgt = -1 ;  
     float t_recoDrChJetBkg = -1 ;  
-    float t_recoDrChJetBkg2 = -1 ;  
+    float t_recoMaxTrkPt = -1 ;  
+
 
     vector<fastjet::PseudoJet> corrRecCamJets = fastjet::sorted_by_pt(cambridgeJet); // return a vector of jets sorted into decreasing energy
 
@@ -1347,7 +1350,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	thesdphi2 = parent2.phi();
 	thesdrap2 = PhiInPI(parent2.rapidity());
 
-
+	
 	if ( _saveLog)   {
 	  logSubJets( parent1, parent2 ) ;
 	}
@@ -1404,7 +1407,10 @@ EL::StatusCode JetSubstructure :: execute ()
     fastjet::PseudoJet trkSumRaw = fastjet::PseudoJet(0,0,0,0);
     for ( int ii=0; ii< trkConstsRaw.size() ; ii++)       {
       trkSumRaw = trkSumRaw + trkConstsRaw[ii] ;
+      if ( trkConstsRaw[ii].pt() >  t_recoMaxTrkPt )
+	t_recoMaxTrkPt = trkConstsRaw[ii].pt() ;
     }
+    t_recoMaxTrkPt = t_recoMaxTrkPt * 0.001;
     float rawPhiTrkSum = trkSumRaw.phi();
     float rawEtaTrkSum = trkSumRaw.eta();
   
@@ -1422,17 +1428,12 @@ EL::StatusCode JetSubstructure :: execute ()
       cout << " Error!!  _vTrkPtForRC.size() and selectedTrks.size() are not same!!! " << endl;
 
 
-    int   nChBkgCounts = 0;
+    int   nTrkBkgCounts = 0;
     float sumPxBkg = 0;
     float sumPyBkg = 0;
     float sumPzBkg = 0;
     float sumEBkg = 0;
-    float nChBkg = 0;
-    float sumPxBkg2 = 0;
-    float sumPyBkg2 = 0;
-    float sumPzBkg2 = 0;
-    float sumEBkg2 = 0;
-    float nChBkg2 = 0;
+    float nTrkBkg = 0;
 
     for ( int ic=0 ; ic< selectedTrks.size() ; ic++) { 
       float iTrkPt = selectedTrks[ic].pt() * 0.001;
@@ -1443,7 +1444,7 @@ EL::StatusCode JetSubstructure :: execute ()
       float deltaRBkgr = uee->GetDeltaRToConeAxis();
       float deltaEtaBkgr = uee->GetDeltaEtaToConeAxis();
       float deltaPhiBkgr = uee->GetDeltaPhiToConeAxis();
-      if (deltaRBkgr <= _JetRadiusAna) {
+      if (deltaRBkgr <= 0.4) { 
 	//around calo jet 
 	float w_ncones = uee->GetNConesWeight();
 
@@ -1477,13 +1478,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	sumPyBkg = sumPyBkg + newTrkPy*w_bkgr ;  
 	sumPzBkg = sumPzBkg + newTrkPz*w_bkgr ;  
 	sumEBkg = sumEBkg + newTrkE*w_bkgr ;  
-	nChBkg = nChBkg +  w_bkgr;
-	sumPxBkg2 = sumPxBkg2 + newTrkPx2*w_bkgr2 ;  
-	sumPyBkg2 = sumPyBkg2 + newTrkPy2*w_bkgr2 ;  
-	sumPzBkg2 = sumPzBkg2 + newTrkPz2*w_bkgr2 ;  
-	sumEBkg2 = sumEBkg2 + newTrkE2*w_bkgr2 ;  
-	nChBkg2 = nChBkg2 +  w_bkgr2;
-	nChBkgCounts = nChBkgCounts + 1;
+	nTrkBkg = nTrkBkg +  w_bkgr;
+	nTrkBkgCounts = nTrkBkgCounts + 1;
       }
     }
     if ( _saveLog)
@@ -1493,53 +1489,39 @@ EL::StatusCode JetSubstructure :: execute ()
     // Calculate charged pT sum and charged mass 
     fastjet::PseudoJet trkSum = fastjet::PseudoJet(0,0,0,0);
     for ( int ii=0; ii< trkConsts.size() ; ii++) {
-      trkSum = trkSum + trkConsts[ii] ;
+      trkSum = trkSum + trkConsts[ii] ;   //  CS'ed track sum
     }
-    t_recoChMassRaw =  trkSumRaw.m() *0.001 ; 
-    t_recoChPt =  trkSum.pt() *0.001 ; 
-    t_recoChMass =  trkSum.m() *0.001 ; 
-    if ( _saveLog) { 
-      cout << " Sum of trk Sum E = " << trkSum.E() *0.001<< endl;
-      cout << " pT of trk Sum        = " << trkSum.pt() *0.001<< endl;
-      cout << " mass =                  " << trkSum.m() *0.001<< endl;
-    }
-
-    // Random cone subtracted mass 
     fastjet::PseudoJet trkSumRcBkg = fastjet::PseudoJet(  sumPxBkg*1000., sumPyBkg*1000., sumPzBkg*1000., sumEBkg*1000.); // in MeV
-    // Align around the trkSumJet 
-    fastjet::PseudoJet trkSumRcBkg2 = fastjet::PseudoJet(  sumPxBkg2*1000., sumPyBkg2*1000., sumPzBkg2*1000., sumEBkg2*1000.); // in MeV
-
     fastjet::PseudoJet trkSumRcSubt = trkSumRaw - trkSumRcBkg; 
-    fastjet::PseudoJet trkSumRcSubt2 = trkSumRaw - trkSumRcBkg2; 
+
+    t_recoChPtRaw =  trkSumRaw.pt() *0.001 ;   // raw mass
+    t_recoChMassRaw =  trkSumRaw.m() *0.001 ;   // raw mass
+    t_recoChPt =  trkSum.pt() *0.001 ;  // CS subtracted pt sum
+    t_recoChMass =  trkSum.m() *0.001 ; // CS subtracted mass
+
     t_recoChPtRcSubt =  trkSumRcSubt.pt() *0.001 ; 
     t_recoChMassRcSubt =  trkSumRcSubt.m() *0.001 ; 
-    t_recoChMassRcSubt2 =  trkSumRcSubt2.m() *0.001 ; 
     
     t_recoNChRaw = trkConstsRaw.size() ; 
-    t_recoNChBkg = nChBkg ;
-    t_recoNChBkgNoWgt = nChBkgCounts ;
+    t_recoNChBkg = nTrkBkg ;
+    t_recoNChBkgNoWgt = nTrkBkgCounts ;
 
     t_recoDrChJetBkg =  DeltaR(trkSumRaw.phi(), trkSumRaw.eta(), trkSumRcBkg.phi(), trkSumRcBkg.eta()) ; 
-    t_recoDrChJetBkg2 =  DeltaR(trkSumRaw.phi(), trkSumRaw.eta(), trkSumRcBkg2.phi(), trkSumRcBkg2.eta()) ; 
     
     if (_saveLog) { 
       cout << "cent = " << cent_bin << endl;
       
       cout << "N^ch in Raw = " << trkConstsRaw.size() << endl;
-      cout << "N^ch(weighted) in Bkg = " << nChBkg << endl;
-      cout << "N^ch(number  ) in Bkg = " << nChBkgCounts << endl;
+      cout << "N^ch(weighted) in Bkg = " << nTrkBkg << endl;
+      cout << "N^ch(number  ) in Bkg = " << nTrkBkgCounts << endl;
       cout << "trkSumRcSubt pT / jet pT = " << trkSumRcSubt.pt() / jet_pt /1000 << endl;
       cout << "Gen Match M   = " << t_recoChMassGm << endl;
       cout << "ChMassRcSubt1 = " << t_recoChMassRcSubt << endl;
-      cout << "ChMassRcSubt2 = " << t_recoChMassRcSubt2 << endl;
+      cout <<" t_recoMaxTrkPt = " << t_recoMaxTrkPt << endl;
       cout << " trkSumRaw pt,pz,E: " << trkSumRaw.pt()*0.001 <<",  " <<trkSumRaw.pz()*0.001 <<",  " << trkSumRaw.e()*0.001 << endl;
       cout << " DR jet axis and trk jet axis: " <<  DeltaR(jet_phi, jet_eta, trkSumRaw.phi(), trkSumRaw.eta()) << endl;
       cout << " DR jet axis and bkg1       : " <<  DeltaR(jet_phi, jet_eta, trkSumRcBkg.phi(), trkSumRcBkg.eta()) << endl;
-      cout << " DR jet axis and bkg2      : " <<  DeltaR(jet_phi, jet_eta, trkSumRcBkg2.phi(), trkSumRcBkg2.eta()) << endl;
       cout << " DR track jet axis and bkg1      : " <<  DeltaR(trkSumRaw.phi(), trkSumRaw.eta(), trkSumRcBkg.phi(), trkSumRcBkg.eta()) << endl;
-      cout << " DR track jet axis and bkg2      : " <<  DeltaR(trkSumRaw.phi(), trkSumRaw.eta(), trkSumRcBkg2.phi(), trkSumRcBkg2.eta()) << endl;
-      cout << " DR between bkg1, bkg2       : " <<  DeltaR(trkSumRcBkg.phi(), trkSumRcBkg.eta(), trkSumRcBkg2.phi(), trkSumRcBkg2.eta()) << endl;
-
       cout << " trkSumRcBkg pt,pz,E: " << trkSumRcBkg.pt()*0.001 <<",  " <<trkSumRcBkg.pz()*0.001 <<", " << trkSumRcBkg.e()*0.001 << endl;
       cout << " trkSumRcSubt pt,pz,E: " << trkSumRcSubt.pt()*0.001 <<",  " <<trkSumRcSubt.pz()*0.001 <<", " << trkSumRcSubt.e()*0.001 << endl;
       
@@ -1594,12 +1576,18 @@ EL::StatusCode JetSubstructure :: execute ()
 	    t_trkTow2[nRecoJetCounter]->Fill( sub2[ic].eta() - jet_rap, DeltaPhi( sub2[ic].phi(), jet_phi), sub2[ic].pt() * 0.001 );
 	  sub1.clear();
 	  sub2.clear();
+	}    
+	if ( _saveLog && (cent_bin==0)) {   
+	  cout << " centBin = " << cent_bin << endl;
+	  cout << " dR        = " << t_recoChSdTheta << endl;
+	  cout << " Track nConst1 = " << parent1.constituents().size() << endl;
+	  cout << " Track nConst2 = " << parent2.constituents().size() << endl;
 	}
 	
       }
       else {
-	hRecoSdChStat->Fill(jet_pt, 0);
-      }
+	  hRecoSdChStat->Fill(jet_pt, 0);
+	}
       
     }
     
@@ -1630,10 +1618,11 @@ EL::StatusCode JetSubstructure :: execute ()
     
     vChPt_reco.push_back(t_recoChPt);
     vChMass_reco.push_back(t_recoChMass)  ;
+    vChPtRaw_reco.push_back(t_recoChPtRaw)  ;
+    vChPtRaw_reco.push_back(t_recoChPtRaw)  ;
     vChMassRaw_reco.push_back(t_recoChMassRaw)  ;
     vChPtRcSubt_reco.push_back(t_recoChPtRcSubt)  ;
     vChMassRcSubt_reco.push_back(t_recoChMassRcSubt)  ;
-    vChMassRcSubt2_reco.push_back(t_recoChMassRcSubt2)  ;
     vChMassGm_reco.push_back(t_recoChMassGm)  ;
 
     vTrMass_reco.push_back(t_recoTrMass);
@@ -1644,8 +1633,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vNChBkg.push_back(t_recoNChBkg);
     vNChBkgNoWgt.push_back(t_recoNChBkgNoWgt);
     vDrChJetBkg.push_back(t_recoDrChJetBkg);
-    vDrChJetBkg2.push_back(t_recoDrChJetBkg2);
-
+    vMaxTrkPt.push_back(t_recoMaxTrkPt);
     
     corrRecCamJets.clear();
     nonZeroConsts.clear();
@@ -1963,17 +1951,17 @@ EL::StatusCode JetSubstructure :: execute ()
 
     myJetSub.recoChPt = vChPt_reco[ri];
     myJetSub.recoChMass = vChMass_reco[ri];
+    myJetSub.recoChPtRaw = vChPtRaw_reco[ri];
     myJetSub.recoChMassRaw = vChMassRaw_reco[ri];
     myJetSub.recoChPtRcSubt = vChPtRcSubt_reco[ri];
     myJetSub.recoChMassRcSubt = vChMassRcSubt_reco[ri];
-    myJetSub.recoChMassRcSubt2 = vChMassRcSubt2_reco[ri];
     myJetSub.recoChMassGm = vChMassGm_reco[ri];
     
-    myJetSub.nChRaw = vNChRaw[ri]; 
-    myJetSub.nChBkg = vNChBkg[ri]; 
-    myJetSub.nChBkgNoWgt = vNChBkgNoWgt[ri]; 
-    myJetSub.drChJetBkg = vDrChJetBkg[ri];
-    myJetSub.drChJetBkg2 = vDrChJetBkg2[ri];
+    myJetSub.nTrkRaw = vNChRaw[ri]; 
+    myJetSub.nTrkBkg = vNChBkg[ri]; 
+    myJetSub.nTrkBkgNoWgt = vNChBkgNoWgt[ri]; 
+    myJetSub.drTrkJetBkg = vDrChJetBkg[ri];
+    myJetSub.maxTrkPt = vMaxTrkPt[ri];
 
     myJetSub.recoTrMass = vTrMass_reco[ri];
     myJetSub.recoTrNsub = vTrNsub_reco[ri];
@@ -2075,10 +2063,10 @@ EL::StatusCode JetSubstructure :: execute ()
 
   vChPt_reco.clear();
   vChMass_reco.clear();
+  vChPtRaw_reco.clear();
   vChMassRaw_reco.clear();
   vChPtRcSubt_reco.clear();
   vChMassRcSubt_reco.clear();
-  vChMassRcSubt2_reco.clear();
   vChMassGm_reco.clear();
   
   vMass_gen.clear();
