@@ -75,7 +75,7 @@ TString reChText = "chPtCSubt:chMassCSubt:chPtRaw:chMassRaw:chMassGm:chSdPt:chSd
 TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2:genSda1:genSda2";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
 TString trimText  = "dels:genDels:trMass:genTrMass:trNsub:genTrNsub";
-TString rcText  = "nTrkRaw:nTrkBkg:nTrkBkgNoWgt:chMassRcSubt:chPtRcSubt:drTrkJetBkg:maxTrkPt";
+TString rcText  = "nTrkRaw:nTrkBkg:nTrkBkgNoWgt:chPtRcSubt:chMassRcSubt:drTrkJetBkg:maxTrkPt";
 
 TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText+":"+trimText+":"+rcText;
 
