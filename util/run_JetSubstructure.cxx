@@ -79,9 +79,12 @@ int main(int argc, char *argv[])
 	float alphaSubtr; 
 
 	int towerBkgKill; // -1: none, 0= 0 GeV, 1 = SoftKill
+
 	bool doTrimming; // 
+	int defTrimAlgo; // definition for jet algo used in trimming
 	float fCut; //  Functioning only when doTrimming = true;
 	float rSub; //  Functioning only when doTrimming = true;
+
 	float csMaxR;
 	
 	float beta; 
@@ -113,6 +116,7 @@ int main(int argc, char *argv[])
 	("isMB",boost::program_options::value<int>(&isMB)->default_value(0),"MB or HP")
 	("towerBkgKill",boost::program_options::value<int>(&towerBkgKill)->default_value(0),"Background subtraction method")
 	("doTrimming",boost::program_options::value<bool>(&doTrimming)->default_value(false),"Trimming?")
+	("defTrimAlgo",boost::program_options::value<int>(&defTrimAlgo)->default_value(0),"Trimming?")
 	("fCut",boost::program_options::value<float>(&fCut)->default_value(0.09),"fCut")
 	("rSub",boost::program_options::value<float>(&rSub)->default_value(0.2),"Reclustering ratius")
 	("csMaxR",boost::program_options::value<float>(&csMaxR)->default_value(0.25),"CS max R")
@@ -227,9 +231,11 @@ int main(int argc, char *argv[])
         cout << "Track Selection: " << trk_cut_level << endl;
 	cout << "============ Calo Tower Background  ============= " << endl;
 	cout << "Tower fuctuation Kill(// -1: none, 0= 0 GeV, 1 = SoftKill): "<< towerBkgKill << endl;
-	cout << "Trimming (1:yes,  0:no) :    "<< doTrimming << endl;
+	cout << "Trimming (1:yes,  0:no)               : " << doTrimming << endl;
+	cout << "Trimming Algo (0=Cambridge,1=kT,2=ak) : " << defTrimAlgo << endl;
 	cout << "    doTrimming*fCut: "   << fCut * doTrimming << endl;
 	cout << "    doTrimming*rSub: "   << rSub * doTrimming << endl;
+	cout << endl;
 	cout <<"============== Constituent Subtraction =========== " <<endl;
 	cout <<" Radius of kt jet: " <<  Rktjet_bkg << endl;
 	cout <<" Ghost Area:       " <<  ghost_area << endl;
@@ -240,6 +246,7 @@ int main(int argc, char *argv[])
 	cout <<" Reclustering algo (0=Cambridge, 1=kT): " << defJetRecl << endl;
 	cout <<"     beta         : " << beta << endl;    
 	cout <<"     z_cut        : " << z_cut<< endl;    
+	cout << endl;
 	cout <<"======== Track Selection  ====== " <<endl;
 	cout << "eta cut: " << etaTrkCut << endl;
 	cout << "Truth track pT cut          : " << pTtrkCutTruth << " GeV" <<endl;
@@ -311,6 +318,7 @@ int main(int argc, char *argv[])
 	alg->_isMB = isMB;
 	alg->_towerBkgKill = towerBkgKill;
 	alg->_doTrimming = doTrimming;
+	alg->_defTrimAlgo = defTrimAlgo;
 	alg->_fCut = fCut;
 	alg->_rSub = rSub;
 	alg->_csMaxR = csMaxR;

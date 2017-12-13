@@ -51,6 +51,7 @@ public:
 	int _isMB; //
 	int _towerBkgKill; //
 	bool _doTrimming; //
+	int _defTrimAlgo; //
 	float _fCut; //
 	float _rSub; //
 	int _isHerwig; //
