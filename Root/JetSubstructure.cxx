@@ -64,7 +64,7 @@ struct jetSubStr {
   float recoChPt, recoChMass, recoChPtRaw, recoChMassRaw, recoChMassGm, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
   float matchDr, genMass, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2, genSdArea1, genSdArea2 ;
   float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
-  float recoTrNsub, recoTrTheta, recoTrMassRaw, recoTrMassCorr, recoTrDels, genTrNsub, genTrTheta, genTrMassRaw, genTrMassCorr, genTrDels;  // trimming 
+  float recoTrNsub, recoTrTheta, recoTrMassRaw, recoTrMassCorr, recoTrDels, genTrNsub, genTrTheta, genTrMass, genTrDels;  // trimming 
   float nTrkRaw, nTrkBkg, nTrkBkgNoWgt,  recoChPtRcSubt, recoChMassRcSubt, drTrkJetBkg, maxTrkPt ;   // random cone
 };
 jetSubStr myJetSub;
@@ -74,7 +74,7 @@ TString recoText = "mass:pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:s
 TString reChText = "chPtCSubt:chMassCSubt:chPtRaw:chMassRaw:chMassGm:chSdPt:chSdMass:chZg:chTheta"; 
 TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2:genSda1:genSda2";
 TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
-TString trimText  = "trimN:trimTheta:trimMraw:trimMcorr:trimDels:genTrimN:genTrimTheta:genTrimMraw:genTrimMcorr:genTrimDels";
+TString trimText  = "trimN:trimTheta:trimMraw:trimMcorr:trimDels:genTrimN:genTrimTheta:genTrimM:genTrimDels";
 TString rcText  = "nTrkRaw:nTrkBkg:nTrkBkgNoWgt:chPtRcSubt:chMassRcSubt:drTrkJetBkg:maxTrkPt";
 
 TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText+":"+trimText+":"+rcText;
@@ -143,8 +143,7 @@ void resetSubstr (jetSubStr &jetsub)
    jetsub.recoTrDels  = -1; 
    jetsub.genTrNsub  = -1; 
    jetsub.genTrTheta  = -1;
-   jetsub.genTrMassRaw  = -1; 
-   jetsub.genTrMassCorr  = -1; 
+   jetsub.genTrMass  = -1; 
    jetsub.genTrDels;
    
    jetsub.genMass = -1;
@@ -798,6 +797,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <float> vSdphi2_gen;
 
 
+
   vector <float> vChSdPt_gen;
   vector <float> vChSdMass_gen  ;
   vector <float> vChSdZ_gen  ;
@@ -815,6 +815,11 @@ EL::StatusCode JetSubstructure :: execute ()
   vector<float> vTrMassRaw_reco; 
   vector<float> vTrMassCorr_reco; 
   vector<float> vTrDels_reco; 
+
+  vector<float> vTrNsub_gen; 
+  vector<float> vTrTheta_gen; 
+  vector<float> vTrMass_gen; 
+  vector<float> vTrDels_gen; 
 
 
   // algorithm definition 
@@ -1268,8 +1273,8 @@ EL::StatusCode JetSubstructure :: execute ()
     // Trimmer goes here: 
     float t_recoTrNsub = 0;
     float t_recoTrTheta =  0;
+    float t_recoTrDels   = 100;
     float t_recoTrMassRaw = 0;
-    float t_recoDels   = 100;
     float t_recoTrMassCorr = -1;
   
     fastjet::ClusterSequence trimSeq(nonZeroConsts, jetDefTrim);
@@ -1300,21 +1305,21 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
       double subPt = sqrt( subPx*subPx + subPy*subPy ); 
-      if ( (subPt/jet_ptRaw) > _fCut ) {
+      if ( (subPt * 0.001 / jet_ptRaw) > _fCut ) {
 	trimmedJets[ij].reset_momentum( subPx, subPy, subPz, subE ) ;
+	sumTrimmedJet = sumTrimmedJet + trimmedJets[ij] ; 
 	t_recoTrNsub++;
       }
       else
 	trimmedJets[ij].reset_momentum( 0,0,0,0);
       
-      sumTrimmedJet = sumTrimmedJet + trimmedJets[ij] ; 
       if (_saveLog) cout <<"   after Negative correction: " << trimmedJets[ij].pt() *0.001  << " GeV " << endl;
       if (_saveLog) cout <<"   Number of negative towers / (total): " << towerCountN << "/ ("<<towerCount<<")"<<endl;
     }
     
     vector<fastjet::PseudoJet> sortedTrimmedJets = fastjet::sorted_by_pt(trimmedJets);
     if ( t_recoTrNsub > 1) {
-      t_recoDels    =  ( sortedTrimmedJets[0].pt() - sortedTrimmedJets[1].pt() )*0.001 /jet_ptRaw ;
+      t_recoTrDels    =  ( sortedTrimmedJets[0].pt() - sortedTrimmedJets[1].pt() )*0.001 /jet_ptRaw ;
       t_recoTrTheta =  DeltaR( sortedTrimmedJets[0].phi(), sortedTrimmedJets[0].eta(), sortedTrimmedJets[1].phi(), sortedTrimmedJets[1].eta()) ;
     }
     t_recoTrMassRaw = sumTrimmedJet.m() *0.001;
@@ -1322,7 +1327,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
 
     if (_saveLog) {  
-      cout <<" dels = " << t_recoDels << endl;
+      cout <<" dels = " << t_recoTrDels << endl;
       cout <<" theta = " <<  DeltaR( sortedTrimmedJets[0].phi(), sortedTrimmedJets[0].eta(), sortedTrimmedJets[1].phi(), sortedTrimmedJets[1].eta()) << endl;
       cout <<"trimmed mass = " << sumTrimmedJet.m() *0.001<< endl;
       cout <<"raw mass = " << jet_massRaw << endl;   
@@ -1715,7 +1720,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vTrTheta_reco.push_back(t_recoTrTheta);
     vTrMassRaw_reco.push_back(t_recoTrMassRaw);
     vTrMassCorr_reco.push_back(t_recoTrMassCorr);
-    vTrDels_reco.push_back(t_recoDels);
+    vTrDels_reco.push_back(t_recoTrDels);
 
 
 
@@ -1781,10 +1786,34 @@ EL::StatusCode JetSubstructure :: execute ()
           t_chgTow2[nGenJetCounter]->Reset();
 	}
       
-	// Truth trimmed jet:  
+	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
+
+	// Truth trimmer goes here:
+	float t_genTrNsub = 0;
+	float t_genTrTheta =  0;
+	float t_genTrDels   = 100;
+	float t_genTrMass = -1;
+
+	fastjet::ClusterSequence trimSeq(akConsts, jetDefTrim);
+	vector<fastjet::PseudoJet> trimmedJets = trimSeq.inclusive_jets();
+	fastjet::PseudoJet sumTrimmedJet = fastjet::PseudoJet(0,0,0,0);
+	if (_saveLog) cout << "Truth jet trimming......." << endl;
+	for ( int ij= 0 ; ij < trimmedJets.size() ; ij++) {
+	  if ( ( trimmedJets[ij].pt() * 0.001 / jet_pt ) > _fCut ) {
+	    t_genTrNsub++;
+	    sumTrimmedJet = sumTrimmedJet + trimmedJets[ij] ;
+	  }
+	}
+	vector<fastjet::PseudoJet> sortedTrimmedJets = fastjet::sorted_by_pt(trimmedJets);
+	if ( t_genTrNsub > 1) {
+	  t_genTrDels    =  ( sortedTrimmedJets[0].pt() - sortedTrimmedJets[1].pt() )*0.001 /jet_pt ;
+	  t_genTrTheta =  DeltaR( sortedTrimmedJets[0].phi(), sortedTrimmedJets[0].eta(), sortedTrimmedJets[1].phi(), sortedTrimmedJets[1].eta() ) ;
+	}
+	t_genTrMass = sumTrimmedJet.m() *0.001;
+
+	////////////////////////////////////////////////////
 
 	// Truth recluster by C/A
-	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
 	if (_saveEvtDisplay) {
 	  for ( int ic = 0 ; ic< akConsts.size() ; ic++)  {
 	    double theRap  = akConsts[ic].rapidity();
@@ -1880,7 +1909,15 @@ EL::StatusCode JetSubstructure :: execute ()
 	vSdrap2_gen.push_back(thesdrap2);
 	vSdphi2_gen.push_back(thesdphi2);
 
-
+	
+	vTrNsub_gen.push_back(t_genTrNsub);
+	vTrTheta_gen.push_back(t_genTrTheta);
+	vTrDels_gen.push_back(t_genTrDels);
+	vTrMass_gen.push_back(t_genTrMass);
+	
+	
+	
+	
 	camJets.clear();
 	
 	// Charged Particle reclustering
@@ -2092,6 +2129,16 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.genChSdMass = vChSdMass_gen[matchId];
       myJetSub.genChSdZ = vChSdZ_gen[matchId];
       myJetSub.genChSdTheta = vChSdTheta_gen[matchId];
+
+      myJetSub.genTrNsub =  vTrNsub_gen[matchId];
+      myJetSub.genTrTheta =  vTrTheta_gen[matchId];
+      myJetSub.genTrDels =  vTrDels_gen[matchId];
+      myJetSub.genTrMass =  vTrMass_gen[matchId];
+
+
+
+
+
 
 
       if (_saveEvtDisplay) {
