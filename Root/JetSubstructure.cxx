@@ -63,7 +63,7 @@ struct jetSubStr {
   float recoMass, recoPt, recoRawPt, recoEta, recoRap, recoPhi, recoRcPt, recoSdPt, recoSdMass, recoSdZ, recoSdTheta, recoSdPt1, recoSdRap1, recoSdPhi1, recoSdPt2, recoSdRap2, recoSdPhi2, recoSdArea1, recoSdArea2;
   float recoChPt, recoChMass, recoChPtRaw, recoChMassRaw, recoChMassGm, recoChSdPt, recoChSdMass, recoChSdZ, recoChSdTheta;
   float matchDr, genMass, genPt,  genEta, genRap, genPhi, genRcPt,  genSdPt, genSdMass, genSdz, genSdtheta, genSdPt1, genSdRap1, genSdPhi1, genSdPt2, genSdRap2, genSdPhi2, genSdArea1, genSdArea2 ;
-  float genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
+  float genNch, genChSdPt, genChSdMass, genChSdZ, genChSdTheta; 
   float recoTrNsub, recoTrTheta, recoTrMassRaw, recoTrMassCorr, recoTrDels, genTrNsub, genTrTheta, genTrMass, genTrDels;  // trimming 
   float nTrkRaw, nTrkBkg, nTrkBkgNoWgt,  recoChPtRcSubt, recoChMassRcSubt, drTrkJetBkg, maxTrkPt ;   // random cone
 };
@@ -73,7 +73,7 @@ TString evtText = "cent/I:weight/F:rhoCh";
 TString recoText = "mass:pt:rawPt:eta:y:phi:rcPt:sdPt:sdMass:zg:theta:spt1:sy1:sphi1:spt2:sy2:sphi2:sda1:sda2";
 TString reChText = "chPtCSubt:chMassCSubt:chPtRaw:chMassRaw:chMassGm:chSdPt:chSdMass:chZg:chTheta"; 
 TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMass:genZg:genTheta:genSpt1:genSy1:genSphi1:genSpt2:genSy2:genSphi2:genSda1:genSda2";
-TString genChText = "genChSdPt:genChSdMass:genChZg:genChTheta";
+TString genChText = "genNch:genChSdPt:genChSdMass:genChZg:genChTheta";
 TString trimText  = "trimN:trimTheta:trimMraw:trimMcorr:trimDels:genTrimN:genTrimTheta:genTrimM:genTrimDels";
 TString rcText  = "nTrkRaw:nTrkBkg:nTrkBkgNoWgt:chPtRcSubt:chMassRcSubt:drTrkJetBkg:maxTrkPt";
 
@@ -798,6 +798,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
 
 
+  vector <float> vNch_gen;
   vector <float> vChSdPt_gen;
   vector <float> vChSdMass_gen  ;
   vector <float> vChSdZ_gen  ;
@@ -1923,10 +1924,13 @@ EL::StatusCode JetSubstructure :: execute ()
 	// Charged Particle reclustering
 	if (_saveLog)	cout << "~~~~~~~~~~~~~~~~~~~~~~~~~" << endl;
 	if (_saveLog)	cout << "(Truth) Charged particle clustering starts" << endl;
-        vector<fastjet::PseudoJet> chargeConsts;
+        
+	vector<fastjet::PseudoJet> chargeConsts;
+	float t_genNch = 0 ;
         for ( int ic=0; ic< truthChargesAna.size() ; ic++) {
           if ( DeltaR ( jet_phi, jet_rap, truthChargesAna[ic].phi(), truthChargesAna[ic].rapidity() ) <  _JetRadiusAna ) {
 	    chargeConsts.push_back( truthChargesAna[ic]) ;
+	    t_genNch = t_genNch + 1;
 	  }
         }
 	
@@ -1939,7 +1943,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  }
 	}
 	
-
+      
 	fastjet::ClusterSequence reChCam(chargeConsts, jetDefReclus);
         vector<fastjet::PseudoJet> camChJets = fastjet::sorted_by_pt(reChCam.inclusive_jets()); 
 	if ( _saveLog)  {
@@ -1991,7 +1995,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	vChSdMass_gen.push_back(t_genChSdMass)  ;
 	vChSdZ_gen.push_back(t_genChSdZ)  ;
 	vChSdTheta_gen.push_back(t_genChSdTheta) ;
-	
+	vNch_gen.push_back(t_genNch);
 	
 	nGenJetCounter++; // THIS MUST BE AT THE END OF THE jets LOOP! 
       }
@@ -2125,6 +2129,7 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.genSdPhi2 = vSdphi2_gen[matchId];
       myJetSub.genSdRap2 = vSdrap2_gen[matchId];
 
+      myJetSub.genNch    = vNch_gen[matchId];
       myJetSub.genChSdPt = vChSdPt_gen[matchId];
       myJetSub.genChSdMass = vChSdMass_gen[matchId];
       myJetSub.genChSdZ = vChSdZ_gen[matchId];

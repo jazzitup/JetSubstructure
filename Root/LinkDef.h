@@ -1,4 +1,5 @@
 #include <JetSubstructure/JetSubstructure.h>
+#include <JetSubstructure/McJetTrimming.h>
 #include <JetSubstructure/BaseClass.h>
 
 #ifdef __CINT__
@@ -12,6 +13,7 @@
 
 #ifdef __CINT__
 #pragma link C++ class JetSubstructure+;
+#pragma link C++ class McJetTrimming+;
 #pragma link C++ class BaseClass;
 #pragma link C++ class JetCorrector;
 

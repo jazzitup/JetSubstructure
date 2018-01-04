@@ -2,6 +2,7 @@
 #include <EventLoop/StatusCode.h>
 #include <EventLoop/Worker.h>
 #include "JetSubstructure/JetSubstructure.h"
+#include "JetSubstructure/McJetTrimming.h"
 #include "xAODRootAccess/Init.h"
 #include "xAODRootAccess/TEvent.h"
 #include "xAODRootAccess/tools/Message.h"
