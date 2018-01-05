@@ -540,20 +540,30 @@ EL::StatusCode JetSubstructure :: initialize ()
 	Info("initialize()", "Number of events = %lli", event->getEntries() ); // print long long int
 
 	
+	
 	//Calibration tool
-	const std::string name = "JetSubstructure"; //string describing the current thread, for logging
-	TString jetAlgo = "AntiKt4HI"; //String describing your jet collection, for example AntiKt4EMTopo or AntiKt4LCTopo (see below)
-	TString config = "JES_MC15c_HI_Nov2016.config"; //Path to global config used to initialize the tool (see below)
-	TString calibSeq = "EtaJES"; //String describing the calibration sequence to apply (see below)
+	//	const std::string name = "JetSubstructure"; //string describing the current thread, for logging
+	//	TString jetAlgo = "AntiKt4HI"; //String describing your jet collection, for example AntiKt4EMTopo or AntiKt4LCTopo (see below)
+	//	TString config = "JES_MC15c_HI_Nov2016.config"; //Path to global config used to initialize the tool (see below)
+	//	TString calibSeq = "EtaJES"; //String describing the calibration sequence to apply (see below)
 
 	//Call the constructor. The default constructor can also be used if the arguments are set with python configuration instead
-	m_jetCalibration = new JetCalibrationTool (name);
-	ANA_CHECK(m_jetCalibration->setProperty("JetCollection",jetAlgo.Data()));
-	ANA_CHECK(m_jetCalibration->setProperty("ConfigFile",config.Data()));
-	ANA_CHECK(m_jetCalibration->setProperty("CalibSequence",calibSeq.Data()));
-	ANA_CHECK(m_jetCalibration->setProperty("IsData",!_isMC));
-	ANA_CHECK(m_jetCalibration->initializeTool(name));
+	//	m_jetCalibration = new JetCalibrationTool (name);
+	//	ANA_CHECK(m_jetCalibration->setProperty("JetCollection",jetAlgo.Data()));
+	//	ANA_CHECK(m_jetCalibration->setProperty("ConfigFile",config.Data()));
+	//	ANA_CHECK(m_jetCalibration->setProperty("CalibSequence",calibSeq.Data()));
+	//	ANA_CHECK(m_jetCalibration->setProperty("IsData",!_isMC));
+	//	ANA_CHECK(m_jetCalibration->initializeTool(name));
 		
+	//in-situ calib
+	TString jetAlgo_insitu = "AntiKt4EMTopo"; //String describing your jet collection, for example AntiKt4EMTopo or AntiKt4LCTopo (see below)
+	TString config_insitu = "JES_MC15cRecommendation_May2016_xCalib.config"; //Path to global config used to initialize the tool (see below)
+	const std::string name_insitu = "insitu"; //string describing the current thread, for logging
+	TString calibSeq_insitu = "Insitu_DEV"; //String describing the calibration sequence to apply (see below)
+	
+	m_jetCalibration_insitu = new JetCalibrationTool(name_insitu, jetAlgo_insitu, config_insitu, calibSeq_insitu, true);
+	EL_RETURN_CHECK("initialize()",m_jetCalibration_insitu->initializeTool(name_insitu));
+
 	
 	///////////// track selection ///////////////////////////////////
 	m_trackSelectorTool = new InDet::InDetTrackSelectionTool("InDetTrackSelectorTool");
@@ -727,6 +737,8 @@ EL::StatusCode JetSubstructure :: execute ()
   
   if (!keep) return EL::StatusCode::SUCCESS; // go to the next event
   h_RejectionHisto->Fill(7.5);
+
+
   
   //  h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
   h_centrality->Fill(cent_bin,1); //  weight is set 1 event_weight_fcal);
@@ -902,8 +914,17 @@ EL::StatusCode JetSubstructure :: execute ()
   
 
   //  find the jet cone for exclusion area in background estimation procedure 
+  xAOD::TStore *store = new xAOD::TStore; //For calibration
+  
+  //  xAOD::JetContainer* updatedjets = new xAOD::JetContainer();
+  //  xAOD::AuxContainerBase* updatedjetsAux = new xAOD::AuxContainerBase();
+  //  updatedjets->setStore( updatedjetsAux );   
+  //  store->record(updatedjets,"updatedjets");
+  //  store->record(updatedjetsAux,"updatedjetsAux");
+
   const xAOD::JetContainer* reco_jets_forExclusion = 0;
   ANA_CHECK(event->retrieve( reco_jets_forExclusion, "DFAntiKt4HIJets" ) );
+
   xAOD::JetContainer::const_iterator jetExclu_itr = reco_jets_forExclusion->begin();
   xAOD::JetContainer::const_iterator jetExclu_end = reco_jets_forExclusion->end();
   std::vector<float> etaJetExclu;
@@ -916,10 +937,34 @@ EL::StatusCode JetSubstructure :: execute ()
   for( ; jetExclu_itr != jetExclu_end; ++jetExclu_itr ) {
     xAOD::Jet theRecoJet;
     theRecoJet.makePrivateStore( **jetExclu_itr );
+    
     const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!!
-    float jet_pt  = jet_4momCalib.pt() * 0.001 ;
-    float jet_eta = jet_4momCalib.eta();
-    float jet_phi = jet_4momCalib.phi();
+    float jet_pt =0; 
+    float jet_eta =0;
+    float jet_phi =0 ;
+    
+    if ( _isMC) {   
+      jet_pt  = jet_4momCalib.pt() * 0.001 ;
+      jet_eta = jet_4momCalib.eta();
+      jet_phi = jet_4momCalib.phi();
+    }
+    else {  // if (!_isMC)
+      cout << "l1" << endl;
+      const xAOD::JetFourMom_t jet_4mom_unsubtracted = theRecoJet.jetP4("JetUnsubtractedScaleMomentum");
+      theRecoJet.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted); //Required
+      const xAOD::JetFourMom_t jet_4mom_EMJES = theRecoJet.jetP4(); //This is default, up to EM+JES calibrated four momentum
+      theRecoJet.setJetP4("JetGSCScaleMomentum", jet_4mom_EMJES);
+      EL_RETURN_CHECK("execute()", m_jetCalibration_insitu->applyCalibration( theRecoJet ) );
+      jet_pt  = theRecoJet.pt() * 0.001 ;
+      jet_eta = theRecoJet.eta();
+      jet_phi = theRecoJet.phi();
+    }
+    if (_saveLog){
+      cout << " jet_4momCalib.pt() = " << jet_4momCalib.pt() << endl;
+      cout << "jet_pt = " << jet_pt << endl;
+    }
+    cout << " l2" << endl;
+
     _vJetPtForRC.push_back(jet_pt);  // GeV!
     _vJetEtaForRC.push_back(jet_eta);
     _vJetPhiForRC.push_back(jet_phi);
@@ -933,13 +978,15 @@ EL::StatusCode JetSubstructure :: execute ()
     phiJetExclu.push_back(jet_phi);
   }
   if (_saveLog)  cout << endl << " There are " << etaJetExclu.size() << " exclusion cones (pT > " << _ptCutJetConeExc << " GeV)" << endl;
-  
+
   //  find the reco jet cones for analysis 
-  xAOD::TStore *store = new xAOD::TStore; //For calibration
+
   const xAOD::JetContainer* reco_jets = 0;
+  
   ANA_CHECK(event->retrieve( reco_jets, _reco_jet_collection.c_str() ));
   xAOD::JetContainer::const_iterator jetcone_itr = reco_jets->begin();
   xAOD::JetContainer::const_iterator jetcone_end = reco_jets->end();
+
   std::vector<float> etaJetCone150;
   std::vector<float> phiJetCone150;
   for( ; jetcone_itr != jetcone_end; ++jetcone_itr ) {
@@ -1145,7 +1192,7 @@ EL::StatusCode JetSubstructure :: execute ()
 
   
 
-  /////////////   Reco jets /////////////////////////////////////////
+  /////////////   Main Loop:  Reco jets /////////////////////////////////////////
   xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
   xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
   int nRecoJetCounter=0;
@@ -1166,6 +1213,7 @@ EL::StatusCode JetSubstructure :: execute ()
     double jet_phi = PhiInPI ( jet_4momCalib.phi() );
     double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
     double jet_massRaw = unCaliFourVec.m() * 0.001;
+
     if (_saveLog) { 
       cout <<" jet_pt = " << jet_pt << endl;
       cout <<" jet_eta = " << jet_eta << endl;
@@ -1184,7 +1232,12 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     if (jet_pt < _pTjetCut)          continue;
     if (fabs(jet_eta) > _etaJetCut)  continue;
+
+
     
+    vector<double> jet_TrigPresc_vector ;
+    vector<bool> jet_IsTrig_vector ; 
+
     // WARNING! THERE MUST BE NO CONTINUE COMMAND FROM NOW ON IN THIS LOOP!!!!! 
     //    nRecoJetCounter++;    will be written at the end of this loop.
   
@@ -1210,9 +1263,10 @@ EL::StatusCode JetSubstructure :: execute ()
   
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
     
-
-  
+    
+    cout << " f1" << endl;    
     const xAOD::JetConstituentVector recoConsts = (*jet_itr)->getConstituents();
+    cout << " f2" << endl;    
     xAOD::JetConstituentVector::iterator itCnst   = recoConsts.begin();
     xAOD::JetConstituentVector::iterator itCnst_E = recoConsts.end();
     vector<fastjet::PseudoJet>  nonZeroConsts;
@@ -1221,15 +1275,19 @@ EL::StatusCode JetSubstructure :: execute ()
       
     double ghostE = 0.00001;
     for( ; itCnst != itCnst_E; ++itCnst ) {
+      cout << " f5" << endl;    
       double theEta = (*itCnst)->Eta() ; 
+      cout << " f6" << endl;    
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
+      cout << " f3" << endl;    
       
       if ( _towerBkgKill == -1 ) { 
 	if ( (*itCnst)->pt() > 0 ) { // normal tower 
 	  nonZeroConsts.push_back(thisConst);
 	  toBeSubtracted.push_back ( fastjet::PseudoJet (0,0,0,ghostE));
 	  nFlag.push_back (false);
+    cout << " f4" << endl;    
 	  //	  if ( _saveLog) cout << "positive pt =" << (*itCnst)->pt()*0.001<< endl;
 	  //	  if ( _saveLog) cout << "positive E =" << (*itCnst)->E()*0.001<< endl;
 	  //	  if ( _saveLog) cout << "positive eta =" << (*itCnst)->eta()<< endl;
@@ -1270,7 +1328,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
       
     }
-    
+    cout << "here10 " << endl;
     // Trimmer goes here: 
     float t_recoTrNsub = 0;
     float t_recoTrTheta =  0;
@@ -1326,6 +1384,7 @@ EL::StatusCode JetSubstructure :: execute ()
     t_recoTrMassRaw = sumTrimmedJet.m() *0.001;
     t_recoTrMassCorr = t_recoTrMassRaw * jet_pt / jet_ptRaw;
     
+    cout << "here2 " << endl;
 
     if (_saveLog) {  
       cout <<" dels = " << t_recoTrDels << endl;
@@ -2002,12 +2061,11 @@ EL::StatusCode JetSubstructure :: execute ()
       truthParticles.clear();
       truthChargesAna.clear();
     }
-    
-    else  { // If to use the AOD container
+    else  {
       cout << " Don't use useReAntiKt=0 option yet.." << endl; 
     }
   }
-  
+
   
   
   
@@ -2016,17 +2074,20 @@ EL::StatusCode JetSubstructure :: execute ()
     
     int matchId = -1;
     double drMin = 0.2;    // dR cut
-    for (int gi = 0; gi<vpt_gen.size() ; gi++) { 
-      double dr_itr = DeltaR(vphi_reco[ri], veta_reco[ri], vphi_gen[gi], veta_gen[gi]);
-      //	    cout <<"dR_itr = " << dr_itr << endl;
-      if ( dr_itr < drMin ) { 
-	matchId = gi;  
-	drMin = dr_itr;
-	//	      cout <<"found! dRmin = " << drMin << endl;
+    if ( _isMC) { 
+      for (int gi = 0; gi<vpt_gen.size() ; gi++) { 
+	double dr_itr = DeltaR(vphi_reco[ri], veta_reco[ri], vphi_gen[gi], veta_gen[gi]);
+	//	    cout <<"dR_itr = " << dr_itr << endl;
+	if ( dr_itr < drMin ) { 
+	  matchId = gi;  
+	  drMin = dr_itr;
+	  //	      cout <<"found! dRmin = " << drMin << endl;
+	}
       }
     }
-  
+    
     resetSubstr(myJetSub);
+    
     if (_saveEvtDisplay) { 
       eventDisRecTow->Reset();
       eventDisRecTow1->Reset();
@@ -2139,13 +2200,7 @@ EL::StatusCode JetSubstructure :: execute ()
       myJetSub.genTrTheta =  vTrTheta_gen[matchId];
       myJetSub.genTrDels =  vTrDels_gen[matchId];
       myJetSub.genTrMass =  vTrMass_gen[matchId];
-
-
-
-
-
-
-
+      
       if (_saveEvtDisplay) {
 	eventDisGen->Add(t_genTow[matchId]);
 	eventDisGen1->Add(t_genTow1[matchId]);
@@ -2160,14 +2215,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	delete t_chgTow1[matchId];
 	delete t_chgTow2[matchId];
       }
-
+      
     }
     
     treeOut->Fill();
   }
   
   
-	
+  
   
   
   
@@ -2244,7 +2299,7 @@ EL::StatusCode JetSubstructure :: finalize ()
 	xAOD::TEvent* event = wk()->xaodEvent();
 	cout << "Total counts = " << m_eventCounter << endl;
 	//cleaning cleaning :)
-	if( m_jetCalibration ) delete m_jetCalibration; m_jetCalibration = 0;
+	//	if( m_jetCalibration ) delete m_jetCalibration; m_jetCalibration = 0;
 	
 	EL_RETURN_CHECK( "Finalize", m_trackSelectorTool->finalize() );
 	if( m_trackSelectorTool ) delete m_trackSelectorTool; m_trackSelectorTool=0;
