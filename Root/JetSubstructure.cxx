@@ -942,28 +942,24 @@ EL::StatusCode JetSubstructure :: execute ()
     float jet_pt =0; 
     float jet_eta =0;
     float jet_phi =0 ;
-    
+
     if ( _isMC) {   
       jet_pt  = jet_4momCalib.pt() * 0.001 ;
       jet_eta = jet_4momCalib.eta();
       jet_phi = jet_4momCalib.phi();
     }
     else {  // if (!_isMC)
-      cout << "l1" << endl;
       const xAOD::JetFourMom_t jet_4mom_unsubtracted = theRecoJet.jetP4("JetUnsubtractedScaleMomentum");
       theRecoJet.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted); //Required
       const xAOD::JetFourMom_t jet_4mom_EMJES = theRecoJet.jetP4(); //This is default, up to EM+JES calibrated four momentum
       theRecoJet.setJetP4("JetGSCScaleMomentum", jet_4mom_EMJES);
       EL_RETURN_CHECK("execute()", m_jetCalibration_insitu->applyCalibration( theRecoJet ) );
-      jet_pt  = theRecoJet.pt() * 0.001 ;
-      jet_eta = theRecoJet.eta();
-      jet_phi = theRecoJet.phi();
+      const xAOD::JetFourMom_t jet_4momCroCal = theRecoJet.jetP4(); // uncalib
+           
+      jet_pt  = jet_4momCroCal.pt() * 0.001 ;
+      jet_eta = jet_4momCroCal.eta();
+      jet_phi = jet_4momCroCal.phi();
     }
-    if (_saveLog){
-      cout << " jet_4momCalib.pt() = " << jet_4momCalib.pt() << endl;
-      cout << "jet_pt = " << jet_pt << endl;
-    }
-    cout << " l2" << endl;
 
     _vJetPtForRC.push_back(jet_pt);  // GeV!
     _vJetEtaForRC.push_back(jet_eta);
@@ -1202,15 +1198,26 @@ EL::StatusCode JetSubstructure :: execute ()
     theRecoJet.makePrivateStore( **jet_itr );
     
     const xAOD::JetFourMom_t jet_4momUnCal = theRecoJet.jetP4("JetSubtractedScaleMomentum"); // uncalib
-    const xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
+    xAOD::JetFourMom_t jet_4momCalib = theRecoJet.jetP4();   // CALIBRATED!!! 
+
     
-    fastjet::PseudoJet CalibFourVec = fastjet::PseudoJet ( jet_4momCalib.px(), jet_4momCalib.py(), jet_4momCalib.pz(), jet_4momCalib.energy() );
     fastjet::PseudoJet unCaliFourVec = fastjet::PseudoJet ( jet_4momUnCal.px(), jet_4momUnCal.py(), jet_4momUnCal.pz(), jet_4momUnCal.energy() );
-    double jet_mass  = CalibFourVec.m() * 0.001 ;
+    if ( !_isMC) { 
+      const xAOD::JetFourMom_t jet_4mom_unsubtracted = theRecoJet.jetP4("JetUnsubtractedScaleMomentum");
+      theRecoJet.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted); //Required
+      const xAOD::JetFourMom_t jet_4mom_EMJES = theRecoJet.jetP4(); //This is default, up to EM+JES calibrated four momentum
+      theRecoJet.setJetP4("JetGSCScaleMomentum", jet_4mom_EMJES);
+      EL_RETURN_CHECK("execute()", m_jetCalibration_insitu->applyCalibration( theRecoJet ) );
+      jet_4momCalib = theRecoJet.jetP4(); // uncalib
+    }
+
+    fastjet::PseudoJet CalibFourVec = fastjet::PseudoJet ( jet_4momCalib.px(), jet_4momCalib.py(), jet_4momCalib.pz(), jet_4momCalib.energy() );
+
     double jet_pt  = jet_4momCalib.pt() * 0.001 ;
     double jet_eta = jet_4momCalib.eta();
-    double jet_rap = CalibFourVec.rapidity();
     double jet_phi = PhiInPI ( jet_4momCalib.phi() );
+    double jet_mass = CalibFourVec.m() * 0.001 ;
+    double jet_rap  = CalibFourVec.rapidity();
     double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
     double jet_massRaw = unCaliFourVec.m() * 0.001;
 
