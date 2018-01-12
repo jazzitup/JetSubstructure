@@ -1271,9 +1271,7 @@ EL::StatusCode JetSubstructure :: execute ()
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
     
     
-    cout << " f1" << endl;    
     const xAOD::JetConstituentVector recoConsts = (*jet_itr)->getConstituents();
-    cout << " f2" << endl;    
     xAOD::JetConstituentVector::iterator itCnst   = recoConsts.begin();
     xAOD::JetConstituentVector::iterator itCnst_E = recoConsts.end();
     vector<fastjet::PseudoJet>  nonZeroConsts;
@@ -1282,19 +1280,15 @@ EL::StatusCode JetSubstructure :: execute ()
       
     double ghostE = 0.00001;
     for( ; itCnst != itCnst_E; ++itCnst ) {
-      cout << " f5" << endl;    
       double theEta = (*itCnst)->Eta() ; 
-      cout << " f6" << endl;    
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
-      cout << " f3" << endl;    
       
       if ( _towerBkgKill == -1 ) { 
 	if ( (*itCnst)->pt() > 0 ) { // normal tower 
 	  nonZeroConsts.push_back(thisConst);
 	  toBeSubtracted.push_back ( fastjet::PseudoJet (0,0,0,ghostE));
 	  nFlag.push_back (false);
-    cout << " f4" << endl;    
 	  //	  if ( _saveLog) cout << "positive pt =" << (*itCnst)->pt()*0.001<< endl;
 	  //	  if ( _saveLog) cout << "positive E =" << (*itCnst)->E()*0.001<< endl;
 	  //	  if ( _saveLog) cout << "positive eta =" << (*itCnst)->eta()<< endl;
@@ -1391,7 +1385,6 @@ EL::StatusCode JetSubstructure :: execute ()
     t_recoTrMassRaw = sumTrimmedJet.m() *0.001;
     t_recoTrMassCorr = t_recoTrMassRaw * jet_pt / jet_ptRaw;
     
-    cout << "here2 " << endl;
 
     if (_saveLog) {  
       cout <<" dels = " << t_recoTrDels << endl;
