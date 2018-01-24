@@ -726,20 +726,21 @@ EL::StatusCode JetSubstructure :: execute ()
   if (!_isMC) {	
     const xAOD::ZdcModuleContainer* zdcMod = 0;
     ANA_CHECK(event->retrieve( zdcMod, "ZdcModules")); 
-    m_zdcTools->reprocessZdc();	  // ZDC
-    m_is_pileup = m_hiPileup->is_pileup( *calos, *zdcMod); // SAVE pileup Decision HERE 0 = NO pileup, 1 = pileup
+    //    m_zdcTools->reprocessZdc();	  // ZDC
+    //    m_is_pileup = m_hiPileup->is_pileup( *calos, *zdcMod); // SAVE pileup Decision HERE 0 = NO pileup, 1 = pileup
+    //    cout << "here 4 " << endl;
   }
-  else m_is_pileup = (FCalEt > 4.8); //Remove pileup in MC
-  if (m_is_pileup){
-    h_RejectionHisto->Fill(6.5);
-    keep = false;
-  }
+  //  else m_is_pileup = (FCalEt > 4.8); //Remove pileup in MC
+  //  if (m_is_pileup){
+  //  h_RejectionHisto->Fill(6.5);
+  //    keep = false;
+  //  }
   
   if (!keep) return EL::StatusCode::SUCCESS; // go to the next event
   h_RejectionHisto->Fill(7.5);
 
 
-  
+
   //  h_FCal_Et->Fill(FCalEt, event_weight_fcal); //filled here to get proper event weight
   h_centrality->Fill(cent_bin,1); //  weight is set 1 event_weight_fcal);
   
@@ -846,6 +847,7 @@ EL::StatusCode JetSubstructure :: execute ()
   if ( _saveLog) cout << softdropper.description() << endl;
   
   fastjet::JetDefinition jetDefTrim;
+
   
   if ( _defTrimAlgo==1)  
     jetDefTrim = fastjet::JetDefinition(fastjet::kt_algorithm, _rSub);
@@ -862,6 +864,7 @@ EL::StatusCode JetSubstructure :: execute ()
       cout <<" *~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*"<<endl;
     }
   }
+
 
   // reference : http://acode-browser2.usatlas.bnl.gov/lxr-rel21/source/atlas/Reconstruction/Jet/JetRec/Root/JetTrimmer.cxx
   
@@ -912,6 +915,7 @@ EL::StatusCode JetSubstructure :: execute ()
     }
   }
   
+
 
   //  find the jet cone for exclusion area in background estimation procedure 
   xAOD::TStore *store = new xAOD::TStore; //For calibration
@@ -1089,6 +1093,7 @@ EL::StatusCode JetSubstructure :: execute ()
   if (_saveLog) cout << "         Out of exclusion cone : " << selAndExcldTrks.size() << endl;
 
 
+    
   //Get reaction plane (maybe not needed for first iteration):
   uee->Psi = GetEventPlaneUsingEventShape(calos);
   uee->ExcludeConesByJetandTrack(_vTrkPtForRC,_vTrkEtaForRC,_vTrkPhiForRC,_vJetPtForRC,_vJetEtaForRC,_vJetPhiForRC);
@@ -1118,7 +1123,9 @@ EL::StatusCode JetSubstructure :: execute ()
   if ( _saveLog)   cout << endl << subtractor_trk.description() << endl ; 
   
   vector<PseudoJet> corrected_selectedTrks = subtractor_trk.subtract_event(selectedTrks, _etaTrkCut);
+  
 
+  
   // Fill the histograms:
   for ( int ii =0 ; ii < selectedTrks.size() ; ii++ ) {
     hTrkPtEta_preCS_cent.at(cent_bin)->Fill( selectedTrks[ii].pt()*0.001, selectedTrks[ii].eta(), event_weight);
@@ -1167,6 +1174,8 @@ EL::StatusCode JetSubstructure :: execute ()
     
   }
 
+
+  
   // background subtraction 
   if (_saveLog) {
     cout << endl <<" number of reconstructed tracks: " << selectedTrks.size() << endl;
@@ -1185,7 +1194,9 @@ EL::StatusCode JetSubstructure :: execute ()
     sorted.clear();
     sorted2.clear();
   }
+  
 
+  ////
   
 
   /////////////   Main Loop:  Reco jets /////////////////////////////////////////
@@ -1270,7 +1281,7 @@ EL::StatusCode JetSubstructure :: execute ()
   
     if ( _saveLog) cout << "*~*~*~*~*~*~ RECO ~*~*~*~*~*~*" << endl << "  Anti-kT  jet [pt, eta, phi] : " << jet_pt <<", "<<jet_eta<<", "<<jet_phi<<endl << " Raw pT: " << jet_ptRaw << " GeV" << endl;
     
-    
+    int icoutB =1 ;
     const xAOD::JetConstituentVector recoConsts = (*jet_itr)->getConstituents();
     xAOD::JetConstituentVector::iterator itCnst   = recoConsts.begin();
     xAOD::JetConstituentVector::iterator itCnst_E = recoConsts.end();
@@ -1280,6 +1291,7 @@ EL::StatusCode JetSubstructure :: execute ()
       
     double ghostE = 0.00001;
     for( ; itCnst != itCnst_E; ++itCnst ) {
+      int icoutC =1 ;
       double theEta = (*itCnst)->Eta() ; 
       double thePhi = PhiInPI ( (*itCnst)->Phi() ) ;
       const fastjet::PseudoJet thisConst = fastjet::PseudoJet( (*itCnst)->Px(), (*itCnst)->Py(), (*itCnst)->Pz(), (*itCnst)->E() );
@@ -1288,7 +1300,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	if ( (*itCnst)->pt() > 0 ) { // normal tower 
 	  nonZeroConsts.push_back(thisConst);
 	  toBeSubtracted.push_back ( fastjet::PseudoJet (0,0,0,ghostE));
-	  nFlag.push_back (false);
+      nFlag.push_back (false);
 	  //	  if ( _saveLog) cout << "positive pt =" << (*itCnst)->pt()*0.001<< endl;
 	  //	  if ( _saveLog) cout << "positive E =" << (*itCnst)->E()*0.001<< endl;
 	  //	  if ( _saveLog) cout << "positive eta =" << (*itCnst)->eta()<< endl;
@@ -1329,13 +1341,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
       
     }
-    cout << "here10 " << endl;
+    
     // Trimmer goes here: 
     float t_recoTrNsub = 0;
     float t_recoTrTheta =  0;
     float t_recoTrDels   = 100;
     float t_recoTrMassRaw = 0;
     float t_recoTrMassCorr = -1;
+
   
     fastjet::ClusterSequence trimSeq(nonZeroConsts, jetDefTrim);
     vector<fastjet::PseudoJet> trimmedJets = trimSeq.inclusive_jets(); 
@@ -1799,6 +1812,7 @@ EL::StatusCode JetSubstructure :: execute ()
     else  cout << "Counts are inconsistent!!"<<endl;
   }
   
+
   
 
   if (_isMC){
@@ -2067,6 +2081,7 @@ EL::StatusCode JetSubstructure :: execute ()
   }
 
   
+
   
   
   // back to reco loop 
