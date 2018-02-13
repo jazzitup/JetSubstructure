@@ -608,14 +608,9 @@ EL::StatusCode JetSubstructure :: initialize ()
 
 EL::StatusCode JetSubstructure :: execute ()
 {
-  bool useReAntiKt = true; 
+  bool useReAntiKt = false; // Set false!! 
 
-
-  
-
-
-  
-    // Here you do everything that needs to be done on every single
+  // Here you do everything that needs to be done on every single
   // events, e.g. read input variables, apply cuts, and fill
   // histograms and trees.  This is where most of your actual analysis
   // code will go.
@@ -898,28 +893,37 @@ EL::StatusCode JetSubstructure :: execute ()
 
   double event_weight = 1;
   if (_isMC){
-    if ( useReAntiKt )  {
-      ////////// On-the-fly jet finder ///////////////////////////////////////////////
-      if (_saveLog) {
-	cout << "   * Reweighting factor using R=0.4 jet" << endl;
-      }
-      fastjet::ClusterSequence csR04(truthParticles, jetDefAk04);
-      vector<fastjet::PseudoJet> jets04 = fastjet::sorted_by_pt(csR04.inclusive_jets());
-      int maxPtId = getMaxPtIndex ( jets04 ) ;
-      event_weight = 0;
-      if (maxPtId > -1)   {
-	if (_saveLog)  {
-	  cout << "      * Max pT (and y,phi) for R=0.4 Jets = " << jets04[maxPtId].pt() * 0.001 << " GeV, " << jets04[maxPtId].rapidity() << ", "<<jets04[maxPtId].phi() << endl;
-	}
-	event_weight = jetcorr->GetJetWeight( jets04[maxPtId].pt() * 0.001, jets04[maxPtId].rapidity(), PhiInPI(jets04[maxPtId].phi()) ); // pt unit needs to be GeV    ToBeFixed  : this value is strange  // phi must be +/- 3.14,  
-	//	cout << "A:  " << (jets04[maxPtId].phi()) << ",  B: " << PhiInPI(jets04[maxPtId].phi()) << endl;
-      }
-      jets04.clear();
+    ////////// On-the-fly jet finder ///////////////////////////////////////////////
+    if (_saveLog) {
+      cout << "   * Reweighting factor using R=0.4 jet" << endl;
     }
+    const xAOD::JetContainer* truth_jets = 0;
+    ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
+    xAOD::JetContainer::const_iterator truth_jet_itr = truth_jets->begin();
+    xAOD::JetContainer::const_iterator truth_jet_end = truth_jets->end();
+
+    double maxGenPt = 0;
+    
+    for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr ) {
+      xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
+      
+      double pt     = (jet_truth_4mom.pt() * 0.001 );
+      double eta    = (jet_truth_4mom.eta());
+      double phi    = (jet_truth_4mom.phi());
+      if ( pt > maxGenPt )  {
+	maxGenPt = pt; 
+	event_weight = jetcorr->GetJetWeight(pt, eta, phi);
+      }
+    }
+
+    if (_saveLog)  {
+      cout << "      * Max pT (and y,phi) for R=0.4 Jets = " << maxGenPt << " GeV, " << endl;
+    }
+    
   }
   
-
-
+  
+  
   //  find the jet cone for exclusion area in background estimation procedure 
   xAOD::TStore *store = new xAOD::TStore; //For calibration
   
@@ -1819,24 +1823,32 @@ EL::StatusCode JetSubstructure :: execute ()
   
 
   if (_isMC){
-    if ( useReAntiKt )  {
+    //    if ( useReAntiKt )  {
+    if ( true )  {
       ////////// On-the-fly jet finder ///////////////////////////////////////////////
       if (_saveLog) {
-	cout << endl << "///////////////////////////////////" << endl;
-	cout << " MC information " << endl;
+	cout << endl << " /////// MC information " << endl;
       }
       
-      fastjet::ClusterSequence cs(truthParticles, jetDefAk);
-      vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
+      const xAOD::JetContainer* truth_jets = 0;
+      ANA_CHECK(event->retrieve(truth_jets, _truth_jet_collection.c_str() ));
+      xAOD::JetContainer::const_iterator truth_jet_itr = truth_jets->begin();
+      xAOD::JetContainer::const_iterator truth_jet_end = truth_jets->end();
+
       // Now, new genJet is ready!
+      //      fastjet::ClusterSequence cs(truthParticles, jetDefAk);
+      //      vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
+      //      for (unsigned i = 0; i < jets.size(); i++) {  // MC anti-kT jets
     
       int nGenJetCounter =0;
-      for (unsigned i = 0; i < jets.size(); i++) {  // MC anti-kT jets
-	double jet_mass = jets[i].m()*0.001;
-	double jet_pt = jets[i].pt()*0.001;
-	double jet_eta = jets[i].pseudorapidity();  
-	double jet_rap = jets[i].rapidity();
-	double jet_phi = PhiInPI ( jets[i].phi() ) ;
+      for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr ) {
+	xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
+	fastjet::PseudoJet jet_truth_pj = fastjet::PseudoJet ( jet_truth_4mom.px(), jet_truth_4mom.py(), jet_truth_4mom.pz(), jet_truth_4mom.energy() );
+	double jet_mass = jet_truth_pj.m()*0.001;
+	double jet_pt = jet_truth_pj.pt()*0.001;
+	double jet_eta = jet_truth_pj.eta();
+	double jet_rap = jet_truth_pj.rapidity();
+	double jet_phi = PhiInPI ( jet_truth_pj.phi() ) ;
 	if (jet_pt < _truthpTjetCut) continue;
 	if ( fabs(jet_eta) > _etaJetCut+0.2 ) continue;
       
@@ -1862,8 +1874,15 @@ EL::StatusCode JetSubstructure :: execute ()
           t_chgTow1[nGenJetCounter]->Reset();
           t_chgTow2[nGenJetCounter]->Reset();
 	}
-      
-	vector<fastjet::PseudoJet > akConsts = jets[i].constituents();
+	vector<fastjet::PseudoJet > akConsts;
+	//	vector<ElementLink < xAOD::IParticleContainer > > truthLinkVector =  (*truth_jet_itr)->constituentLinks ();
+	//	vector<fastjet::PseudoJet > akConsts = (*truth_jet_itr)->constituents();
+	//	cout << "number of constituents = " <<  truthLinkVector.size() << endl;
+	//	for (int i = 0; i < truthLinkVector.size(); i++) {
+	//	  fastjet::PseudoJet akElement = fastjet::PseudoJet ( (*(truthLinkVector[i]))->p4() );
+	//	  akConsts.push_back(akElement);
+	//	}
+	//	cout << "after truth_jet_itr->constituents()" << endl;
 
 	// Truth trimmer goes here:
 	float t_genTrNsub = 0;
@@ -1872,6 +1891,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	float t_genTrMass = -1;
 
 	fastjet::ClusterSequence trimSeq(akConsts, jetDefTrim);
+	cout << "2nd after truth_jet_itr->constituents()" << endl;
+
 	vector<fastjet::PseudoJet> trimmedJets = trimSeq.inclusive_jets();
 	fastjet::PseudoJet sumTrimmedJet = fastjet::PseudoJet(0,0,0,0);
 	if (_saveLog) cout << "Truth jet trimming......." << endl;
@@ -1931,10 +1952,10 @@ EL::StatusCode JetSubstructure :: execute ()
 	  fastjet::PseudoJet sd_jet = softdropper(originalJet);
 	  thesdm =  sd_jet.m() * 0.001;
 	  thesdpt = sd_jet.pt() * 0.001;
-	  if ( _saveLog) { 
-	    cout << "GEN JET softdrop:" << endl;
-	    showLadder ( jets[i], originalJet, sd_jet );  
-	  }
+	  //	  if ( _saveLog) { 
+	    //	    cout << "GEN JET softdrop:" << endl;
+	    //	    showLadder ( jets[i], originalJet, sd_jet );  
+	  //	  }
 	  
 	  fastjet::PseudoJet parent1, parent2;
 	  if (  sd_jet.has_parents(parent1, parent2) ) { // If softdrop worked

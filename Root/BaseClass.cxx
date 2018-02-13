@@ -1,6 +1,7 @@
 #include <EventLoop/Job.h>
 #include <EventLoop/StatusCode.h>
 #include <EventLoop/Worker.h>
+#include "JetSubstructure/BaseClass.h"
 #include "JetSubstructure/JetSubstructure.h"
 #include "JetSubstructure/McJetTrimming.h"
 #include "xAODRootAccess/Init.h"
