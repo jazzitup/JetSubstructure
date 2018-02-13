@@ -4,6 +4,7 @@
 
 #include <JetCalibTools/JetCalibrationTool.h>
 #include "xAODRootAccess/Init.h"
+
 #include "xAODRootAccess/TEvent.h"
 #include "xAODRootAccess/tools/Message.h"
 #include "xAODEventInfo/EventInfo.h"
@@ -1258,7 +1259,7 @@ EL::StatusCode JetSubstructure :: execute ()
     if (jet_pt < _pTjetCut)          continue;
     if (fabs(jet_eta) > _etaJetCut)  continue;
 
-
+    
     
     vector<double> jet_TrigPresc_vector ;
     vector<bool> jet_IsTrig_vector ; 
@@ -2103,7 +2104,7 @@ EL::StatusCode JetSubstructure :: execute ()
       cout << " Don't use useReAntiKt=0 option yet.." << endl; 
     }
   }
-
+  
   
 
   
@@ -2116,15 +2117,28 @@ EL::StatusCode JetSubstructure :: execute ()
     if ( _isMC) { 
       for (int gi = 0; gi<vpt_gen.size() ; gi++) { 
 	double dr_itr = DeltaR(vphi_reco[ri], veta_reco[ri], vphi_gen[gi], veta_gen[gi]);
-	//	    cout <<"dR_itr = " << dr_itr << endl;
 	if ( dr_itr < drMin ) { 
 	  matchId = gi;  
 	  drMin = dr_itr;
-	  //	      cout <<"found! dRmin = " << drMin << endl;
 	}
       }
     }
+
+    if (  ( vpt_reco[ri]<200 ) && ( vpt_gen[ri]>400 ) )  {
+      cout << "weird jet found." << endl;
+      cout << " Truth  pT, eta, rapidity, phi, mass  : "<< endl;
+	for ( int gi = 0 ; gi < vpt_gen.size() ; gi++) {
+	  cout << vpt_gen[gi] <<",  "<< veta_gen[gi] <<",  " << ",  " <<  vrap_gen[gi] << ",   " <<  vMass_gen[gi] <<"GeV,  " << vphi_gen[gi] << endl;
+	}
+	cout << endl << " Reco pT(raw), pT(corr), eta, rapidity, phi, mass : "<< endl ; 
+	for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) {
+	  cout << vptRaw_reco[ri] << ",  " << vpt_reco[ri] <<",  "<< veta_reco[ri] <<",  " << ",  " <<  vrap_reco[ri] << ",   "<<  vmass_reco[ri] <<"GeV,  " << vphi_reco[ri] << endl;
+	}
+	
+    }
     
+    
+	
     resetSubstr(myJetSub);
     
     if (_saveEvtDisplay) { 
