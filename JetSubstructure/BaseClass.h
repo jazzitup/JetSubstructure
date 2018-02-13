@@ -133,6 +133,7 @@ public:
 	//Calibration tools
 	JetCalibrationTool * m_jetCalibration; //!
 	JetCalibrationTool * m_jetCalibration_val; //!
+	JetCalibrationTool * m_jetCalibration_insitu; //!
 
 	//Track Selection Tool
 	InDet::InDetTrackSelectionTool * m_trackSelectorTool; //!
@@ -146,3 +147,4 @@ public:
 };
 
 #endif
+

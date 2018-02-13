@@ -68,6 +68,9 @@ public:
 	// Tree *myTree; //!
 	// TH1 *myHist; //!
 
+
+	bool event_isTriggered[10]; //!
+	
 	UEEstimator* uee; //!
 	
 	vector<TH3D*> h_resp_cent; //!

@@ -30,7 +30,7 @@
 #include <boost/program_options.hpp>
 #include "JetSubstructure/BaseClass.h"
 #include "JetSubstructure/JetSubstructure.h"
-
+#include "JetSubstructure/McJetTrimming.h"
 
 int main(int argc, char *argv[])
 {
@@ -348,7 +348,7 @@ int main(int argc, char *argv[])
 
 
 	//Initialzie trigger
-	alg->SetTrigger_chains();
+	//	alg->SetTrigger_chains();
 	job.algsAdd( alg );
 	alg->_outputName = output_file_name.c_str(); // give the name of the output to our algorithm
 												 // Run the job using the local/direct driver:
