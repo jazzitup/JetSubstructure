@@ -32,6 +32,9 @@
 
 #include "InDetTrackSelectionTool/InDetTrackSelectionTool.h"
 
+#include "AsgTools/AnaToolHandle.h"
+#include "JetInterface/IJetSelector.h"
+
 
 #include "JetSubstructure/JetHelperTools.h"
 #include "JetSubstructure/GlobalHelper.h"
@@ -46,6 +49,7 @@ class BaseClass : public EL::Algorithm
 public:
 
 	//Configuration from main macro
+	int _isPP; //
 	int _isMC; //
 	string _dataset; //
 	int _isMB; //
@@ -137,7 +141,11 @@ public:
 
 	//Track Selection Tool
 	InDet::InDetTrackSelectionTool * m_trackSelectorTool; //!
+	
+	// Jet cleaner 
+	asg::AnaToolHandle<IJetSelector> m_jetCleaningToolHandle; //!
 
+	
 	// this is a standard constructor
 	BaseClass ();
 	BaseClass(const BaseClass& base);

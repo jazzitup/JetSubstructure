@@ -13,6 +13,7 @@
 #include "xAODHIEvent/HIEventShapeAuxContainer.h"
 #include "xAODHIEvent/HIEventShapeContainer.h"
 
+
 #include <AsgTools/MessageCheck.h>
 #include <TSystem.h>
 #include <TMath.h>
@@ -601,6 +602,15 @@ EL::StatusCode JetSubstructure :: initialize ()
 	ANA_CHECK(m_grl->setProperty("PassThrough", false));	// if true (default) will ignore result of GRL and will just pass all events
 	ANA_CHECK(m_grl->initialize());
 	
+	
+	// Jet cleaner for pp 
+		m_jetCleaningToolHandle.setTypeAndName("JetCleaningTool/JetCleaning"); 
+		ANA_CHECK(m_jetCleaningToolHandle.setProperty("CutLevel","LooseBad"));
+		ANA_CHECK(m_jetCleaningToolHandle.setProperty("DoUgly", false));
+		ANA_CHECK(m_jetCleaningToolHandle.retrieve());
+
+
+
 	// Initialize and configure trigger tools
 
 	return EL::StatusCode::SUCCESS;
@@ -763,6 +773,9 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <double> vmass_reco;
   vector <double> vpt_reco;
   vector <double> vptRaw_reco;  
+  vector <double> vetaRaw_reco;  
+  vector <double> vphiRaw_reco;  
+  vector <double> vNconst_reco;
   vector <double> veta_reco;
   vector <double> vrap_reco;
   vector <double> vphi_reco;
@@ -1062,7 +1075,7 @@ EL::StatusCode JetSubstructure :: execute ()
     double pionz = trk->p4().Pz();
     double pione = sqrt (pionx*pionx + piony*piony + pionz*pionz + pionMass*pionMass) ;
     //    cout << " pt, px,py,pz = " << trk->pt() <<"," <<pionx<<", "<<piony<<", "<<pionz <<endl; 
-    
+  
     // truth particle matching 
     bool isTruthMatched=false;
     fastjet::PseudoJet matchPar = fastjet::PseudoJet (0,0,0,0);
@@ -1238,8 +1251,11 @@ EL::StatusCode JetSubstructure :: execute ()
     double jet_mass = CalibFourVec.m() * 0.001 ;
     double jet_rap  = CalibFourVec.rapidity();
     double jet_ptRaw = jet_4momUnCal.pt() * 0.001;
+    double jet_etaRaw = jet_4momUnCal.eta() ;
+    double jet_phiRaw = jet_4momUnCal.phi() ;
     double jet_massRaw = unCaliFourVec.m() * 0.001;
-
+    
+    
     if (_saveLog) { 
       cout <<" jet_pt = " << jet_pt << endl;
       cout <<" jet_eta = " << jet_eta << endl;
@@ -1258,7 +1274,10 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     if (jet_pt < _pTjetCut)          continue;
     if (fabs(jet_eta) > _etaJetCut)  continue;
-
+    if( (_isPP) && (!m_jetCleaningToolHandle->keep( **jet_itr )) )   {
+      if ( _saveLog) cout << " this jet is cleaned " << endl;
+      continue;
+    }
     
     
     vector<double> jet_TrigPresc_vector ;
@@ -1297,6 +1316,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
     vector<bool>  nFlag; // reverse the pT only and subtract
       
+
     double ghostE = 0.00001;
     for( ; itCnst != itCnst_E; ++itCnst ) {
       int icoutC =1 ;
@@ -1349,6 +1369,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	t_recTow[nRecoJetCounter]->Fill(theEta - jet_rap, DeltaPhi(thePhi, jet_phi), (*itCnst)->pt() *0.001 ) ;
       
     }
+    double jet_nConst = nonZeroConsts.size();
+
     
     // Trimmer goes here: 
     float t_recoTrNsub = 0;
@@ -1761,6 +1783,9 @@ EL::StatusCode JetSubstructure :: execute ()
     vmass_reco.push_back(jet_mass);
     vpt_reco.push_back(jet_pt);
     vptRaw_reco.push_back(jet_ptRaw);
+    vetaRaw_reco.push_back(jet_etaRaw);
+    vphiRaw_reco.push_back(jet_phiRaw);
+    vNconst_reco.push_back(jet_nConst);
     veta_reco.push_back(jet_eta);
     vrap_reco.push_back(jet_rap);
     vphi_reco.push_back(jet_phi);
@@ -2123,22 +2148,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
     }
-
-    if (  ( vpt_reco[ri]<200 ) && ( vpt_gen[ri]>400 ) )  {
-      cout << "weird jet found." << endl;
-      cout << " Truth  pT, eta, rapidity, phi, mass  : "<< endl;
-	for ( int gi = 0 ; gi < vpt_gen.size() ; gi++) {
-	  cout << vpt_gen[gi] <<",  "<< veta_gen[gi] <<",  " << ",  " <<  vrap_gen[gi] << ",   " <<  vMass_gen[gi] <<"GeV,  " << vphi_gen[gi] << endl;
-	}
-	cout << endl << " Reco pT(raw), pT(corr), eta, rapidity, phi, mass : "<< endl ; 
-	for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) {
-	  cout << vptRaw_reco[ri] << ",  " << vpt_reco[ri] <<",  "<< veta_reco[ri] <<",  " << ",  " <<  vrap_reco[ri] << ",   "<<  vmass_reco[ri] <<"GeV,  " << vphi_reco[ri] << endl;
-	}
-	
-    }
     
     
-	
     resetSubstr(myJetSub);
     
     if (_saveEvtDisplay) { 
@@ -2155,7 +2166,7 @@ EL::StatusCode JetSubstructure :: execute ()
       eventDisTrk1->Reset();
       eventDisTrk2->Reset();
     }
-
+  
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
     myJetSub.cent = cent_bin; 

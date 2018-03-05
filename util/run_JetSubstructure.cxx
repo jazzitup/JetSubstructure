@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
 {
 
 	//configuration
+	int isPP;
 	int isMC = 1;
 	string dataset = ""; // 0 - pPb, 1 - 2p76TeV pp, 2 - 7TeV pp , 3 - 5p02TeV pp, 4 - 5p02TeV PbPb
 	int isMB=0;
@@ -123,6 +124,7 @@ int main(int argc, char *argv[])
         ("beta",boost::program_options::value<float>(&beta)->default_value(0.),"beta for SoftDrop")
         ("z_cut",boost::program_options::value<float>(&z_cut)->default_value(0.1),"z_cut for SoftDrop")
 	("isHerwig",boost::program_options::value<int>(&isHerwig)->default_value(0),"Pythia or Herwig")
+        ("isPP",boost::program_options::value<int>(&isPP)->default_value(0),"pp (1) or PbPb(0)")
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
 	("saveLog",boost::program_options::value<bool>(&saveLog)->default_value(false),"Save the log?")
@@ -216,6 +218,9 @@ int main(int argc, char *argv[])
 	if (isMB) {cout << "Using MB data" << endl;} else { cout << "Using HP data" << endl;}
 	if (isMC) cout << "Running in MC mode" << endl; else { cout << "Running in data mode" << endl;}
 
+	if (isPP) cout << "This is pp, so jet cleaing is running" << endl; 
+	else { cout << "This is PbPb" << endl;}
+
 	cout << "Input directory:          }" << input_directory << endl;
 	cout << "Output directory: " << submitDir << endl;
 
@@ -307,6 +312,7 @@ int main(int argc, char *argv[])
 	//TODO write a copy const of base class
 
 	//Set parameters
+	alg->_isPP = isPP;
 	alg->_isMC = isMC;
 	alg->_dataset = dataset;
 	alg->_GRL = grl;

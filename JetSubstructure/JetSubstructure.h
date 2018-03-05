@@ -29,6 +29,7 @@
 #include "xAODTracking/TrackParticleContainer.h"
 #include "xAODTracking/VertexContainer.h"
 
+
 #define private public
 #include "xAODHIEvent/HIEventShapeAuxContainer.h"
 #undef private
