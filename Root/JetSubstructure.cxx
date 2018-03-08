@@ -504,14 +504,24 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	// *~*~*~*~*~JES/JER uncertainty *~*~*~*~*~*~*~* //
 	float _mcProbCut = 0.5;
 	bool _eff_jety = false;
-	for ( int _uncert_index = 0 ; _uncert_index<=30 ; _uncert_index++) { 
-	  cout << "====================================" << endl;
-	  cout << " _uncert_index = " << _uncert_index << endl;
-	  UncertProvider* tempUncet = new  UncertProvider(_uncert_index,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
-	  cout << "====================================" << endl;
-	  vUncertprovider.push_back(tempUncet);
-	  
+	
+	vector<int> vUncertIndex;
+	vUncertIndex.push_back(1);
+	vUncertIndex.push_back(6);
+	vUncertIndex.push_back(7);
+	vUncertIndex.push_back(8);
+	vUncertIndex.push_back(9);
+	vUncertIndex.push_back(16);
+	vUncertIndex.push_back(17);
+	for ( int ii=20 ;ii<=41 ;ii++) {
+	  vUncertIndex.push_back(ii);
 	}
+	cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
+	for ( int ii = 0 ; ii< vUncertIndex.size() ; ii++) { 
+	  UncertProvider* tempUncet = new  UncertProvider(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
+	  vUncertprovider.push_back(tempUncet);
+	}
+	
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -1235,8 +1245,10 @@ EL::StatusCode JetSubstructure :: execute ()
   xAOD::JetContainer::const_iterator jet_itr = reco_jets->begin();
   xAOD::JetContainer::const_iterator jet_end = reco_jets->end();
   int nRecoJetCounter=0;
+
+  vector<xAOD::Jet> selectedRecoJets; 
   for( ; jet_itr != jet_end; ++jet_itr ) {
-    
+    //    cout << " jet_itr = << " << jet_itr << endl;
     xAOD::Jet theRecoJet;
     theRecoJet.makePrivateStore( **jet_itr );
     
@@ -1789,8 +1801,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       
     }
-    
-    
+  
+    selectedRecoJets.push_back(theRecoJet);
     vmass_reco.push_back(jet_mass);
     vpt_reco.push_back(jet_pt);
     vptRaw_reco.push_back(jet_ptRaw);
@@ -2143,7 +2155,7 @@ EL::StatusCode JetSubstructure :: execute ()
   
   
 
-  
+
   
   // back to reco loop 
   for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) { 
@@ -2159,8 +2171,36 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
     }
+
     
+    cout << "here 1 " << endl;
+    xAOD::Jet* recoJetSys = new xAOD::Jet( selectedRecoJets[ri] );
+    cout << "Reco pT,eta,phi,mass = " << vpt_reco[ri] *1000. << ",  " << veta_reco[ri]  << ",  " <<  vphi_reco[ri]  << ",  " <<  vmass_reco[ri]*1000. << endl;
     
+    cout << "here 2 " << endl;
+    /*    xAOD::Jet* genJetSys = new xAOD::Jet();
+    if ( matchId == -1 ) {
+      genJetSys->setJetP4(xAOD::JetFourMom_t(0,0,0,0));
+    } 
+    else {
+      genJetSys->setJetP4(xAOD::JetFourMom_t( vpt_gen[matchId]*1000., veta_gen[matchId], vphi_gen[matchId], vMass_gen[matchId]*1000.));
+    }
+   
+    cout << "here 3 " << endl;
+
+    if ( matchId != -1) {   
+      cout << "======= systematics ==== " << endl;
+      cout << "Reco pT,eta,phi,mass = " << vpt_reco[ri] *1000. << ",  " << veta_reco[ri]  << ",  " <<  vphi_reco[ri]  << ",  " <<  vmass_reco[ri]*1000. << endl;
+      cout << "Gen pT,eta,phi,mass = " << vpt_gen[matchId] *1000. << ",  " << veta_gen[matchId]  << ",  " <<  vphi_gen[matchId]  << ",  " <<  vMass_gen[matchId]*1000. << endl;
+      cout << "FCalEt = " << FCalEt << endl;
+      for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
+	cout << "Uncert index : " << vUncertprovider.at(ii)->uncert_index << endl;
+		vUncertprovider.at(ii)->CorrectJet ( recoJetSys, genJetSys, cent_bin, FCalEt ) ;
+		cout << " new pT : " << recoJetSys->jetP4().pt() << endl;
+      } 
+    }
+
+*/
     resetSubstr(myJetSub);
     
     if (_saveEvtDisplay) { 
