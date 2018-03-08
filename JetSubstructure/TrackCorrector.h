@@ -76,10 +76,10 @@ public:
 		_nEta_eff_jetcorr=5;
 		_nEta_eff=5;
 		_max_eff_pt=350; //Maximum pt from fit, than constant
-		_f_eff = new TFile(xfn + "/../pPbFragmentation/data/mc_eff_fits_" + _cutlevel + ".root","read");
+		_f_eff = new TFile(xfn + "/../JetSubstructure/data/mc_eff_fits_" + _cutlevel + ".root","read");
 
 		printf("Loading weights and efficiencies...\n");
-		cout << "Using: " << xfn + "/../pPbFragmentation/data/mc_eff_fits_" + _cutlevel + ".root" << endl;
+		cout << "Using: " << xfn + "/../JetSubstructure/data/mc_eff_fits_" + _cutlevel + ".root" << endl;
 		//Fits are only use in "track-eta" based correction and for UE
 		for(int cent=0;cent<_nCent;cent++){
 			for(int e=0;e<_nEta_eff;e++){
@@ -90,8 +90,8 @@ public:
 		//jet pt correction to the efficiency
 		string main_eff_file = "mc_eff_jet_pt_corr";
 		if (_eff_jety) main_eff_file = "mc_eff_fits_pt_exclusive";
-		_f_eff_jetpt = new TFile(xfn + "/../pPbFragmentation/data/" + main_eff_file + "_" + _cutlevel + ".root","read");
-		_f_eff_trketa = new TFile(xfn + "/../pPbFragmentation/data/mc_eff_trketa_jetptinc_" + _cutlevel + ".root","read");
+		_f_eff_jetpt = new TFile(xfn + "/../JetSubstructure/data/" + main_eff_file + "_" + _cutlevel + ".root","read");
+		_f_eff_trketa = new TFile(xfn + "/../JetSubstructure/data/mc_eff_trketa_jetptinc_" + _cutlevel + ".root","read");
 
 		cout << "Using: " << _f_eff_jetpt->GetName() << endl;
 
@@ -124,7 +124,7 @@ public:
 			}
 		}
 		//Residual eta correction to the efficiency
-		_f_eff_eta = new TFile(xfn + "/../pPbFragmentation/data/eta_corr_" + _cutlevel + ".root","read");
+		_f_eff_eta = new TFile(xfn + "/../JetSubstructure/data/eta_corr_" + _cutlevel + ".root","read");
 		//trkpt_bins=(TAxis*)_f_eff_eta->Get("trk_pt_binning");
 		for(int cent=0;cent<_nCent;cent++){
 			_h_eff_eta[cent]=(TH2D*)_f_eff_eta->Get(Form("eta_corr_cent%i",cent));
@@ -132,7 +132,7 @@ public:
 
 		//Track-to-jet balance
 		//JER
-		_f_JER = new TFile(xfn + "/../pPbFragmentation/data/jet_perf_histos.root","read");
+		_f_JER = new TFile(xfn + "/../JetSubstructure/data/jet_perf_histos.root","read");
 		_nEta_JER = 8;			// number of eta bins
 		_nCent_JER = 8;			// number of centrality bins
 								//Shifted by unity in Laura's file
@@ -143,7 +143,7 @@ public:
 		}
 
 		//momentum resolution
-		_f_TMR = new TFile(xfn + "/../pPbFragmentation/data/trk_resolution.root","read");
+		_f_TMR = new TFile(xfn + "/../JetSubstructure/data/trk_resolution.root","read");
 		//Shifted by unity in Laura's file
 		for(int i=0;i<_nEta_eff;i++){
 			_tf1_TMR[i]=(TF1*)_f_TMR->Get(Form("pp_fit_eta_%i",i));
@@ -151,7 +151,7 @@ public:
 
 
 		//alignement correction
-		f_sagitta = new TFile(xfn + "/../pPbFragmentation/data/5TeVHI2015_sagittaBias_pTmethod.root");
+		f_sagitta = new TFile(xfn + "/../JetSubstructure/data/5TeVHI2015_sagittaBias_pTmethod.root");
 		h_sagitta = (TH2*)f_sagitta->Get("h_deltaSagittaMap");
 
 		//For mutliplicity cuts

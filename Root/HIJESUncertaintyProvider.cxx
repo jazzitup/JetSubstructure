@@ -18,7 +18,7 @@ HIJESUncertaintyProvider::HIJESUncertaintyProvider(std::string fname) : m_GeV(1)
 {
   
   TString xfn = gSystem->GetFromPipe("echo $ROOTCOREBIN");
-  TFile* fin=TFile::Open(xfn + "/../pPbFragmentation/data/" + fname.c_str());
+  TFile* fin=TFile::Open(xfn + "/../JetSubstructure/data/" + fname.c_str());
   if(!fin)
   {
     std::cerr << "Instantiating HIJESUncertaintyProvider. Input file does not exist: " << fin << std::endl;
@@ -26,7 +26,7 @@ HIJESUncertaintyProvider::HIJESUncertaintyProvider(std::string fname) : m_GeV(1)
   }
   else {
   	std::cout << std::setw(40) << "HIJESUncertaintyProvider : Initialization of HI JES uncertainty provider" << std::endl;
-  	std::cout << std::setw(40) << "HIJESUncertaintyProvider : Using file " << xfn << "/../pPbFragmentation/data/" << fname.c_str() << std::endl;
+  	std::cout << std::setw(40) << "HIJESUncertaintyProvider : Using file " << xfn << "/../JetSubstructure/data/" << fname.c_str() << std::endl;
   }	
   	
   m_eta_axis=(TAxis*)fin->Get("eta_axis");

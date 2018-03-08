@@ -501,6 +501,17 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	uee->jetptBkgrThreshold = 90; // cones with proximity of jet with _jetptBkgrThreshold GeV excluded
 	uee->m_maxjetdeltaR = 0.8; // definition of "proximity" to a real jet
 
+	// *~*~*~*~*~JES/JER uncertainty *~*~*~*~*~*~*~* //
+	float _mcProbCut = 0.5;
+	bool _eff_jety = false;
+	for ( int _uncert_index = 0 ; _uncert_index<=30 ; _uncert_index++) { 
+	  cout << "====================================" << endl;
+	  cout << " _uncert_index = " << _uncert_index << endl;
+	  UncertProvider* tempUncet = new  UncertProvider(_uncert_index,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
+	  cout << "====================================" << endl;
+	  vUncertprovider.push_back(tempUncet);
+	  
+	}
 	return EL::StatusCode::SUCCESS;
 }
 
