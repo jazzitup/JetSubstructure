@@ -8,7 +8,7 @@ void UncertProvider::GetTrackUncert(){
    else if (uncert_index>19) uncert_class=1; //intrincis JES
    else if (uncert_index>9 && uncert_index < 15) uncert_class=4; //tracking efficiency
    else if (uncert_index ==15) uncert_class=5; //Trk resolution
-   else if (uncert_index ==16 || uncert_index ==17) uncert_class=6; //Trk resolution
+   else if (uncert_index ==16 || uncert_index ==17) uncert_class=6; 
    //else if (uncert_index ==18) uncert_class=7; //Trk charge scale for preliminary only
    else uncert_class = 0;
    cout << "Uncertainty class... " << uncert_class << endl; 
