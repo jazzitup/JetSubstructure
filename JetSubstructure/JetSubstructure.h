@@ -50,6 +50,7 @@
 #include <iostream>
 
 #include "JetRecTools/ConstituentSubtractorTool.h"
+#include "JetSubstructure/UncertProvider.h"
 
 //#include "fastjet/contrib/SoftDrop.hh"
 

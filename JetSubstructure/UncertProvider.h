@@ -84,10 +84,12 @@ class UncertProvider
 
       {
 	cout << "Inicialization of UncertProvider" << endl;
+	
 	if (uncert_index==0) cout << "UncertProvider: No systematic variation is used...." << endl;
 	else cout << "Systematic uncertainty: " << GetSysName(uncert_index) << endl;
 	
-      
+	GetTrackUncert(); // Class 
+
 	//***ppJES***
 	//jesProv = new JetUncertaintiesTool("JESProvider");
 	jesProv.setProperty("JetDefinition","AntiKt4EMTopo");
