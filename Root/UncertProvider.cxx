@@ -121,6 +121,9 @@ void UncertProvider::UncerHIJESIntrinsic(xAOD::Jet* recon)
    //cout << "jet pt" << jetPt << " jet eta " << jetEta << " uncert " << HIJESuncertainty << endl;
    uncertainty = 1 + significance * HIJESuncertainty; 
    recon->setJetP4( xAOD::JetFourMom_t(jetPt*uncertainty,jetEta,jetPhi,jetM) );
+   //   cout << " uncertainty= " << uncertainty << endl;
+   //   cout << " Internal new jet pt = " << jetPt*uncertainty << endl;
+
 }
 
 void UncertProvider::UncerHIJESCentrality(xAOD::Jet* recon, float FCalEt)

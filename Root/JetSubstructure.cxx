@@ -512,8 +512,9 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	vUncertIndex.push_back(8);
 	vUncertIndex.push_back(9);
 	vUncertIndex.push_back(16);
-	vUncertIndex.push_back(17);
-	for ( int ii=20 ;ii<=41 ;ii++) {
+	vUncertIndex.push_back(17); 
+	//	for ( int ii=20 ;ii<=41 ;ii++) {
+	for ( int ii=22 ;ii<=41 ;ii++) {
 	  vUncertIndex.push_back(ii);
 	}
 	cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
@@ -692,8 +693,8 @@ EL::StatusCode JetSubstructure :: execute ()
   //Centrality
   const xAOD::HIEventShapeContainer* calos=0;
   ANA_CHECK(event->retrieve( calos, "CaloSums"));
+  FCalEt=calos->at(5)->et()*1e-6;
   if (_centrality_scheme>1)	  {
-    FCalEt=calos->at(5)->et()*1e-6;
     cent_bin = GetCentralityBin(_centrality_scheme, FCalEt, isHIJING);
     cent_bin_scheme30 = GetCentralityBin(30, FCalEt, isHIJING);
     //    event_weight_fcal = jetcorr->GetFCalWeight(FCalEt);
@@ -1867,12 +1868,11 @@ EL::StatusCode JetSubstructure :: execute ()
       cout << "Count numbers are consistent!!" << endl ;
     else  cout << "Counts are inconsistent!!"<<endl;
   }
-  
 
   
-
+  
+  vector<xAOD::Jet> selectedGenJets;
   if (_isMC){
-    //    if ( useReAntiKt )  {
     if ( true )  {
       ////////// On-the-fly jet finder ///////////////////////////////////////////////
       if (_saveLog) {
@@ -1893,6 +1893,9 @@ EL::StatusCode JetSubstructure :: execute ()
       for( ; truth_jet_itr != truth_jet_end; ++truth_jet_itr ) {
 	xAOD::JetFourMom_t jet_truth_4mom = (*truth_jet_itr)->jetP4();
 	fastjet::PseudoJet jet_truth_pj = fastjet::PseudoJet ( jet_truth_4mom.px(), jet_truth_4mom.py(), jet_truth_4mom.pz(), jet_truth_4mom.energy() );
+	xAOD::Jet theGenJet;
+	theGenJet.makePrivateStore( **truth_jet_itr );
+	
 	double jet_mass = jet_truth_pj.m()*0.001;
 	double jet_pt = jet_truth_pj.pt()*0.001;
 	double jet_eta = jet_truth_pj.eta();
@@ -2039,6 +2042,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  }
 	}
       
+	selectedGenJets.push_back(theGenJet);
 	vMass_gen.push_back(jet_mass);
 	vpt_gen.push_back(jet_pt);
 	veta_gen.push_back(jet_eta);
@@ -2062,8 +2066,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	vTrDels_gen.push_back(t_genTrDels);
 	vTrMass_gen.push_back(t_genTrMass);
 	
-	
-	
+		
 	
 	camJets.clear();
 	
@@ -2172,35 +2175,33 @@ EL::StatusCode JetSubstructure :: execute ()
       }
     }
 
-    
-    cout << "here 1 " << endl;
-    xAOD::Jet* recoJetSys = new xAOD::Jet( selectedRecoJets[ri] );
-    cout << "Reco pT,eta,phi,mass = " << vpt_reco[ri] *1000. << ",  " << veta_reco[ri]  << ",  " <<  vphi_reco[ri]  << ",  " <<  vmass_reco[ri]*1000. << endl;
-    
-    cout << "here 2 " << endl;
-    /*    xAOD::Jet* genJetSys = new xAOD::Jet();
-    if ( matchId == -1 ) {
-      genJetSys->setJetP4(xAOD::JetFourMom_t(0,0,0,0));
-    } 
-    else {
-      genJetSys->setJetP4(xAOD::JetFourMom_t( vpt_gen[matchId]*1000., veta_gen[matchId], vphi_gen[matchId], vMass_gen[matchId]*1000.));
-    }
-   
-    cout << "here 3 " << endl;
-
-    if ( matchId != -1) {   
+    if ( matchId != -1 ) { 
+      xAOD::Jet* recoJetSys = new xAOD::Jet( selectedRecoJets[ri] );
+      xAOD::Jet* genJetSys = new xAOD::Jet( selectedGenJets[matchId] );
+      vector< xAOD::Jet*> vNewRecoJet;
+      if ( _saveLog) {
+	cout << " cross check : " <<endl ;
+	cout << "Reco pT,eta,phi,mass = " << vpt_reco[ri] *1000. << ",  " << veta_reco[ri]  << ",  " <<  vphi_reco[ri]  << ",  " <<  vmass_reco[ri]*1000. << endl;
+	cout << "Reco pT,eta,phi,mass = " << recoJetSys->pt() << ", " << recoJetSys->eta() << ", " << recoJetSys->phi() << ", "  << recoJetSys->m() << endl;
+	cout << " cross check : " <<endl ;
+	cout << "Gen pT,eta,phi,mass = " << vpt_gen[matchId] *1000. << ",  " << veta_gen[matchId]  << ",  " <<  vphi_gen[matchId]  << ",  " <<  vMass_gen[matchId]*1000. << endl;
+	cout << "Gen pT,eta,phi,mass = " << genJetSys->pt() << ", " << genJetSys->eta() << ", " << genJetSys->phi() << ", "  << genJetSys->m() << endl;
+      }
+      
       cout << "======= systematics ==== " << endl;
-      cout << "Reco pT,eta,phi,mass = " << vpt_reco[ri] *1000. << ",  " << veta_reco[ri]  << ",  " <<  vphi_reco[ri]  << ",  " <<  vmass_reco[ri]*1000. << endl;
-      cout << "Gen pT,eta,phi,mass = " << vpt_gen[matchId] *1000. << ",  " << veta_gen[matchId]  << ",  " <<  vphi_gen[matchId]  << ",  " <<  vMass_gen[matchId]*1000. << endl;
-      cout << "FCalEt = " << FCalEt << endl;
+      if ( _saveLog)  cout << "FCalEt = " << FCalEt << endl;
       for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
-	cout << "Uncert index : " << vUncertprovider.at(ii)->uncert_index << endl;
-		vUncertprovider.at(ii)->CorrectJet ( recoJetSys, genJetSys, cent_bin, FCalEt ) ;
-		cout << " new pT : " << recoJetSys->jetP4().pt() << endl;
+	if ( _saveLog) cout << "Uncert index : " << vUncertprovider.at(ii)->uncert_index << endl;
+	xAOD::Jet* thisJet = new xAOD::Jet();
+	thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
+	vUncertprovider.at(ii)->CorrectJet ( thisJet, genJetSys, cent_bin, FCalEt ) ;
+	//	vNewRecoJet.push_back(thisJet);
+	if ( _saveLog) cout << " new pT : " << thisJet->pt() << endl;
+	delete thisJet; 
       } 
     }
-
-*/
+    
+    
     resetSubstr(myJetSub);
     
     if (_saveEvtDisplay) { 
