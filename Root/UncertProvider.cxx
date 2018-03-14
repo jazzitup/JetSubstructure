@@ -84,19 +84,33 @@ void UncertProvider::UncerJESIntrinsic(xAOD::Jet* recon)
 //@brief: applies JES shift based on the JES uncertainty provider tool
 //@note: significance should be +/- 1
 {
-   
+  cout << " 1 ? " << endl;
    Float_t significance=GetSysShift(uncert_index);
+  cout << " 2 ? " << endl;
    Int_t component = GetJESSysComponent(uncert_index); 
+  cout << " 3 ? " << endl;
    Float_t uncertainty=0;
+  cout << " 4 ? " << endl;
    Float_t jetPt = recon->pt();
+  cout << " 5 ? " << endl;
    Float_t jetEta = recon->eta();
+  cout << " 6 ? " << endl;
    Float_t jetPhi = recon->phi();
+  cout << " 7 ? " << endl;
    Float_t jetM = recon->m();
+  cout << " 8 ? " << endl;
    
    //cout << "jet pt " << jetPt << " jet eta " << jetEta << " jet phi " << jetPhi << " jet m" << jetM << endl;  
-   uncertainty = 1+ significance * (jesProv.getUncertainty(component,(*recon)));
+  cout << "component = " << component << endl;
+  cout << "pt : " << recon->pt() << endl;
+  cout << "eta : " << recon->eta() << endl;
+  cout << "phi : " << recon->phi() << endl;
+  cout << "m : " << recon->m() << endl;
+  uncertainty = 1+ significance * (jesProv.getUncertainty(component,(*recon)));
+  cout << " 9 ? " << endl;
+
    //cout << "Uncert 0: " <<  (jesProv.getUncertainty(0,(*recon))) << endl;
-   //cout << "Uncert 1: " <<  (jesProv.getUncertainty(1,(*recon))) << endl ;
+   cout << "Uncert 1: " <<  (jesProv.getUncertainty(1,(*recon))) << endl ;
    //cout << "Uncert 18: " <<  (jesProv.getUncertainty(18,(*recon))) << endl ;
    //cout << "Uncert 19: " <<  (jesProv.getUncertainty(19,(*recon))) << endl ;
    recon->setJetP4( xAOD::JetFourMom_t(jetPt*uncertainty,jetEta,jetPhi,jetM) ) ;

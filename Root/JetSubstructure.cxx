@@ -333,6 +333,12 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	
         treeOut = new TTree("tr","new tree");
 	treeOut->Branch("jets",&myJetSub,myJetSubText.Data());
+	if (_doJES) {
+	  for ( int si = 0 ; si<=35; si++) { 
+	    ptSys[si] = 0;
+	    treeOut->Branch(Form("ptSys%d",si), &ptSys[si]); 
+	  }
+	}
 
 	if (_saveEvtDisplay) {
 	  eventDisRecTow = new TH2F("eventDisRecTow","",20,-1,1,20,-1,1);
@@ -501,28 +507,6 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	uee->jetptBkgrThreshold = 90; // cones with proximity of jet with _jetptBkgrThreshold GeV excluded
 	uee->m_maxjetdeltaR = 0.8; // definition of "proximity" to a real jet
 
-	// *~*~*~*~*~JES/JER uncertainty *~*~*~*~*~*~*~* //
-	float _mcProbCut = 0.5;
-	bool _eff_jety = false;
-	
-	vector<int> vUncertIndex;
-	vUncertIndex.push_back(1);
-	vUncertIndex.push_back(6);
-	vUncertIndex.push_back(7);
-	vUncertIndex.push_back(8);
-	vUncertIndex.push_back(9);
-	vUncertIndex.push_back(16);
-	vUncertIndex.push_back(17); 
-	//	for ( int ii=20 ;ii<=41 ;ii++) {
-	for ( int ii=22 ;ii<=41 ;ii++) {
-	  vUncertIndex.push_back(ii);
-	}
-	cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
-	for ( int ii = 0 ; ii< vUncertIndex.size() ; ii++) { 
-	  UncertProvider* tempUncet = new  UncertProvider(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
-	  vUncertprovider.push_back(tempUncet);
-	}
-	
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -626,15 +610,41 @@ EL::StatusCode JetSubstructure :: initialize ()
 	
 	
 	// Jet cleaner for pp 
-		m_jetCleaningToolHandle.setTypeAndName("JetCleaningTool/JetCleaning"); 
-		ANA_CHECK(m_jetCleaningToolHandle.setProperty("CutLevel","LooseBad"));
-		ANA_CHECK(m_jetCleaningToolHandle.setProperty("DoUgly", false));
-		ANA_CHECK(m_jetCleaningToolHandle.retrieve());
-
-
-
+	m_jetCleaningToolHandle.setTypeAndName("JetCleaningTool/JetCleaning"); 
+	ANA_CHECK(m_jetCleaningToolHandle.setProperty("CutLevel","LooseBad"));
+	ANA_CHECK(m_jetCleaningToolHandle.setProperty("DoUgly", false));
+	ANA_CHECK(m_jetCleaningToolHandle.retrieve());
+	
+	
+	
 	// Initialize and configure trigger tools
-
+	
+	
+		// *~*~*~*~*~JES/JER uncertainty *~*~*~*~*~*~*~* //
+	float _mcProbCut = 0.5;
+	bool _eff_jety = false;
+	
+	vector<int> vUncertIndex;
+	if ( _doJES ) {
+	  /*	  vUncertIndex.push_back(1);
+	  vUncertIndex.push_back(6);
+	  vUncertIndex.push_back(7);
+	  vUncertIndex.push_back(8);
+	  vUncertIndex.push_back(9);
+	  vUncertIndex.push_back(16);
+	  vUncertIndex.push_back(17); */
+	  for ( int ii=20 ;ii<=20 ;ii++) {
+	    //	  for ( int ii=24 ;ii<=41 ;ii++) {
+	    vUncertIndex.push_back(ii);
+	  }
+	  cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
+	  for ( int ii = 0 ; ii< vUncertIndex.size() ; ii++) {
+	    UncertProvider tempUncet(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,ii);
+	    vUncertprovider.push_back(tempUncet);
+	  }
+	}
+	
+	
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -1943,7 +1953,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	float t_genTrMass = -1;
 
 	fastjet::ClusterSequence trimSeq(akConsts, jetDefTrim);
-	cout << "2nd after truth_jet_itr->constituents()" << endl;
+	//	cout << "2nd after truth_jet_itr->constituents()" << endl;
 
 	vector<fastjet::PseudoJet> trimmedJets = trimSeq.inclusive_jets();
 	fastjet::PseudoJet sumTrimmedJet = fastjet::PseudoJet(0,0,0,0);
@@ -2189,18 +2199,34 @@ EL::StatusCode JetSubstructure :: execute ()
       }
       
       cout << "======= systematics ==== " << endl;
-      if ( _saveLog)  cout << "FCalEt = " << FCalEt << endl;
-      for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
-	if ( _saveLog) cout << "Uncert index : " << vUncertprovider.at(ii)->uncert_index << endl;
-	xAOD::Jet* thisJet = new xAOD::Jet();
-	thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
-	vUncertprovider.at(ii)->CorrectJet ( thisJet, genJetSys, cent_bin, FCalEt ) ;
-	//	vNewRecoJet.push_back(thisJet);
-	if ( _saveLog) cout << " new pT : " << thisJet->pt() << endl;
-	delete thisJet; 
-      } 
+      if ( _doJES ) { 
+	bool _saveLogUnc = true;
+	if ( _saveLogUnc)  cout << "FCalEt = " << FCalEt << endl;
+	for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
+	  if ( _saveLogUnc) cout << "Uncert index : " << vUncertprovider.at(ii).uncert_index << endl;
+	  cout << " here1 " << endl;
+	  xAOD::Jet* thisJet = new xAOD::Jet();
+	  
+	  //	  if ( (_isPP) &&  (vUncertIndex[ii] > 5)  && (vUncertIndex[ii] < 18) ) {
+	    // This applies only for HI
+	  //	    ptSys[ii] = recoJetSys->pt() * 0.001 ;
+	  //	  }
+	  cout << " here2 " << endl;
+	  thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
+	  cout << " here3 " << endl;
+	  vUncertprovider.at(ii).CorrectJet ( thisJet, genJetSys, cent_bin, FCalEt ) ;
+	  cout << " here4 " << endl;
+	  //	vNewRecoJet.push_back(thisJet);
+	  if ( _saveLog) cout << " new pT : " << thisJet->pt() << endl;
+	  cout << " here5 " << endl;
+	  
+	  ptSys[ii] = thisJet->pt() * 0.001;
+	  delete thisJet; 
+	  
+	  
+	} 
+      }
     }
-    
     
     resetSubstr(myJetSub);
     
