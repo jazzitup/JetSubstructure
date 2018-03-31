@@ -51,14 +51,14 @@
 
 #include "JetRecTools/ConstituentSubtractorTool.h"
 #include "JetSubstructure/UncertProvider.h"
-
+#include "JetUncertainties/JetUncertaintiesTool.h"
 //#include "fastjet/contrib/SoftDrop.hh"
 
 class JetSubstructure : public BaseClass
 {
-	// put your configuration variables here as public variables.
-	// that way they can be set directly from CINT and python.
-public:
+  // put your configuration variables here as public variables.
+  // that way they can be set directly from CINT and python.
+ public:
 
 	int nCentbins;
 
@@ -66,7 +66,7 @@ public:
 	// variables that don't get filled at submission time should be
 	// protected from being send from the submission node to the worker
 	// node (done by the //!)
-public:
+ public:
 	// Tree *myTree; //!
 	// TH1 *myHist; //!
 
@@ -109,9 +109,10 @@ public:
         TH2D* hRecoSdStat; //!
         TH2D* hRecoSdChStat; //!
 
-	
+
         //Uncert tool
-        vector<UncertProvider*> vUncertprovider; //!
+	UncertProvider* vUncertprovider; //!
+	JetUncertaintiesTool *jesProv; //! 
 
 	vector<TH2D*> hTrkPtEta_preCS_cent; //!
 	vector<TH2D*> hTrkPtEta_postCS_cent; //!

@@ -54,6 +54,7 @@ public:
 	//Configuration from main macro
 	int _isPP; //
 	int _isMC; //
+	bool _doJES; //
 	string _dataset; //
 	int _isMB; //
 	int _towerBkgKill; //
@@ -112,6 +113,8 @@ public:
 	bool trigger[10]; //!	//TODO
 	int jet_isTriggered[10]; //! //TODO
 	float trig_prescale[10]; //! //TODO
+
+	float ptSys[50]; //! 
 
 	TH1D *h_FCal_Et; //!
 	TH1D *h_RejectionHisto; //!
