@@ -649,7 +649,8 @@ EL::StatusCode JetSubstructure :: initialize ()
 	  }
 	  }
 	*/
-	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,1);
+	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
+	//	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,1);
 	
 	return EL::StatusCode::SUCCESS;
 }
@@ -2220,26 +2221,21 @@ EL::StatusCode JetSubstructure :: execute ()
       }
       
       if ( _doJES ) { 
-	cout << "======= systematics ==== " << endl;
+	if ( _saveLog)  cout << "======= systematics ==== " << endl;
 	bool _saveLogUnc = true;
 	if ( _saveLogUnc)  cout << "FCalEt = " << FCalEt << endl;
 	//	for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
 	if ( _saveLogUnc) cout << "Uncert index : 20"  << endl;
-	cout << " here1 " << endl;
 	xAOD::Jet* thisJet = new xAOD::Jet();
 	
 	//	  if ( (_isPP) &&  (vUncertIndex[ii] > 5)  && (vUncertIndex[ii] < 18) ) {
 	// This applies only for HI
 	//	    ptSys[ii] = recoJetSys->pt() * 0.001 ;
 	//	  }
-	cout << " here2 " << endl;
 	thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
-	cout << " here3 " << endl;
 	vUncertprovider->CorrectJet ( thisJet, genJetSys, cent_bin, FCalEt ) ;
-	cout << " here4 " << endl;
 	//	vNewRecoJet.push_back(thisJet);
 	if ( _saveLog) cout << " new pT : " << thisJet->pt() << endl;
-	cout << " here5 " << endl;
 	
 	ptSys[0] = thisJet->pt() * 0.001;
 	delete thisJet; 

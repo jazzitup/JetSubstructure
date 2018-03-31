@@ -1,20 +1,5 @@
 #include "JetSubstructure/UncertProvider.h"
 
-
-//Mapping of systematic
-void UncertProvider::GetTrackUncert(){         
-   if (uncert_index==1) uncert_class=3; //JER uncert
-   else if (uncert_index>5 && uncert_index<10) uncert_class=2; //HI JES  
-   else if (uncert_index>19) uncert_class=1; //intrincis JES
-   else if (uncert_index>9 && uncert_index < 15) uncert_class=4; //tracking efficiency
-   else if (uncert_index ==15) uncert_class=5; //Trk resolution
-   else if (uncert_index ==16 || uncert_index ==17) uncert_class=6; 
-   //else if (uncert_index ==18) uncert_class=7; //Trk charge scale for preliminary only
-   else uncert_class = 0;
-   cout << "Uncertainty class... " << uncert_class << endl; 
-} 
-
-
 void UncertProvider::CorrectJet(xAOD::Jet * reco, xAOD::Jet * truth = 0, int cent = 0, float FCalEt=0){
 	switch (uncert_class){
 		case 1:
@@ -41,6 +26,12 @@ void UncertProvider::CorrectJet(xAOD::Jet * reco, xAOD::Jet * truth = 0, int cen
 	return;
 }
 
+float UncertProvider::CorrectTrackEff(float pt, float eta, float dR, int centrality){
+	if (uncert_index == 10 || uncert_index == 11) return UncerEffMaterial(pt, eta);
+	//if (uncert_index == 12 || uncert_index == 13) return UncerEffFit(pt, eta, centrality);
+	if (uncert_index == 14) return UncerDense(dR);	
+	else return 0;
+}  
 
 int UncertProvider::GetEtaUJERBin(float eta){
 	int yBin=0;
@@ -84,33 +75,19 @@ void UncertProvider::UncerJESIntrinsic(xAOD::Jet* recon)
 //@brief: applies JES shift based on the JES uncertainty provider tool
 //@note: significance should be +/- 1
 {
-  cout << " 1 ? " << endl;
+   
    Float_t significance=GetSysShift(uncert_index);
-  cout << " 2 ? " << endl;
    Int_t component = GetJESSysComponent(uncert_index); 
-  cout << " 3 ? " << endl;
    Float_t uncertainty=0;
-  cout << " 4 ? " << endl;
    Float_t jetPt = recon->pt();
-  cout << " 5 ? " << endl;
    Float_t jetEta = recon->eta();
-  cout << " 6 ? " << endl;
    Float_t jetPhi = recon->phi();
-  cout << " 7 ? " << endl;
    Float_t jetM = recon->m();
-  cout << " 8 ? " << endl;
    
    //cout << "jet pt " << jetPt << " jet eta " << jetEta << " jet phi " << jetPhi << " jet m" << jetM << endl;  
-  cout << "component = " << component << endl;
-  cout << "pt : " << recon->pt() << endl;
-  cout << "eta : " << recon->eta() << endl;
-  cout << "phi : " << recon->phi() << endl;
-  cout << "m : " << recon->m() << endl;
-  uncertainty = 1+ significance * (jesProv.getUncertainty(component,(*recon)));
-  cout << " 9 ? " << endl;
-
+   uncertainty = 1+ significance * (jesProv.getUncertainty(component,(*recon)));
    //cout << "Uncert 0: " <<  (jesProv.getUncertainty(0,(*recon))) << endl;
-   cout << "Uncert 1: " <<  (jesProv.getUncertainty(1,(*recon))) << endl ;
+   //cout << "Uncert 1: " <<  (jesProv.getUncertainty(1,(*recon))) << endl ;
    //cout << "Uncert 18: " <<  (jesProv.getUncertainty(18,(*recon))) << endl ;
    //cout << "Uncert 19: " <<  (jesProv.getUncertainty(19,(*recon))) << endl ;
    recon->setJetP4( xAOD::JetFourMom_t(jetPt*uncertainty,jetEta,jetPhi,jetM) ) ;
@@ -135,9 +112,6 @@ void UncertProvider::UncerHIJESIntrinsic(xAOD::Jet* recon)
    //cout << "jet pt" << jetPt << " jet eta " << jetEta << " uncert " << HIJESuncertainty << endl;
    uncertainty = 1 + significance * HIJESuncertainty; 
    recon->setJetP4( xAOD::JetFourMom_t(jetPt*uncertainty,jetEta,jetPhi,jetM) );
-   //   cout << " uncertainty= " << uncertainty << endl;
-   //   cout << " Internal new jet pt = " << jetPt*uncertainty << endl;
-
 }
 
 void UncertProvider::UncerHIJESCentrality(xAOD::Jet* recon, float FCalEt)
@@ -173,6 +147,76 @@ int UncertProvider::GetFinCentrality(float FCalEt){
 	return bin;
 }
 
+void UncertProvider::UncerTrackMomentum(float& pt, float eta, float phi, int charge)
+//Aply uncertainty to track momentum
+{
+	float charge_tmp=charge;
+	if (charge_tmp>0.) charge_tmp=1;
+	else if (charge_tmp<0.) charge_tmp =-1;
+	
+	float eta_tmp=eta;
+	if(eta_tmp>2.499 )  eta_tmp= 2.499;
+	if(eta_tmp<-2.499)  eta_tmp=-2.499;
+	pt/=(1+charge*pt*(h_sagitta->GetBinContent(h_sagitta->FindBin(eta_tmp, phi)))*1e-3 );
+}
+
+float UncertProvider::UncerEffMaterial(float pt, float eta){
+	Float_t significance=GetSysShift(uncert_index);
+	if (pt>20.) pt=19.;//Maximum pt provided
+	float uncertainty =0;
+	for (int i=0;i<4;i++){
+		int ptbin = h_eff_uncert_2015_material[i]->GetXaxis()->FindBin(pt);
+		int etabin = h_eff_uncert_2015_material[i]->GetYaxis()->FindBin(eta);
+		uncertainty = uncertainty + pow(h_eff_uncert_2015_material[i]->GetBinContent(ptbin,etabin),2);
+	}
+	//cout << "Ucnert: " << significance*sqrt(uncertainty) << endl;
+	return significance*sqrt(uncertainty);			
+}
+
+/*
+float UncertProvider::UncerEffFit(float pt, float eta, int centrality){
+	Float_t significance=GetSysShift(uncert_index);
+	if (pt>350.) pt=350.;//Maximum pt provided
+	int etabin =  Trackhelper.GetTrackEtaBin(eta);
+	float uncertainty = _th1_eff_unc[etabin][centrality]->GetBinContent(_th1_eff_unc[etabin][centrality]->FindBin(pt));
+	//cout << "Ucnert: " << significance*uncertainty << endl;
+	return significance*uncertainty;			
+}
+*/
+
+/*
+float UncertProvider::UncerFit(float pt,TH1 * uncert){
+	if (pt>400.) pt=400.;
+	float uncertainty = 0;
+	int ptbin = uncert->GetXaxis()->FindBin(pt);
+	uncertainty = uncert->GetBinContent(ptbin);
+	//cout << "uncert: " << uncertainty << endl;
+	return uncertainty;	
+}
+*/
+float UncertProvider::UncerDense(float dR){
+	if (dR<0.1) return 0.004; //0.4% now
+	else return 0.;	
+}
+
+float UncertProvider::GetMCProb(){
+	if (uncert_index==4) mcprobcut = 0.4;
+	else if (uncert_index==5) mcprobcut = 0.5;
+	return mcprobcut;
+}
+
+//Mapping of systematic
+void UncertProvider::GetTrackUncert(){         
+   if (uncert_index==1) uncert_class=3; //JER uncert
+   else if (uncert_index>5 && uncert_index<10) uncert_class=2; //HI JES  
+   else if (uncert_index>19) uncert_class=1; //intrincis JES
+   else if (uncert_index>9 && uncert_index < 15) uncert_class=4; //tracking efficiency
+   else if (uncert_index ==15) uncert_class=5; //Trk resolution
+   else if (uncert_index ==16 || uncert_index ==17) uncert_class=6; //Trk resolution
+   //else if (uncert_index ==18) uncert_class=7; //Trk charge scale for preliminary only
+   else uncert_class = 0;
+   cout << "Uncertainty class... " << uncert_class << endl; 
+} 
 
 string UncertProvider::GetSysName(int uncert){   
    string UncertLabel;

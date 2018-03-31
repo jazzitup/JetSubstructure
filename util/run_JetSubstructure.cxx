@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
 	//configuration
 	int isPP;
 	int isMC = 1;
+	bool doJES = false;
 	string dataset = ""; // 0 - pPb, 1 - 2p76TeV pp, 2 - 7TeV pp , 3 - 5p02TeV pp, 4 - 5p02TeV PbPb
 	int isMB=0;
 	int isHerwig=0;
@@ -126,6 +127,7 @@ int main(int argc, char *argv[])
 	("isHerwig",boost::program_options::value<int>(&isHerwig)->default_value(0),"Pythia or Herwig")
         ("isPP",boost::program_options::value<int>(&isPP)->default_value(0),"pp (1) or PbPb(0)")
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
+	("doJES",boost::program_options::value<bool>(&doJES)->default_value(false),"Do sys")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
 	("saveLog",boost::program_options::value<bool>(&saveLog)->default_value(false),"Save the log?")
         ("saveNtuple",boost::program_options::value<bool>(&saveNtuple)->default_value(true),"Save Ntuple?")
@@ -214,6 +216,7 @@ int main(int argc, char *argv[])
 	if (dataset=="PbPb_5p02") {cout << "Using PbPb 5.02 TeV setup" << endl;}
 
 
+	if (doJES) {cout << endl << "SYSTEMATICS MODE" << endl << endl << endl;}
 	if (isHerwig) {cout << "Using Herwig" << endl;}
 	if (isMB) {cout << "Using MB data" << endl;} else { cout << "Using HP data" << endl;}
 	if (isMC) cout << "Running in MC mode" << endl; else { cout << "Running in data mode" << endl;}
@@ -314,6 +317,7 @@ int main(int argc, char *argv[])
 	//Set parameters
 	alg->_isPP = isPP;
 	alg->_isMC = isMC;
+	alg->_doJES = doJES;
 	alg->_dataset = dataset;
 	alg->_GRL = grl;
 	alg->_reco_jet_collection=reco_jet_collection.c_str();
