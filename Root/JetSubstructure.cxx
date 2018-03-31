@@ -72,6 +72,7 @@ struct jetSubStr {
   float genNch, genChSdPt, genChSdMass, genChSdZ, genChSdTheta;
   float recoTrNsub, recoTrTheta, recoTrMassRaw, recoTrMassCorr, recoTrDels, genTrNsub, genTrTheta, genTrMass, genTrDels;  // trimming
   float nTrkRaw, nTrkBkg, nTrkBkgNoWgt,  recoChPtRcSubt, recoChMassRcSubt, drTrkJetBkg, maxTrkPt ;   // random cone
+  float fcalet;
 };
 jetSubStr myJetSub;
 
@@ -82,8 +83,8 @@ TString genText = "dr:genMass:genPt:genEta:genRap:genPhi:genRcPt:genSdPt:genSdMa
 TString genChText = "genNch:genChSdPt:genChSdMass:genChZg:genChTheta";
 TString trimText  = "trimN:trimTheta:trimMraw:trimMcorr:trimDels:genTrimN:genTrimTheta:genTrimM:genTrimDels";
 TString rcText  = "nTrkRaw:nTrkBkg:nTrkBkgNoWgt:chPtRcSubt:chMassRcSubt:drTrkJetBkg:maxTrkPt";
-
-TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText+":"+trimText+":"+rcText;
+TString extraText = "fcal";
+TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText+":"+trimText+":"+rcText+":"+extraText;
 
 
 
@@ -132,7 +133,7 @@ void resetSubstr (jetSubStr &jetsub)
   jetsub.genSdPhi2 = -10;
   jetsub.genSdArea1 = -1;
   jetsub.genSdArea2 = -1;
-
+    
   jetsub.recoChPt = -1;
   jetsub.recoChMass = -10;
   jetsub.recoChPtRaw = -10;
@@ -152,6 +153,9 @@ void resetSubstr (jetSubStr &jetsub)
    jetsub.genTrDels;
    
    jetsub.genMass = -1;
+   
+   jetsub.fcalet = -1;
+
 }
 
 
@@ -619,31 +623,33 @@ EL::StatusCode JetSubstructure :: initialize ()
 	
 	// Initialize and configure trigger tools
 	
-	
-		// *~*~*~*~*~JES/JER uncertainty *~*~*~*~*~*~*~* //
+
+	// *~*~*~*~*~JES/JER uncertainty *~*~*~*~*~*~*~* //
 	float _mcProbCut = 0.5;
 	bool _eff_jety = false;
 	
-	vector<int> vUncertIndex;
-	if ( _doJES ) {
-	  /*	  vUncertIndex.push_back(1);
+	/*
+	  vector<int> vUncertIndex;
+	  if ( _doJES ) {
+	  vUncertIndex.push_back(1);
 	  vUncertIndex.push_back(6);
 	  vUncertIndex.push_back(7);
 	  vUncertIndex.push_back(8);
 	  vUncertIndex.push_back(9);
 	  vUncertIndex.push_back(16);
-	  vUncertIndex.push_back(17); */
+	  vUncertIndex.push_back(17); 
 	  for ( int ii=20 ;ii<=20 ;ii++) {
-	    //	  for ( int ii=24 ;ii<=41 ;ii++) {
-	    vUncertIndex.push_back(ii);
+	  //	  for ( int ii=24 ;ii<=41 ;ii++) {
+	  vUncertIndex.push_back(ii);
 	  }
-	  cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
+	  //	  cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
 	  for ( int ii = 0 ; ii< vUncertIndex.size() ; ii++) {
-	    UncertProvider tempUncet(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,ii);
-	    vUncertprovider.push_back(tempUncet);
+	  UncertProvider tempUncet(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,ii);
+	  vUncertprovider.push_back(tempUncet);
 	  }
-	}
-	
+	  }
+	*/
+	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,1);
 	
 	return EL::StatusCode::SUCCESS;
 }
@@ -1004,15 +1010,30 @@ EL::StatusCode JetSubstructure :: execute ()
       jet_pt  = jet_4momCalib.pt() * 0.001 ;
       jet_eta = jet_4momCalib.eta();
       jet_phi = jet_4momCalib.phi();
+
+      const xAOD::JetFourMom_t jet_4mom_unsubtracted = theRecoJet.jetP4("JetUnsubtractedScaleMomentum");
+      theRecoJet.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted); //Required
+      //      const xAOD::JetFourMom_t jet_4mom_subtracted_uncalib = theRecoJet.jetP4("JetPileupScaleMomentum");
+      if ( _saveLog) { 
+	cout << "jet_pt = " << jet_pt*0.001 << endl;
+	cout << "Unsubtrcted & uncalibrated pt : " << jet_4mom_unsubtracted.pt() * 0.001 << endl;
+	//	cout << "Subtrcted & uncalibrated pt : " << jet_4mom_subtracted_uncalib.pt() * 0.001 << endl;
+      }
+      
     }
     else {  // if (!_isMC)
       const xAOD::JetFourMom_t jet_4mom_unsubtracted = theRecoJet.jetP4("JetUnsubtractedScaleMomentum");
       theRecoJet.setJetP4("JetConstitScaleMomentum",jet_4mom_unsubtracted); //Required
+
       const xAOD::JetFourMom_t jet_4mom_EMJES = theRecoJet.jetP4(); //This is default, up to EM+JES calibrated four momentum
       theRecoJet.setJetP4("JetGSCScaleMomentum", jet_4mom_EMJES);
+
+
+
       EL_RETURN_CHECK("execute()", m_jetCalibration_insitu->applyCalibration( theRecoJet ) );
       const xAOD::JetFourMom_t jet_4momCroCal = theRecoJet.jetP4(); // uncalib
            
+
       jet_pt  = jet_4momCroCal.pt() * 0.001 ;
       jet_eta = jet_4momCroCal.eta();
       jet_phi = jet_4momCroCal.phi();
@@ -1305,7 +1326,11 @@ EL::StatusCode JetSubstructure :: execute ()
       cout <<" jet_py inFM uncal= " << jet_4momUnCal.py() << endl;
       cout <<" jet_pz inFM uncal= " << jet_4momUnCal.pz() << endl;
       cout <<" jet_e inFM uncal= " << jet_4momUnCal.energy() << endl;
-    }
+
+      cout <<"jet_ptRaw pT = " << jet_ptRaw  << endl;
+    
+
+}
     if (jet_pt < _pTjetCut)          continue;
     if (fabs(jet_eta) > _etaJetCut)  continue;
     if( (_isPP) && (!m_jetCleaningToolHandle->keep( **jet_itr )) )   {
@@ -2014,10 +2039,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	  fastjet::PseudoJet sd_jet = softdropper(originalJet);
 	  thesdm =  sd_jet.m() * 0.001;
 	  thesdpt = sd_jet.pt() * 0.001;
-	  //	  if ( _saveLog) { 
-	    //	    cout << "GEN JET softdrop:" << endl;
-	    //	    showLadder ( jets[i], originalJet, sd_jet );  
-	  //	  }
 	  
 	  fastjet::PseudoJet parent1, parent2;
 	  if (  sd_jet.has_parents(parent1, parent2) ) { // If softdrop worked
@@ -2198,33 +2219,31 @@ EL::StatusCode JetSubstructure :: execute ()
 	cout << "Gen pT,eta,phi,mass = " << genJetSys->pt() << ", " << genJetSys->eta() << ", " << genJetSys->phi() << ", "  << genJetSys->m() << endl;
       }
       
-      cout << "======= systematics ==== " << endl;
       if ( _doJES ) { 
+	cout << "======= systematics ==== " << endl;
 	bool _saveLogUnc = true;
 	if ( _saveLogUnc)  cout << "FCalEt = " << FCalEt << endl;
-	for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
-	  if ( _saveLogUnc) cout << "Uncert index : " << vUncertprovider.at(ii).uncert_index << endl;
-	  cout << " here1 " << endl;
-	  xAOD::Jet* thisJet = new xAOD::Jet();
-	  
-	  //	  if ( (_isPP) &&  (vUncertIndex[ii] > 5)  && (vUncertIndex[ii] < 18) ) {
-	    // This applies only for HI
-	  //	    ptSys[ii] = recoJetSys->pt() * 0.001 ;
-	  //	  }
-	  cout << " here2 " << endl;
-	  thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
-	  cout << " here3 " << endl;
-	  vUncertprovider.at(ii).CorrectJet ( thisJet, genJetSys, cent_bin, FCalEt ) ;
-	  cout << " here4 " << endl;
-	  //	vNewRecoJet.push_back(thisJet);
-	  if ( _saveLog) cout << " new pT : " << thisJet->pt() << endl;
-	  cout << " here5 " << endl;
-	  
-	  ptSys[ii] = thisJet->pt() * 0.001;
-	  delete thisJet; 
-	  
-	  
-	} 
+	//	for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
+	if ( _saveLogUnc) cout << "Uncert index : 20"  << endl;
+	cout << " here1 " << endl;
+	xAOD::Jet* thisJet = new xAOD::Jet();
+	
+	//	  if ( (_isPP) &&  (vUncertIndex[ii] > 5)  && (vUncertIndex[ii] < 18) ) {
+	// This applies only for HI
+	//	    ptSys[ii] = recoJetSys->pt() * 0.001 ;
+	//	  }
+	cout << " here2 " << endl;
+	thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
+	cout << " here3 " << endl;
+	vUncertprovider->CorrectJet ( thisJet, genJetSys, cent_bin, FCalEt ) ;
+	cout << " here4 " << endl;
+	//	vNewRecoJet.push_back(thisJet);
+	if ( _saveLog) cout << " new pT : " << thisJet->pt() << endl;
+	cout << " here5 " << endl;
+	
+	ptSys[0] = thisJet->pt() * 0.001;
+	delete thisJet; 
+	
       }
     }
     
@@ -2244,10 +2263,12 @@ EL::StatusCode JetSubstructure :: execute ()
       eventDisTrk1->Reset();
       eventDisTrk2->Reset();
     }
-  
+    
+    
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
     myJetSub.cent = cent_bin; 
+    myJetSub.fcalet = FCalEt;
     myJetSub.rhoCh = bge_rho_trk.rho() * 0.001;
     myJetSub.recoMass = vmass_reco[ri];
     myJetSub.recoPt = vpt_reco[ri];
@@ -2272,7 +2293,7 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.recoChSdMass = vChSdMass_reco[ri];
     myJetSub.recoChSdZ = vChSdZ_reco[ri];
     myJetSub.recoChSdTheta = vChSdTheta_reco[ri];
-
+  
     myJetSub.recoChPt = vChPt_reco[ri];
     myJetSub.recoChMass = vChMass_reco[ri];
     myJetSub.recoChPtRaw = vChPtRaw_reco[ri];
@@ -2361,11 +2382,21 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     treeOut->Fill();
-  }
-  
-  
-  
-  
+
+    
+    if ( _saveLog) {
+      cout << " eventInfo->eventNumber() == "<< eventInfo->eventNumber() << endl;
+      cout << " eventInfo->runNumber() == " <<  eventInfo->runNumber() << endl;
+      cout << " eventInfo->lumiBlock() " << eventInfo->lumiBlock() << endl;
+      cout << "Reco jet pt, eta, phi = " << myJetSub.recoPt <<",  "<< myJetSub.recoEta << ",  " << myJetSub.recoPhi << endl;
+      cout << "     jet mass         = " << myJetSub.recoMass << endl;
+      cout << "Truth jet pt, eta, phi = " << myJetSub.genPt <<",  "<< myJetSub.genEta << ",  " << myJetSub.genPhi << endl;
+      cout << "      jet mass         = " << myJetSub.genMass << endl;
+    }
+    
+  }    
+    
+    
   
   
   // Clear vectors
