@@ -88,7 +88,7 @@ class UncertProvider
      	if (uncert_index==0) cout << "UncertProvider: No systematic variation is used...." << endl;
      	else cout << "Systematic uncertainty: " << GetSysName(uncert_index) << endl;
      	
-     	
+	GetTrackUncert();     	
      	//***ppJES***
 		//jesProv = new JetUncertaintiesTool("JESProvider");
 		jesProv.setProperty("JetDefinition","AntiKt4EMTopo");
@@ -142,7 +142,6 @@ class UncertProvider
      	f_sagitta = new TFile(xfn + "/../pPbFragmentation/data/5TeVHI2015_sagittaBias_pTmethod_statUncertainty.root");
 	h_sagitta = (TH2*)f_sagitta->Get("h_deltaSagittaMap_statErr");
      	
-	//     	GetTrackUncert();
      	
      }// end of constructor
 		

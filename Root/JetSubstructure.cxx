@@ -628,9 +628,7 @@ EL::StatusCode JetSubstructure :: initialize ()
 	float _mcProbCut = 0.5;
 	bool _eff_jety = false;
 	
-	/*
-	  vector<int> vUncertIndex;
-	  if ( _doJES ) {
+	if ( _doJES ) {
 	  vUncertIndex.push_back(1);
 	  vUncertIndex.push_back(6);
 	  vUncertIndex.push_back(7);
@@ -638,19 +636,17 @@ EL::StatusCode JetSubstructure :: initialize ()
 	  vUncertIndex.push_back(9);
 	  vUncertIndex.push_back(16);
 	  vUncertIndex.push_back(17); 
-	  for ( int ii=20 ;ii<=20 ;ii++) {
-	  //	  for ( int ii=24 ;ii<=41 ;ii++) {
-	  vUncertIndex.push_back(ii);
+	  for ( int ii=20 ;ii<=41 ;ii++) {
+	    vUncertIndex.push_back(ii);
 	  }
-	  //	  cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
+	  cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
 	  for ( int ii = 0 ; ii< vUncertIndex.size() ; ii++) {
-	  UncertProvider tempUncet(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,ii);
-	  vUncertprovider.push_back(tempUncet);
+	    UncertProvider *tempUncet = new UncertProvider(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
+	    vUncertprovider.push_back(tempUncet);
 	  }
-	  }
-	*/
-	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
-	//	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety,1);
+	}
+	//	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
+
 	
 	return EL::StatusCode::SUCCESS;
 }
@@ -2208,38 +2204,78 @@ EL::StatusCode JetSubstructure :: execute ()
     }
 
     if ( matchId != -1 ) { 
-      xAOD::Jet* recoJetSys = new xAOD::Jet( selectedRecoJets[ri] );
-      xAOD::Jet* genJetSys = new xAOD::Jet( selectedGenJets[matchId] );
-      vector< xAOD::Jet*> vNewRecoJet;
-      if ( _saveLog) {
+      /*
+	if ( _saveLog) {
 	cout << " cross check : " <<endl ;
 	cout << "Reco pT,eta,phi,mass = " << vpt_reco[ri] *1000. << ",  " << veta_reco[ri]  << ",  " <<  vphi_reco[ri]  << ",  " <<  vmass_reco[ri]*1000. << endl;
 	cout << "Reco pT,eta,phi,mass = " << recoJetSys->pt() << ", " << recoJetSys->eta() << ", " << recoJetSys->phi() << ", "  << recoJetSys->m() << endl;
 	cout << " cross check : " <<endl ;
 	cout << "Gen pT,eta,phi,mass = " << vpt_gen[matchId] *1000. << ",  " << veta_gen[matchId]  << ",  " <<  vphi_gen[matchId]  << ",  " <<  vMass_gen[matchId]*1000. << endl;
 	cout << "Gen pT,eta,phi,mass = " << genJetSys->pt() << ", " << genJetSys->eta() << ", " << genJetSys->phi() << ", "  << genJetSys->m() << endl;
-      }
+	}
+      */
       
       if ( _doJES ) { 
 	if ( _saveLog)  cout << "======= systematics ==== " << endl;
 	bool _saveLogUnc = true;
 	if ( _saveLogUnc)  cout << "FCalEt = " << FCalEt << endl;
-	//	for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
-	if ( _saveLogUnc) cout << "Uncert index : 20"  << endl;
-	xAOD::Jet* thisJet = new xAOD::Jet();
-	
-	//	  if ( (_isPP) &&  (vUncertIndex[ii] > 5)  && (vUncertIndex[ii] < 18) ) {
-	// This applies only for HI
-	//	    ptSys[ii] = recoJetSys->pt() * 0.001 ;
-	//	  }
-	thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
-	vUncertprovider->CorrectJet ( thisJet, genJetSys, cent_bin, FCalEt ) ;
-	//	vNewRecoJet.push_back(thisJet);
-	if ( _saveLog) cout << " new pT : " << thisJet->pt() << endl;
-	
-	ptSys[0] = thisJet->pt() * 0.001;
-	delete thisJet; 
-	
+	for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
+	  //	  xAOD::Jet* thisJet = new xAOD::Jet();
+	  xAOD::Jet* recoJetSys = new xAOD::Jet( selectedRecoJets[ri] );
+	  xAOD::Jet* recoJetSysTest = new xAOD::Jet( selectedRecoJets[ri] );
+	  xAOD::Jet* genJetSys = new xAOD::Jet( selectedGenJets[matchId] );
+	  
+
+	  cout << " new test : " << endl;
+	  JetUncertaintiesTool* jesProv = new JetUncertaintiesTool("JESProvider");
+	  jesProv->setProperty("JetDefinition","AntiKt4EMTopo");
+	  jesProv->setProperty("MCType","MC15");
+	  jesProv->setProperty("ConfigFile","JES_2015/ICHEP2016/JES2015_19NP.config");
+	  // Initialize the tool
+	  jesProv->initialize();
+	  double theUncertainty1 = 1 + (jesProv->getUncertainty(0, (*recoJetSysTest)));
+	  double theUncertainty2 = 1 + (jesProv->getUncertainty(1, (*recoJetSysTest)));
+	  double theUncertainty3 = 1 + (jesProv->getUncertainty(8, (*recoJetSysTest)));
+	  double theUncertainty4 = 1 + (jesProv->getUncertainty(9, (*recoJetSysTest)));
+	  double theUncertainty5 = 1 + (jesProv->getUncertainty(10, (*recoJetSysTest)));
+	  double theUncertainty6 = 1 + (jesProv->getUncertainty(11, (*recoJetSysTest)));
+	  double theUncertainty7 = 1 + (jesProv->getUncertainty(12, (*recoJetSysTest)));
+	  double theUncertainty8 = 1 + (jesProv->getUncertainty(13, (*recoJetSysTest)));
+	  double theUncertainty9 = 1 + (jesProv->getUncertainty(14, (*recoJetSysTest)));
+	  double theUncertainty10= 1 + (jesProv->getUncertainty(15, (*recoJetSysTest)));
+	  double theUncertainty11= 1 + (jesProv->getUncertainty(16, (*recoJetSysTest)));
+
+	  if ( _saveLog) cout << " Unc1 : " << theUncertainty1 << endl;
+	  if ( _saveLog) cout << " Unc2 : " << theUncertainty2 << endl;
+	  if ( _saveLog) cout << " Unc3 : " << theUncertainty3 << endl;
+	  if ( _saveLog) cout << " Unc4 : " << theUncertainty4 << endl;
+	  if ( _saveLog) cout << " Unc5 : " << theUncertainty5 << endl;
+	  if ( _saveLog) cout << " Unc6 : " << theUncertainty6 << endl;
+	  if ( _saveLog) cout << " Unc7 : " << theUncertainty7 << endl;
+	  if ( _saveLog) cout << " Unc8 : " << theUncertainty8 << endl;
+	  if ( _saveLog) cout << " Unc9 : " << theUncertainty9 << endl;
+	  if ( _saveLog) cout << " Unc10 : " << theUncertainty10 << endl;
+	  if ( _saveLog) cout << " Unc11 : " << theUncertainty11 << endl;
+	  
+	  if ( (_isPP) &&  (vUncertIndex[ii] > 5)  && (vUncertIndex[ii] < 18) ) {
+	    //	    This applies only for HI
+	    ptSys[ii] = recoJetSys->pt() * 0.001 ;
+	  }
+	  /*	  else {
+	    //	    thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
+	    if ( _saveLog) cout << " vUncertIndex =  " << vUncertIndex[ii] << endl;
+	    if ( _saveLog) cout << "    old pT : " << recoJetSys->pt() << endl;
+	    vUncertprovider.at(ii)->CorrectJet ( recoJetSys, genJetSys, cent_bin, FCalEt ) ;
+	    if ( _saveLog) cout << "    new pT : " << recoJetSys->pt() << endl;
+	    ptSys[ii] = recoJetSys->pt() * 0.001;
+	  }
+	  */
+
+	  delete recoJetSysTest;
+	  delete recoJetSys; 
+	  delete genJetSys; 
+	  delete jesProv;
+	}
       }
     }
     
@@ -2394,9 +2430,9 @@ EL::StatusCode JetSubstructure :: execute ()
     
     
   
-  
+  delete scalarPtDensity;
   // Clear vectors
-  store->clear();
+  //  store->clear();
   delete store;
 
   corrected_selectedTrks.clear();

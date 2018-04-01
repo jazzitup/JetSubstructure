@@ -66,6 +66,7 @@ void UncertProvider::UncerJERIntrinsic_Gaus(xAOD::Jet* recon, xAOD::Jet* truth, 
 	  //cout << "jet pt" << jetPtRecon << " truth " <<  jetPtTruth << " uncert: " << uncertainty << " JER " << JER << " correction " << correction << endl;
       Float_t jetPtRecoNew =jetPtRecon + jetPtTruth * correction;
       if (jetPtRecoNew<10) {jetPtRecoNew=1; jetMRecon=0;}
+
       recon->setJetP4( xAOD::JetFourMom_t(jetPtRecoNew,jetEtaRecon,jetPhiRecon,jetMRecon) );
 }
 
@@ -111,6 +112,8 @@ void UncertProvider::UncerHIJESIntrinsic(xAOD::Jet* recon)
    if (component==2) HIJESuncertainty = h_sJES_eta[GetEtaUJERBin(jetEta)]->Interpolate(jetPt/1000.)-1;
    //cout << "jet pt" << jetPt << " jet eta " << jetEta << " uncert " << HIJESuncertainty << endl;
    uncertainty = 1 + significance * HIJESuncertainty; 
+   cout << "set 100 " << endl;      uncertainty = 0.5; 
+
    recon->setJetP4( xAOD::JetFourMom_t(jetPt*uncertainty,jetEta,jetPhi,jetM) );
 }
 
