@@ -111,8 +111,8 @@ class JetSubstructure : public BaseClass
 
 
         //Uncert tool
-	vector<UncertProvider*> vUncertprovider; //!
-        vector<int> vUncertIndex;
+	vector<UncertProvider*> vUncProvHI; //!
+        vector<int> vUncertIndex; //!
 	JetUncertaintiesTool *jesProv; //! 
 
 	vector<TH2D*> hTrkPtEta_preCS_cent; //!

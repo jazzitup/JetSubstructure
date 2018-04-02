@@ -338,10 +338,15 @@ EL::StatusCode JetSubstructure :: histInitialize ()
         treeOut = new TTree("tr","new tree");
 	treeOut->Branch("jets",&myJetSub,myJetSubText.Data());
 	if (_doJES) {
-	  for ( int si = 0 ; si<=35; si++) { 
-	    ptSys[si] = 0;
-	    treeOut->Branch(Form("ptSys%d",si), &ptSys[si]); 
+	  for ( int si = 0 ; si<=6; si++) { 
+	    ptSysHI[si] = 0;
+	    treeOut->Branch(Form("ptSysHI%d",si), &ptSysHI[si]); 
 	  }
+	  for ( int si = 0 ; si<=21; si++) {  // 20 - 41
+	    ptSysPP[si] = 0;
+	    treeOut->Branch(Form("ptSysPP%d",si), &ptSysPP[si]); 
+	  }
+	  
 	}
 
 	if (_saveEvtDisplay) {
@@ -511,6 +516,9 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	uee->jetptBkgrThreshold = 90; // cones with proximity of jet with _jetptBkgrThreshold GeV excluded
 	uee->m_maxjetdeltaR = 0.8; // definition of "proximity" to a real jet
 
+
+
+
 	return EL::StatusCode::SUCCESS;
 }
 
@@ -554,7 +562,7 @@ EL::StatusCode JetSubstructure :: initialize ()
 
 	Info("initialize()", "Number of events = %lli", event->getEntries() ); // print long long int
 
-	
+
 	
 	//Calibration tool
 	//	const std::string name = "JetSubstructure"; //string describing the current thread, for logging
@@ -591,6 +599,7 @@ EL::StatusCode JetSubstructure :: initialize ()
 
 	jetcorr = new JetCorrector();
 	
+
 	//Pileup tool
 	
 	// ZDCAnalysisTool
@@ -636,17 +645,45 @@ EL::StatusCode JetSubstructure :: initialize ()
 	  vUncertIndex.push_back(9);
 	  vUncertIndex.push_back(16);
 	  vUncertIndex.push_back(17); 
-	  for ( int ii=20 ;ii<=41 ;ii++) {
-	    vUncertIndex.push_back(ii);
-	  }
+
 	  cout << "number of uncertainty factors = " << vUncertIndex.size() << endl;
 	  for ( int ii = 0 ; ii< vUncertIndex.size() ; ii++) {
 	    UncertProvider *tempUncet = new UncertProvider(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
-	    vUncertprovider.push_back(tempUncet);
+	    vUncProvHI.push_back(tempUncet);
 	  }
+	  
+	  // pp intrinsic 
+	  intrinsicComponent[0] = 0;  
+	  intrinsicComponent[1] = 0;
+	  intrinsicComponent[2] = 1;  
+	  intrinsicComponent[3] = 1;
+	  intrinsicComponent[4] = 8;  
+	  intrinsicComponent[5] = 8;
+	  intrinsicComponent[6] = 9;  
+	  intrinsicComponent[7] = 9;
+	  intrinsicComponent[8] = 10;  
+	  intrinsicComponent[9] = 10;
+	  intrinsicComponent[10] = 11;  
+	  intrinsicComponent[11] = 11;
+	  intrinsicComponent[12] = 12;  
+	  intrinsicComponent[13] = 12;
+	  intrinsicComponent[14] = 13;
+	  intrinsicComponent[15] = 13;
+	  intrinsicComponent[16] = 14;
+	  intrinsicComponent[17] = 14;
+	  intrinsicComponent[18] = 15;
+	  intrinsicComponent[19] = 15;
+	  intrinsicComponent[20] = 16;
+	  intrinsicComponent[21] = 16;
+	  for ( int ii = 0 ; ii<=21 ; ii++)  {
+	    if ( (ii%2) == 0 )  intSignificance[ii] = 1. ;
+	    else intSignificance[ii] = -1. ;
+	  }
+	  
+	  
 	}
-	//	vUncertprovider = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
-
+	//	vUncProvHI = new UncertProvider(20,_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
+	
 	
 	return EL::StatusCode::SUCCESS;
 }
@@ -2185,8 +2222,13 @@ EL::StatusCode JetSubstructure :: execute ()
   }
   
   
-
-
+  // Initialize uncertainty tool
+  jesProv = new JetUncertaintiesTool("JESProvider");
+  jesProv->setProperty("JetDefinition","AntiKt4EMTopo");
+  jesProv->setProperty("MCType","MC15");
+  jesProv->setProperty("ConfigFile","JES_2015/ICHEP2016/JES2015_19NP.config");
+  jesProv->initialize();
+  
   
   // back to reco loop 
   for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) { 
@@ -2219,63 +2261,38 @@ EL::StatusCode JetSubstructure :: execute ()
 	if ( _saveLog)  cout << "======= systematics ==== " << endl;
 	bool _saveLogUnc = true;
 	if ( _saveLogUnc)  cout << "FCalEt = " << FCalEt << endl;
-	for ( int ii=0 ; ii<vUncertprovider.size() ;ii++) { 
+
+	xAOD::Jet* recoJetSysPP = new xAOD::Jet( selectedRecoJets[ri] );
+	double iniPt = recoJetSysPP->pt();
+	
+	for ( int si = 0 ; si<=21; si++) {  // 20 - 41
+	  double theUncertainty = intSignificance[si]  * (jesProv->getUncertainty( intrinsicComponent[si], (*recoJetSysPP)));
+	  ptSysPP[si] = iniPt * (1. + theUncertainty) * 0.001;
+	  
+	}
+
+	for ( int ii=0 ; ii<vUncProvHI.size() ;ii++) { 
 	  //	  xAOD::Jet* thisJet = new xAOD::Jet();
 	  xAOD::Jet* recoJetSys = new xAOD::Jet( selectedRecoJets[ri] );
-	  xAOD::Jet* recoJetSysTest = new xAOD::Jet( selectedRecoJets[ri] );
 	  xAOD::Jet* genJetSys = new xAOD::Jet( selectedGenJets[matchId] );
 	  
-
-	  cout << " new test : " << endl;
-	  JetUncertaintiesTool* jesProv = new JetUncertaintiesTool("JESProvider");
-	  jesProv->setProperty("JetDefinition","AntiKt4EMTopo");
-	  jesProv->setProperty("MCType","MC15");
-	  jesProv->setProperty("ConfigFile","JES_2015/ICHEP2016/JES2015_19NP.config");
-	  // Initialize the tool
-	  jesProv->initialize();
-	  double theUncertainty1 = 1 + (jesProv->getUncertainty(0, (*recoJetSysTest)));
-	  double theUncertainty2 = 1 + (jesProv->getUncertainty(1, (*recoJetSysTest)));
-	  double theUncertainty3 = 1 + (jesProv->getUncertainty(8, (*recoJetSysTest)));
-	  double theUncertainty4 = 1 + (jesProv->getUncertainty(9, (*recoJetSysTest)));
-	  double theUncertainty5 = 1 + (jesProv->getUncertainty(10, (*recoJetSysTest)));
-	  double theUncertainty6 = 1 + (jesProv->getUncertainty(11, (*recoJetSysTest)));
-	  double theUncertainty7 = 1 + (jesProv->getUncertainty(12, (*recoJetSysTest)));
-	  double theUncertainty8 = 1 + (jesProv->getUncertainty(13, (*recoJetSysTest)));
-	  double theUncertainty9 = 1 + (jesProv->getUncertainty(14, (*recoJetSysTest)));
-	  double theUncertainty10= 1 + (jesProv->getUncertainty(15, (*recoJetSysTest)));
-	  double theUncertainty11= 1 + (jesProv->getUncertainty(16, (*recoJetSysTest)));
-
-	  if ( _saveLog) cout << " Unc1 : " << theUncertainty1 << endl;
-	  if ( _saveLog) cout << " Unc2 : " << theUncertainty2 << endl;
-	  if ( _saveLog) cout << " Unc3 : " << theUncertainty3 << endl;
-	  if ( _saveLog) cout << " Unc4 : " << theUncertainty4 << endl;
-	  if ( _saveLog) cout << " Unc5 : " << theUncertainty5 << endl;
-	  if ( _saveLog) cout << " Unc6 : " << theUncertainty6 << endl;
-	  if ( _saveLog) cout << " Unc7 : " << theUncertainty7 << endl;
-	  if ( _saveLog) cout << " Unc8 : " << theUncertainty8 << endl;
-	  if ( _saveLog) cout << " Unc9 : " << theUncertainty9 << endl;
-	  if ( _saveLog) cout << " Unc10 : " << theUncertainty10 << endl;
-	  if ( _saveLog) cout << " Unc11 : " << theUncertainty11 << endl;
-	  
-	  if ( (_isPP) &&  (vUncertIndex[ii] > 5)  && (vUncertIndex[ii] < 18) ) {
+	  if  (_isPP)  {
 	    //	    This applies only for HI
-	    ptSys[ii] = recoJetSys->pt() * 0.001 ;
+	    ptSysHI[ii] = recoJetSys->pt() * 0.001 ;
 	  }
-	  /*	  else {
+	  else {
 	    //	    thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
-	    if ( _saveLog) cout << " vUncertIndex =  " << vUncertIndex[ii] << endl;
 	    if ( _saveLog) cout << "    old pT : " << recoJetSys->pt() << endl;
-	    vUncertprovider.at(ii)->CorrectJet ( recoJetSys, genJetSys, cent_bin, FCalEt ) ;
+	    vUncProvHI.at(ii)->CorrectJet ( recoJetSys, genJetSys, cent_bin, FCalEt ) ;
 	    if ( _saveLog) cout << "    new pT : " << recoJetSys->pt() << endl;
-	    ptSys[ii] = recoJetSys->pt() * 0.001;
+	    ptSysHI[ii] = recoJetSys->pt() * 0.001;
 	  }
-	  */
-
-	  delete recoJetSysTest;
 	  delete recoJetSys; 
 	  delete genJetSys; 
-	  delete jesProv;
 	}
+	
+	
+	delete recoJetSysPP;
       }
     }
     
@@ -2296,7 +2313,7 @@ EL::StatusCode JetSubstructure :: execute ()
       eventDisTrk2->Reset();
     }
     
-    
+      
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
     myJetSub.cent = cent_bin; 
@@ -2428,7 +2445,7 @@ EL::StatusCode JetSubstructure :: execute ()
     
   }    
     
-    
+  delete jesProv;		       
   
   delete scalarPtDensity;
   // Clear vectors

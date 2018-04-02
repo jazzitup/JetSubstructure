@@ -114,7 +114,10 @@ public:
 	int jet_isTriggered[10]; //! //TODO
 	float trig_prescale[10]; //! //TODO
 
-	float ptSys[50]; //! 
+	float ptSysHI[50]; //! 
+	float ptSysPP[50]; //! 
+	int intrinsicComponent[50]; //!
+	float intSignificance[50]; //!
 
 	TH1D *h_FCal_Et; //!
 	TH1D *h_RejectionHisto; //!
