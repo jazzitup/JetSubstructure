@@ -87,9 +87,6 @@ TString extraText = "fcal";
 TString myJetSubText = evtText+":"+recoText+":"+reChText+":"+genText+":"+genChText+":"+trimText+":"+rcText+":"+extraText;
 
 
-
-
-
 void resetSubstr (jetSubStr &jetsub)
 {
   
@@ -158,6 +155,20 @@ void resetSubstr (jetSubStr &jetsub)
 
 }
 
+struct EvtInfo  { 
+  int run;
+  int lumi;
+  int event;
+};
+  
+EvtInfo myEvt;
+
+void resetEvt (EvtInfo &theEvt)  {
+  theEvt.run = -1;
+  theEvt.lumi = -1;
+  theEvt.event = -1;
+}
+TString evtString = "run/I:lumi:event";
 
 int getMaxPtIndex ( vector<fastjet::PseudoJet>& jets ) {
   double max_pt = 0;
@@ -346,8 +357,11 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	    ptSysPP[si] = 0;
 	    treeOut->Branch(Form("ptSysPP%d",si), &ptSysPP[si]); 
 	  }
-	  
 	}
+	
+	treeOut->Branch("evt",&myEvt,evtString.Data());
+	
+	
 
 	if (_saveEvtDisplay) {
 	  eventDisRecTow = new TH2F("eventDisRecTow","",20,-1,1,20,-1,1);
@@ -479,31 +493,32 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 
 	if ( _saveNtuple ) wk()->addOutput (treeOut);
 
-	wk()->addOutput (hGenNcam);
-	wk()->addOutput (hGenNchCam);
-	wk()->addOutput (hGenSdStat);
-	wk()->addOutput (hGenSdChStat);
-	wk()->addOutput (hRecoNcam);
-	wk()->addOutput (hRecoNchCam);
-	wk()->addOutput (hRecoSdStat);
-	wk()->addOutput (hRecoSdChStat);
+	//	wk()->addOutput (hGenNcam);
+	//	wk()->addOutput (hGenNchCam);
+	//	wk()->addOutput (hGenSdStat);
+	//	wk()->addOutput (hGenSdChStat);
+	//	wk()->addOutput (hRecoNcam);
+	//	wk()->addOutput (hRecoNchCam);
+	//	wk()->addOutput (hRecoSdStat);
+	//	wk()->addOutput (hRecoSdChStat);
 	
-        for (int i=0;i<nCentbins;i++)  {
-	  wk()->addOutput (h_trkGen_pt_dphi_cent.at(i));
-	  wk()->addOutput (h_allGen_pt_dphi_cent.at(i));
-	  wk()->addOutput (h_trkGen_pt_drap_cent.at(i));
-	  wk()->addOutput (h_allGen_pt_drap_cent.at(i));
-	  wk()->addOutput (hTrkPtEta_preCS_cent.at(i));
-	  wk()->addOutput (hTrkPtEta_postCS_cent.at(i));
-	  wk()->addOutput (hTrkPtEta_genMatch_cent.at(i));
-	  wk()->addOutput (h_trkPt_trkBkgPt_cent.at(i));
-	  wk()->addOutput (h_bkgSubt_prePt_postPt_cent.at(i));
-	  wk()->addOutput (h_dRSubt_trkPt_cent.at(i));
-	  wk()->addOutput (h_trkPt_trkBkgPt_jetCone_cent.at(i));
-	  wk()->addOutput (h_bkgSubt_prePt_postPt_jetCone_cent.at(i));
-	  wk()->addOutput (h_dRSubt_trkPt_jetCone_cent.at(i));
+	if ( 1 == 0 ) {
+	  for (int i=0;i<nCentbins;i++)  {
+	    wk()->addOutput (h_trkGen_pt_dphi_cent.at(i));
+	    wk()->addOutput (h_allGen_pt_dphi_cent.at(i));
+	    wk()->addOutput (h_trkGen_pt_drap_cent.at(i));
+	    wk()->addOutput (h_allGen_pt_drap_cent.at(i));
+	    wk()->addOutput (hTrkPtEta_preCS_cent.at(i));
+	    wk()->addOutput (hTrkPtEta_postCS_cent.at(i));
+	    wk()->addOutput (hTrkPtEta_genMatch_cent.at(i));
+	    wk()->addOutput (h_trkPt_trkBkgPt_cent.at(i));
+	    wk()->addOutput (h_bkgSubt_prePt_postPt_cent.at(i));
+	    wk()->addOutput (h_dRSubt_trkPt_cent.at(i));
+	    wk()->addOutput (h_trkPt_trkBkgPt_jetCone_cent.at(i));
+	    wk()->addOutput (h_bkgSubt_prePt_postPt_jetCone_cent.at(i));
+	    wk()->addOutput (h_dRSubt_trkPt_jetCone_cent.at(i));
+	  }
 	}
-	
 	
         cout << "=======================================" << endl;
 	cout << "Parametrization of d0 cut" << endl;
@@ -651,7 +666,7 @@ EL::StatusCode JetSubstructure :: initialize ()
 	    UncertProvider *tempUncet = new UncertProvider(vUncertIndex.at(ii),_mcProbCut,"_cut_level.c_str()", 30 , _eff_jety);
 	    vUncProvHI.push_back(tempUncet);
 	  }
-	  
+	
 	  // pp intrinsic 
 	  intrinsicComponent[0] = 0;  
 	  intrinsicComponent[1] = 0;
@@ -2221,15 +2236,16 @@ EL::StatusCode JetSubstructure :: execute ()
     }
   }
   
-  
+
   // Initialize uncertainty tool
-  jesProv = new JetUncertaintiesTool("JESProvider");
-  jesProv->setProperty("JetDefinition","AntiKt4EMTopo");
-  jesProv->setProperty("MCType","MC15");
-  jesProv->setProperty("ConfigFile","JES_2015/ICHEP2016/JES2015_19NP.config");
-  jesProv->initialize();
-  
-  
+  if (_doJES) { 
+    jesProv = new JetUncertaintiesTool("JESProvider");
+    jesProv->setProperty("JetDefinition","AntiKt4EMTopo");
+    jesProv->setProperty("MCType","MC15");
+    jesProv->setProperty("ConfigFile","JES_2015/ICHEP2016/JES2015_19NP.config");
+    jesProv->initialize();
+  }
+
   // back to reco loop 
   for ( int ri = 0 ; ri< vpt_reco.size() ; ri++) { 
     
@@ -2259,8 +2275,6 @@ EL::StatusCode JetSubstructure :: execute ()
       
       if ( _doJES ) { 
 	if ( _saveLog)  cout << "======= systematics ==== " << endl;
-	bool _saveLogUnc = true;
-	if ( _saveLogUnc)  cout << "FCalEt = " << FCalEt << endl;
 
 	xAOD::Jet* recoJetSysPP = new xAOD::Jet( selectedRecoJets[ri] );
 	double iniPt = recoJetSysPP->pt();
@@ -2276,15 +2290,12 @@ EL::StatusCode JetSubstructure :: execute ()
 	  xAOD::Jet* recoJetSys = new xAOD::Jet( selectedRecoJets[ri] );
 	  xAOD::Jet* genJetSys = new xAOD::Jet( selectedGenJets[matchId] );
 	  
-	  if  (_isPP)  {
+	  if  (  (_isPP)  && ( (vUncertIndex.at(ii) == 16)||(vUncertIndex.at(ii) == 17) ) ) {
 	    //	    This applies only for HI
 	    ptSysHI[ii] = recoJetSys->pt() * 0.001 ;
 	  }
 	  else {
-	    //	    thisJet->makePrivateStore( selectedRecoJets[ri] ) ;
-	    if ( _saveLog) cout << "    old pT : " << recoJetSys->pt() << endl;
 	    vUncProvHI.at(ii)->CorrectJet ( recoJetSys, genJetSys, cent_bin, FCalEt ) ;
-	    if ( _saveLog) cout << "    new pT : " << recoJetSys->pt() << endl;
 	    ptSysHI[ii] = recoJetSys->pt() * 0.001;
 	  }
 	  delete recoJetSys; 
@@ -2297,7 +2308,7 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     resetSubstr(myJetSub);
-    
+    resetEvt(myEvt);
     if (_saveEvtDisplay) { 
       eventDisRecTow->Reset();
       eventDisRecTow1->Reset();
@@ -2316,6 +2327,10 @@ EL::StatusCode JetSubstructure :: execute ()
       
     //	  cout << " myJetsub is reset" << endl;
     //	  cout << " myJetSub.matchDr  = " << myJetSub.matchDr << endl;
+    myEvt.run = eventInfo->runNumber();
+    myEvt.lumi = eventInfo->lumiBlock();
+    myEvt.event =  eventInfo->eventNumber() ;
+    
     myJetSub.cent = cent_bin; 
     myJetSub.fcalet = FCalEt;
     myJetSub.rhoCh = bge_rho_trk.rho() * 0.001;
@@ -2431,22 +2446,19 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     treeOut->Fill();
-
+  
     
     if ( _saveLog) {
       cout << " eventInfo->eventNumber() == "<< eventInfo->eventNumber() << endl;
       cout << " eventInfo->runNumber() == " <<  eventInfo->runNumber() << endl;
       cout << " eventInfo->lumiBlock() " << eventInfo->lumiBlock() << endl;
-      cout << "Reco jet pt, eta, phi = " << myJetSub.recoPt <<",  "<< myJetSub.recoEta << ",  " << myJetSub.recoPhi << endl;
-      cout << "     jet mass         = " << myJetSub.recoMass << endl;
-      cout << "Truth jet pt, eta, phi = " << myJetSub.genPt <<",  "<< myJetSub.genEta << ",  " << myJetSub.genPhi << endl;
-      cout << "      jet mass         = " << myJetSub.genMass << endl;
     }
     
   }    
     
-  delete jesProv;		       
-  
+  if (_doJES) {   // Very important!
+    delete jesProv;		        
+  }  
   delete scalarPtDensity;
   // Clear vectors
   //  store->clear();
