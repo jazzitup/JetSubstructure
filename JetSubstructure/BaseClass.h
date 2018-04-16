@@ -31,6 +31,7 @@
 #include "xAODHIEvent/HIEventShapeContainer.h"
 
 #include "InDetTrackSelectionTool/InDetTrackSelectionTool.h"
+#include "InDetTrackSystematicsTools/InDetTrackSmearingTool.h"
 
 #include "AsgTools/AnaToolHandle.h"
 #include "JetInterface/IJetSelector.h"
@@ -42,9 +43,11 @@
 
 
 //Pileup tool
-
-
 using namespace std;
+
+
+namespace InDet { class InDetTrackSmearingTool; }
+
 
 class BaseClass : public EL::Algorithm
 {
@@ -75,6 +78,8 @@ public:
 	float _pTjetCut; //
 	float _truthpTjetCut; //
 	std::string _outputName; //
+	std::unique_ptr<InDet::InDetTrackSmearingTool> m_trkSmearingTool; //! 
+
 	double _pt_iso; //
 	bool _truth_iso; //
 	bool _reco_iso; //
@@ -118,6 +123,17 @@ public:
 	float ptSysPP[50]; //! 
 	int intrinsicComponent[50]; //!
 	float intSignificance[50]; //!
+
+	float trkJetMass4; //! 
+	float trkJetMass6; //! 
+	float trkJetMass8; //! 
+	float trkJetMass10; //! 
+	float trkJetPt4; //! 
+	float trkJetPt6; //! 
+	float trkJetPt8; //! 
+	float trkJetPt10; //! 
+
+
 
 	TH1D *h_FCal_Et; //!
 	TH1D *h_RejectionHisto; //!
