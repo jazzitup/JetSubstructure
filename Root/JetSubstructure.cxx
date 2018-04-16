@@ -358,6 +358,16 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	    treeOut->Branch(Form("ptSysPP%d",si), &ptSysPP[si]); 
 	  }
 	}
+	// for jet mass systematics 
+	treeOut->Branch("trkJetMass4",&trkJetMass4);
+	treeOut->Branch("trkJetMass6",&trkJetMass6);
+	treeOut->Branch("trkJetMass8",&trkJetMass8);
+	treeOut->Branch("trkJetMass10",&trkJetMass10);
+	treeOut->Branch("trkJetPt4",&trkJetPt4);
+	treeOut->Branch("trkJetPt6",&trkJetPt6);
+	treeOut->Branch("trkJetPt8",&trkJetPt8);
+	treeOut->Branch("trkJetPt10",&trkJetPt10);
+
 	
 	treeOut->Branch("evt",&myEvt,evtString.Data());
 	
@@ -1247,7 +1257,7 @@ EL::StatusCode JetSubstructure :: execute ()
   
   vector<PseudoJet> corrected_selectedTrks = subtractor_trk.subtract_event(selectedTrks, _etaTrkCut);
   
-
+  
   
   // Fill the histograms:
   for ( int ii =0 ; ii < selectedTrks.size() ; ii++ ) {
@@ -1361,32 +1371,25 @@ EL::StatusCode JetSubstructure :: execute ()
     
     
     if (_saveLog) { 
-      cout <<" jet_pt = " << jet_pt << endl;
-      cout <<" jet_eta = " << jet_eta << endl;
-      cout <<" jet_mass = " << jet_mass << endl;
-      cout <<" jet_px     = " << CalibFourVec.px() << endl;
-      cout <<" jet_py     = " << CalibFourVec.py() << endl;
-      cout <<" jet_pz     = " << CalibFourVec.pz() << endl;
-      cout <<" jet_px inFM= " << jet_4momCalib.px() << endl;
-      cout <<" jet_py inFM= " << jet_4momCalib.py() << endl;
-      cout <<" jet_pz inFM= " << jet_4momCalib.pz() << endl;
-      cout <<" jet_e inFM= " << jet_4momCalib.energy() << endl;
-      cout <<" jet_px inFM uncal= " << jet_4momUnCal.px() << endl;
-      cout <<" jet_py inFM uncal= " << jet_4momUnCal.py() << endl;
-      cout <<" jet_pz inFM uncal= " << jet_4momUnCal.pz() << endl;
-      cout <<" jet_e inFM uncal= " << jet_4momUnCal.energy() << endl;
-
-      cout <<"jet_ptRaw pT = " << jet_ptRaw  << endl;
+      cout << "In the analysis collection : " << endl;
+      cout <<" pt = " << jet_pt << endl;
+      cout <<" pt/e = " << jet_pt *1000/ jet_4momCalib.energy() << endl;
+      cout <<" m/e = " << jet_mass *1000/ jet_4momCalib.energy() << endl;
+      
+      cout << " In Uncal jet : " << endl; 
+      cout <<" pt   =  " << jet_ptRaw  << endl;
+      cout <<" pt/e = "  << jet_4momUnCal.pt() / jet_4momUnCal.energy() << endl;
+      cout <<" m/e  = "  << jet_4momUnCal.mass() / jet_4momUnCal.energy() << endl;
+      
+    }
     
-
-}
     if (jet_pt < _pTjetCut)          continue;
     if (fabs(jet_eta) > _etaJetCut)  continue;
     if( (_isPP) && (!m_jetCleaningToolHandle->keep( **jet_itr )) )   {
       if ( _saveLog) cout << " this jet is cleaned " << endl;
       continue;
     }
-    
+
     
     vector<double> jet_TrigPresc_vector ;
     vector<bool> jet_IsTrig_vector ; 
@@ -1423,7 +1426,32 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet>  nonZeroConsts;
     vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
     vector<bool>  nFlag; // reverse the pT only and subtract
+    
+    // Test for jet mass reproducability 
+    /*
+      if ( _saveLog ) { 
+      double totalPx =0;
+      double totalPy =0;
+      double totalPz =0;
+      double totalE =0; 
+      for( ; itCnst != itCnst_E; ++itCnst ) {
+      totalE = totalE + (*itCnst)->pt() * cosh ((*itCnst)->eta() ) ;
+      totalPx = totalPx +  (*itCnst)->pt() * cos ( (*itCnst)->phi() ) ;
+      totalPy = totalPy + (*itCnst)->pt() * sin ( (*itCnst)->phi() ) ;
+      totalPz = totalPz + (*itCnst)->pt() * sinh ((*itCnst)->eta() ) ;
+      //	cout << "(*itCnst)->pt() = " << (*itCnst)->pt()  << endl;
+      //	cout << "(*itCnst)->eta() = " << (*itCnst)->eta()  << endl;
+      //	cout << "(*itCnst)->phi() = " << (*itCnst)->phi()  << endl << endl;
       
+      }
+      double totolM = sqrt ( totalE*totalE - totalPx*totalPx - totalPy*totalPy - totalPz*totalPz ) ;
+      cout  << " analysis jet pt = " << jet_pt << endl;
+      cout << " Constituent measured pt = " << sqrt( totalPx*totalPx+ totalPy*totalPy) << endl;
+      cout  << " analysis jet m/pt = " << jet_mass/jet_pt << endl;
+      cout  << " Constituent measured m/pt = " << totolM/ (sqrt( totalPx*totalPx+ totalPy*totalPy)) << endl; 
+    }
+    itCnst   = recoConsts.begin();
+    */
 
     double ghostE = 0.00001;
     for( ; itCnst != itCnst_E; ++itCnst ) {
@@ -2260,18 +2288,8 @@ EL::StatusCode JetSubstructure :: execute ()
 	}
       }
     }
-
+    
     if ( matchId != -1 ) { 
-      /*
-	if ( _saveLog) {
-	cout << " cross check : " <<endl ;
-	cout << "Reco pT,eta,phi,mass = " << vpt_reco[ri] *1000. << ",  " << veta_reco[ri]  << ",  " <<  vphi_reco[ri]  << ",  " <<  vmass_reco[ri]*1000. << endl;
-	cout << "Reco pT,eta,phi,mass = " << recoJetSys->pt() << ", " << recoJetSys->eta() << ", " << recoJetSys->phi() << ", "  << recoJetSys->m() << endl;
-	cout << " cross check : " <<endl ;
-	cout << "Gen pT,eta,phi,mass = " << vpt_gen[matchId] *1000. << ",  " << veta_gen[matchId]  << ",  " <<  vphi_gen[matchId]  << ",  " <<  vMass_gen[matchId]*1000. << endl;
-	cout << "Gen pT,eta,phi,mass = " << genJetSys->pt() << ", " << genJetSys->eta() << ", " << genJetSys->phi() << ", "  << genJetSys->m() << endl;
-	}
-      */
       
       if ( _doJES ) { 
 	if ( _saveLog)  cout << "======= systematics ==== " << endl;
@@ -2306,6 +2324,33 @@ EL::StatusCode JetSubstructure :: execute ()
 	delete recoJetSysPP;
       }
     }
+    
+    // Fill the track mass and pt  //ys
+    fastjet::PseudoJet theTrkSum4 = fastjet::PseudoJet (0,0,0,0);
+    fastjet::PseudoJet theTrkSum6 = fastjet::PseudoJet (0,0,0,0);
+    fastjet::PseudoJet theTrkSum8 = fastjet::PseudoJet (0,0,0,0);
+    fastjet::PseudoJet theTrkSum10 = fastjet::PseudoJet (0,0,0,0);
+    for ( int ii =0 ; ii < selectedTrks.size() ; ii++ ) {
+      double ipt = selectedTrks[ii].pt()*0.001;
+      double ieta = selectedTrks[ii].eta();
+      double iphi = selectedTrks[ii].phi();
+      double theDr = DeltaR (  vphi_reco[ri],  veta_reco[ri], iphi, ieta);
+      if ( theDr < _JetRadiusAna ) { 
+	if ( ipt > 4 ) 
+	  theTrkSum4  = theTrkSum4 +  selectedTrks[ii];
+	if ( ipt > 6 ) 
+	  theTrkSum6  = theTrkSum6 +  selectedTrks[ii];
+	if ( ipt > 8 ) 
+	  theTrkSum8  = theTrkSum8 +  selectedTrks[ii];
+	if ( ipt > 10 ) 
+	  theTrkSum10  = theTrkSum10 +  selectedTrks[ii];
+      }
+    }
+    trkJetMass4 = theTrkSum4.m() * 0.001;      trkJetPt4 = theTrkSum4.pt() * 0.001;
+    trkJetMass6 = theTrkSum6.m() * 0.001;      trkJetPt6 = theTrkSum6.pt() * 0.001;
+    trkJetMass8 = theTrkSum8.m() * 0.001;      trkJetPt8 = theTrkSum8.pt() * 0.001;
+    trkJetMass10 = theTrkSum10.m() * 0.001;      trkJetPt10 = theTrkSum10.pt() * 0.001;
+    
     
     resetSubstr(myJetSub);
     resetEvt(myEvt);
@@ -2373,8 +2418,6 @@ EL::StatusCode JetSubstructure :: execute ()
     myJetSub.maxTrkPt = vMaxTrkPt[ri];
     
     
-
-
     myJetSub.recoTrNsub  = vTrNsub_reco[ri];
     myJetSub.recoTrTheta  = vTrTheta_reco[ri];
     myJetSub.recoTrMassRaw  = vTrMassRaw_reco[ri];
