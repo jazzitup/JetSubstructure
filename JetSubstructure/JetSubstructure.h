@@ -147,6 +147,9 @@ class JetSubstructure : public BaseClass
 	TFile * f_trigger_RunNumber_prescale; //!
 	TH2F * h2_trigger_RunNumber_prescale; //!
 
+	// Tracking Uncertainty
+        TH2F* h_eff_uncert_2015_material[4]; //!
+	TH1D* hRandomUnit; //!
 
 	// this is a standard constructor
 	JetSubstructure ();

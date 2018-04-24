@@ -133,6 +133,10 @@ public:
 	float trkJetPt8; //! 
 	float trkJetPt10; //! 
 
+	float trkJetMassRcSub2; //!
+	float trkJetMassRcSub4; //!
+	float trkJetMassRcSubEV; //!
+
 
 
 	TH1D *h_FCal_Et; //!
@@ -169,7 +173,6 @@ public:
 	
 	// Jet cleaner 
 	asg::AnaToolHandle<IJetSelector> m_jetCleaningToolHandle; //!
-
 
 	// this is a standard constructor
 	BaseClass ();
