@@ -372,6 +372,7 @@ EL::StatusCode JetSubstructure :: histInitialize ()
 	treeOut->Branch("trkJetMassRcSub2",&trkJetMassRcSub2);
 	treeOut->Branch("trkJetMassRcSub4",&trkJetMassRcSub4);
 	treeOut->Branch("trkJetMassRcSubEV",&trkJetMassRcSubEV);
+	treeOut->Branch("trkJetMassRcSubMV",&trkJetMassRcSubMV);
 	
 	
 	treeOut->Branch("evt",&myEvt,evtString.Data());
@@ -666,6 +667,14 @@ EL::StatusCode JetSubstructure :: initialize ()
 	h_eff_uncert_2015_material[1]    = (TH2F*)f_eff_uncert_2015_material->Get("OneMinusRatioEfficiencyVSEtaPt_AfterRebinning_Old_Nominal_MCVSNew_Nominal_MC_TightPrimary");
 	h_eff_uncert_2015_material[2]    = (TH2F*)f_eff_uncert_2015_material->Get("OneMinusRatioEfficiencyVSEtaPt_AfterRebinning_Old_Nominal_MCVSOld_50%ExtraPP0_MC_TightPrimary");
 	h_eff_uncert_2015_material[3]    = (TH2F*)f_eff_uncert_2015_material->Get("OneMinusRatioEfficiencyVSEtaPt_AfterRebinning_Old_Nominal_MCVSOld_FTF_BIC_MC_TightPrimary");
+
+	TFile* f_fake_uncert = new TFile(xfn + "/../JetSubstructure/data/fake_uncert_variation.root");
+	h_fake_uncert[0] = (TH2D*)f_fake_uncert->Get("fake_uncert_jety0p3");
+	h_fake_uncert[1] = (TH2D*)f_fake_uncert->Get("fake_uncert_jety0p3_0p8");
+	h_fake_uncert[2] = (TH2D*)f_fake_uncert->Get("fake_uncert_jety0p8_1p2");
+	h_fake_uncert[3] = (TH2D*)f_fake_uncert->Get("fake_uncert_jety1p2_2p1");
+	
+
 	hRandomUnit = new TH1D("hRandomUnit","",1,0,1);
 	hRandomUnit->Fill(0.5);
 	
@@ -914,6 +923,7 @@ EL::StatusCode JetSubstructure :: execute ()
   vector <float> vChMassRcSubt2_reco; 
   vector <float> vChMassRcSubt4_reco; 
   vector <float> vChMassRcSubtEV_reco; 
+  vector <float> vChMassRcSubtMV_reco; 
 
 
   vector <float> vChMassGm_reco; 
@@ -1375,7 +1385,7 @@ EL::StatusCode JetSubstructure :: execute ()
     }
 
     fastjet::PseudoJet CalibFourVec = fastjet::PseudoJet ( jet_4momCalib.px(), jet_4momCalib.py(), jet_4momCalib.pz(), jet_4momCalib.energy() );
-
+  
     double jet_pt  = jet_4momCalib.pt() * 0.001 ;
     double jet_eta = jet_4momCalib.eta();
     double jet_phi = PhiInPI ( jet_4momCalib.phi() );
@@ -1658,6 +1668,7 @@ EL::StatusCode JetSubstructure :: execute ()
     float t_recoChMassRcSubt2 = -100;
     float t_recoChMassRcSubt4 = -100;
     float t_recoChMassRcSubtEV = -100;
+    float t_recoChMassRcSubtMV = -100;
 
 
     float t_recoChMassGm  = -100;
@@ -1739,6 +1750,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet> trkConstsRaw2;
     vector<fastjet::PseudoJet> trkConstsRaw4;
     vector<fastjet::PseudoJet> trkConstsRawEV;
+    vector<fastjet::PseudoJet> trkConstsRawMV;
     for ( int ic=0; ic< selectedTrks.size() ; ic++) {
       if ( DeltaR ( jet_phi, jet_rap, selectedTrks[ic].phi(), selectedTrks[ic].rapidity() ) <  _JetRadiusAna ) {
 	trkConstsRaw.push_back( selectedTrks[ic]) ;	
@@ -1754,16 +1766,31 @@ EL::StatusCode JetSubstructure :: execute ()
 	if ( selectedTrks[ic].pt() * 0.001 < 19 )   
 	  modifiedTrkPt = selectedTrks[ic].pt() * 0.001; 
 	
-	double totUnc2 = densePart*densePart;
+	double effUnc2 = densePart*densePart;
 	for (int i=0;i<4;i++){
 	  int iptbin = h_eff_uncert_2015_material[i]->GetXaxis()->FindBin(modifiedTrkPt);
 	  int ietabin = h_eff_uncert_2015_material[i]->GetYaxis()->FindBin(selectedTrks[ic].eta());
-	  totUnc2 = totUnc2 + pow(h_eff_uncert_2015_material[i]->GetBinContent(iptbin,ietabin),2);
+	  effUnc2 = effUnc2 + pow(h_eff_uncert_2015_material[i]->GetBinContent(iptbin,ietabin),2);
 	}
-	double totUnc = sqrt(totUnc2); 
-	//	cout  << " totUnc = " << totUnc << endl;
+	double effUnc1 = sqrt(effUnc2);
+	
+	// fake rate : 
+	int theJetEtaBin = 0;  
+	if ( fabs(jet_eta) < 0.3 )  theJetEtaBin = 0;
+	else if ( fabs(jet_eta) < 0.8 )  theJetEtaBin = 1;
+	else if ( fabs(jet_eta) < 1.2 )  theJetEtaBin = 2;
+	else                             theJetEtaBin = 3;
+	int binInFakeHist = h_fake_uncert[theJetEtaBin]->FindBin( selectedTrks[ic].pt() * 0.001,  jet_pt) ; // both in GeV unit
+	double fakeUnc1 = h_fake_uncert[theJetEtaBin]->GetBinContent(binInFakeHist);
+		
+	double totUnc = fabs(effUnc1) + fabs(fakeUnc1);
+	//	cout  <<  effUnc1 <<"+ "<<fakeUnc1<<" = "<< totUnc << endl;
+	// tracking eff/fake rate variation 
 	if ( hRandomUnit->GetRandom() > totUnc )     // random number between 0 - 1 
 	  trkConstsRawEV.push_back( selectedTrks[ic]) ;	
+	
+	// Momentum variation  // 
+	trkConstsRawMV.push_back( selectedTrks[ic]) ; // ys <= variation 
 	
       }
     }
@@ -1780,6 +1807,7 @@ EL::StatusCode JetSubstructure :: execute ()
     fastjet::PseudoJet trkSumRaw2 = fastjet::PseudoJet(0,0,0,0);
     fastjet::PseudoJet trkSumRaw4 = fastjet::PseudoJet(0,0,0,0);
     fastjet::PseudoJet trkSumRawEV = fastjet::PseudoJet(0,0,0,0);
+    fastjet::PseudoJet trkSumRawMV = fastjet::PseudoJet(0,0,0,0);
 
     for ( int ii=0; ii< trkConstsRaw.size() ; ii++)       {
       trkSumRaw = trkSumRaw + trkConstsRaw[ii] ;
@@ -1795,6 +1823,9 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     for ( int ii=0; ii< trkConstsRawEV.size() ; ii++)       {
       trkSumRawEV = trkSumRawEV + trkConstsRawEV[ii] ;
+    }
+    for ( int ii=0; ii< trkConstsRawMV.size() ; ii++)       {
+      trkSumRawMV = trkSumRawMV + trkConstsRawMV[ii] ;
     }
 
 
@@ -1837,6 +1868,11 @@ EL::StatusCode JetSubstructure :: execute ()
     float sumPyBkgEV = 0;
     float sumPzBkgEV = 0;
     float sumEBkgEV = 0;
+
+    float sumPxBkgMV = 0;
+    float sumPyBkgMV = 0;
+    float sumPzBkgMV = 0;
+    float sumEBkgMV = 0;
 
     for ( int ic=0 ; ic< selectedTrks.size() ; ic++) { 
       float iTrkPt = selectedTrks[ic].pt() * 0.001;
@@ -1903,20 +1939,41 @@ EL::StatusCode JetSubstructure :: execute ()
         if ( iTrkPt < 19 )
           modifiedTrkPt = iTrkPt;
 
-        double totUnc2 = densePart*densePart;
+        double effUnc2 = densePart*densePart;
         for (int i=0;i<4;i++){
           int iptbin = h_eff_uncert_2015_material[i]->GetXaxis()->FindBin(modifiedTrkPt);
           int ietabin = h_eff_uncert_2015_material[i]->GetYaxis()->FindBin(iTrkEta);
-          totUnc2 = totUnc2 + pow(h_eff_uncert_2015_material[i]->GetBinContent(iptbin,ietabin),2);
+          effUnc2 = effUnc2 + pow(h_eff_uncert_2015_material[i]->GetBinContent(iptbin,ietabin),2);
         }
-        double totUnc = sqrt(totUnc2);
-	//	cout  << " totUnc = " << totUnc << endl;
+	double effUnc1 = sqrt(effUnc2);
+	// fake rate :
+        int theJetEtaBin = 0;
+        if ( fabs(jet_eta) < 0.3 )  theJetEtaBin = 0;
+        else if ( fabs(jet_eta) < 0.8 )  theJetEtaBin = 1;
+        else if ( fabs(jet_eta) < 1.2 )  theJetEtaBin = 2;
+        else                             theJetEtaBin = 3;
+        int binInFakeHist = h_fake_uncert[theJetEtaBin]->FindBin( iTrkPt, jet_pt); // in GeV
+	double fakeUnc1   = h_fake_uncert[theJetEtaBin]->GetBinContent(binInFakeHist);
+	// total rate :
+	double totUnc = fabs(effUnc1) + fabs(fakeUnc1);
+	//	cout  <<  effUnc1 <<"+ "<<fakeUnc1<<" = "<< totUnc << endl;
+
+	/// eff/fake rate variation 
         if ( hRandomUnit->GetRandom() > totUnc )   {   // random number between 0 - 1
 	  sumPxBkgEV = sumPxBkgEV + newTrkPx*w_bkgr ;  
 	  sumPyBkgEV = sumPyBkgEV + newTrkPy*w_bkgr ;  
 	  sumPzBkgEV = sumPzBkgEV + newTrkPz*w_bkgr ;  
 	  sumEBkgEV = sumEBkgEV + newTrkE*w_bkgr ;  
 	}
+	/// momentum variation 
+	sumPxBkgMV = sumPxBkgMV + newTrkPx*w_bkgr ;  
+	sumPyBkgMV = sumPyBkgMV + newTrkPy*w_bkgr ;  
+	sumPzBkgMV = sumPzBkgMV + newTrkPz*w_bkgr ;  
+	sumEBkgMV = sumEBkgMV + newTrkE*w_bkgr ;  
+
+
+
+
 	//	else {  cout << "rejected" << endl; }
 	
 	nTrkBkg = nTrkBkg +  w_bkgr;
@@ -1934,12 +1991,18 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     fastjet::PseudoJet trkSumRcBkg = fastjet::PseudoJet(  sumPxBkg*1000., sumPyBkg*1000., sumPzBkg*1000., sumEBkg*1000.); // in MeV
     fastjet::PseudoJet trkSumRcSubt = trkSumRaw - trkSumRcBkg; 
+
     fastjet::PseudoJet trkSumRcBkg2 = fastjet::PseudoJet(  sumPxBkg2*1000., sumPyBkg2*1000., sumPzBkg2*1000., sumEBkg2*1000.); // in MeV
     fastjet::PseudoJet trkSumRcSubt2 = trkSumRaw2 - trkSumRcBkg2; 
+
     fastjet::PseudoJet trkSumRcBkg4 = fastjet::PseudoJet(  sumPxBkg4*1000., sumPyBkg4*1000., sumPzBkg4*1000., sumEBkg4*1000.); // in MeV
     fastjet::PseudoJet trkSumRcSubt4 = trkSumRaw4 - trkSumRcBkg4;
+
     fastjet::PseudoJet trkSumRcBkgEV = fastjet::PseudoJet(  sumPxBkgEV*1000., sumPyBkgEV*1000., sumPzBkgEV*1000., sumEBkgEV*1000.); // in MeV
     fastjet::PseudoJet trkSumRcSubtEV = trkSumRawEV - trkSumRcBkgEV;
+
+    fastjet::PseudoJet trkSumRcBkgMV = fastjet::PseudoJet(  sumPxBkgMV*1000., sumPyBkgMV*1000., sumPzBkgMV*1000., sumEBkgMV*1000.); // in MeV
+    fastjet::PseudoJet trkSumRcSubtMV = trkSumRawMV - trkSumRcBkgMV;
  
 
     t_recoChPtRaw =  trkSumRaw.pt() *0.001 ;   // raw mass
@@ -1953,6 +2016,7 @@ EL::StatusCode JetSubstructure :: execute ()
     t_recoChMassRcSubt2  =  trkSumRcSubt2.m() *0.001 ; 
     t_recoChMassRcSubt4  =  trkSumRcSubt4.m() *0.001 ; 
     t_recoChMassRcSubtEV =  trkSumRcSubtEV.m() *0.001 ; 
+    t_recoChMassRcSubtMV =  trkSumRcSubtMV.m() *0.001 ; 
     
 
     t_recoNChRaw = trkConstsRaw.size() ; 
@@ -2081,6 +2145,7 @@ EL::StatusCode JetSubstructure :: execute ()
     vChMassRcSubt2_reco.push_back(t_recoChMassRcSubt2)  ;
     vChMassRcSubt4_reco.push_back(t_recoChMassRcSubt4)  ;
     vChMassRcSubtEV_reco.push_back(t_recoChMassRcSubtEV)  ;
+    vChMassRcSubtMV_reco.push_back(t_recoChMassRcSubtMV)  ;
 
     vChMassGm_reco.push_back(t_recoChMassGm)  ;
 
@@ -2550,6 +2615,7 @@ EL::StatusCode JetSubstructure :: execute ()
     trkJetMassRcSub2 = vChMassRcSubt2_reco[ri];
     trkJetMassRcSub4 = vChMassRcSubt4_reco[ri];
     trkJetMassRcSubEV = vChMassRcSubtEV_reco[ri];
+    trkJetMassRcSubMV = vChMassRcSubtMV_reco[ri];
     
     myJetSub.nTrkRaw = vNChRaw[ri]; 
     myJetSub.nTrkBkg = vNChBkg[ri]; 
