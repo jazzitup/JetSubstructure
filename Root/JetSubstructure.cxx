@@ -674,7 +674,9 @@ EL::StatusCode JetSubstructure :: initialize ()
 	h_fake_uncert[2] = (TH2D*)f_fake_uncert->Get("fake_uncert_jety0p8_1p2");
 	h_fake_uncert[3] = (TH2D*)f_fake_uncert->Get("fake_uncert_jety1p2_2p1");
 	
-
+	TFile* f_sagitta = new TFile(xfn + "/../JetSubstructure/data/5TeVHI2015_sagittaBias_pTmethod_statUncertainty.root");
+	h_sagitta = (TH2D*)f_sagitta->Get("h_deltaSagittaMap_statErr");
+	
 	hRandomUnit = new TH1D("hRandomUnit","",1,0,1);
 	hRandomUnit->Fill(0.5);
 	
@@ -1175,6 +1177,7 @@ EL::StatusCode JetSubstructure :: execute ()
   std::vector<fastjet::PseudoJet> selectedTrks;
   std::vector<fastjet::PseudoJet> selAndExcldTrks; // after jet cone exclusion
   std::vector<fastjet::PseudoJet> selGenMatchTrks;
+  std::vector<fastjet::PseudoJet> selectedTrksMV; // momentum varied
   
   std::vector<float> _vTrkPtForRC;
   std::vector<float> _vTrkEtaForRC;
