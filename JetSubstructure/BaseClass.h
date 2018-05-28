@@ -58,6 +58,7 @@ public:
 	int _isPP; //
 	int _isMC; //
 	bool _doJES; //
+	bool _useUnbtMass; //
 	string _dataset; //
 	int _isMB; //
 	int _towerBkgKill; //

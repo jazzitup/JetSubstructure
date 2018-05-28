@@ -1126,7 +1126,7 @@ EL::StatusCode JetSubstructure :: execute ()
       jet_eta = jet_4momCroCal.eta();
       jet_phi = jet_4momCroCal.phi();
     }
-
+    
     _vJetPtForRC.push_back(jet_pt);  // GeV!
     _vJetEtaForRC.push_back(jet_eta);
     _vJetPhiForRC.push_back(jet_phi);
@@ -1216,6 +1216,25 @@ EL::StatusCode JetSubstructure :: execute ()
     double piony = trk->p4().Py();
     double pionz = trk->p4().Pz();
     double pione = sqrt (pionx*pionx + piony*piony + pionz*pionz + pionMass*pionMass) ;
+    
+    // Momentum varied tracks by Saggita bias 
+    float charge_tmp= trk->charge();
+    if (charge_tmp>0.) charge_tmp=1;
+    else if (charge_tmp<0.) charge_tmp =-1;
+    
+    float eta_tmp=eta;
+    if(eta_tmp>2.499 )  eta_tmp= 2.499;
+    if(eta_tmp<-2.499)  eta_tmp=-2.499;
+
+    double orgPt = trk->p4().Pt() * 0.001; // GeV!!!!
+    double saggitaRatio = 1. / ( 1. + charge_tmp * orgPt * (h_sagitta->GetBinContent(h_sagitta->FindBin(eta_tmp, phi))) * 0.001 ); // 0.001 has nothing to do with GeV->MeV conversion.
+    //    cout << "charge = " << charge_tmp << endl;  cout << "orgPt = " << orgPt << " GeV" << endl; cout << "ratio = " << saggitaRatio << endl;
+    double pionxMV = pionx*saggitaRatio;
+    double pionyMV = piony*saggitaRatio;
+    double pionzMV = pionz*saggitaRatio;
+    double pioneMV = sqrt (pionxMV*pionxMV + pionyMV*pionyMV + pionzMV*pionzMV + pionMass*pionMass) ;
+    
+    
     //    cout << " pt, px,py,pz = " << trk->pt() <<"," <<pionx<<", "<<piony<<", "<<pionz <<endl; 
   
     // truth particle matching 
@@ -1236,7 +1255,11 @@ EL::StatusCode JetSubstructure :: execute ()
     }
     
     selectedTrks.push_back( fastjet::PseudoJet ( pionx, piony, pionz, pione ) );
+    selectedTrksMV.push_back( fastjet::PseudoJet ( pionxMV, pionyMV, pionzMV, pioneMV ) );
+    
     if (isTruthMatched) selGenMatchTrks.push_back( matchPar );
+    
+
     
     /////// Jet cone excluded  //////
     bool isExcluded = false;
@@ -1254,7 +1277,6 @@ EL::StatusCode JetSubstructure :: execute ()
 }
   if (_saveLog) cout << " number of reconstructed tracks: " << selectedTrks.size() << endl;
   if (_saveLog) cout << "         Out of exclusion cone : " << selAndExcldTrks.size() << endl;
-
 
     
   //Get reaction plane (maybe not needed for first iteration):
@@ -1457,9 +1479,9 @@ EL::StatusCode JetSubstructure :: execute ()
     vector<fastjet::PseudoJet>  toBeSubtracted; // reverse the pT only and subtract
     vector<bool>  nFlag; // reverse the pT only and subtract
     
-    // Test for jet mass reproducability 
-    /*
-      if ( _saveLog ) { 
+    // Test for jet mass reproducability  //this test!!  cross-check
+
+    /*      if ( _saveLog ) { 
       double totalPx =0;
       double totalPy =0;
       double totalPz =0;
@@ -1479,11 +1501,39 @@ EL::StatusCode JetSubstructure :: execute ()
       cout << " Constituent measured pt = " << sqrt( totalPx*totalPx+ totalPy*totalPy) << endl;
       cout  << " analysis jet m/pt = " << jet_mass/jet_pt << endl;
       cout  << " Constituent measured m/pt = " << totolM/ (sqrt( totalPx*totalPx+ totalPy*totalPy)) << endl; 
+      cout << "ratio =" << totolM/ (sqrt( totalPx*totalPx+ totalPy*totalPy)) / ( jet_mass/jet_pt ) << endl;
     }
     itCnst   = recoConsts.begin();
     */
 
+    // For unsubtracted towers
+    if ( _useUnbtMass )  {
+      double totalPx =0;
+      double totalPy =0;
+      double totalPz =0;
+      double totalE =0; 
+      for( ; itCnst != itCnst_E; ++itCnst ) {
+	const xAOD::CaloCluster* cl=static_cast<const xAOD::CaloCluster*>(itCnst->rawConstituent());
+	if ( _saveLog) { 
+	  cout << "-> cl->rawE() = " <<  cl->rawE()  << endl;
+	  cout << "-> cl->altE() = " <<  cl->altE()  << endl;
+	  cout << "(*itCnst)->pt() * cosh ((*itCnst)->eta() )" << (*itCnst)->pt() * cosh ((*itCnst)->eta() ) << endl;
+	}
+	totalE = totalE + cl->altE()  ;
+	totalPx = totalPx + cl->altE() /cosh ((*itCnst)->eta()) * cos ( (*itCnst)->phi() ) ;
+	totalPy = totalPy + cl->altE() /cosh ((*itCnst)->eta()) * sin ( (*itCnst)->phi() ) ;
+	totalPz = totalPz + cl->altE()/cosh ((*itCnst)->eta())  * sinh ((*itCnst)->eta() ) ;
+      }
+      double jet_massUnSubt = sqrt ( totalE*totalE - totalPx*totalPx - totalPy*totalPy - totalPz*totalPz ) * 0.001;
+      jet_mass = jet_massUnSubt;  // highjacking
+      //  cout  << " analysis jet mass = " << jet_mass << endl;
+      //      cout  << " Constituent measured mass = " << jet_massUnSubt*0.001 << endl;
+      //      cout << "ratio =" << jet_massUnSubt*0.001/jet_mass << endl;
+    }
+    
+
     double ghostE = 0.00001;
+    itCnst   = recoConsts.begin(); // VERY IMPORANT! 
     for( ; itCnst != itCnst_E; ++itCnst ) {
       int icoutC =1 ;
       double theEta = (*itCnst)->Eta() ; 
@@ -1793,7 +1843,7 @@ EL::StatusCode JetSubstructure :: execute ()
 	  trkConstsRawEV.push_back( selectedTrks[ic]) ;	
 	
 	// Momentum variation  // 
-	trkConstsRawMV.push_back( selectedTrks[ic]) ; // ys <= variation 
+	trkConstsRawMV.push_back( selectedTrksMV[ic]) ; // ys <= variation 
 	
       }
     }
@@ -1881,6 +1931,16 @@ EL::StatusCode JetSubstructure :: execute ()
       float iTrkPt = selectedTrks[ic].pt() * 0.001;
       float iTrkEta = selectedTrks[ic].eta();
       float iTrkPhi = selectedTrks[ic].phi();
+
+      float iTrkPtMV = selectedTrksMV[ic].pt() * 0.001;
+      float iTrkEtaMV = selectedTrksMV[ic].eta();
+      float iTrkPhiMV = selectedTrksMV[ic].phi();
+      if ( fabs(selectedTrksMV[ic].eta() - selectedTrks[ic].eta() ) > 0.0001 )  {
+	cout << "!!!!!! iTrkPt =! iTrPtMV " << endl; 
+	cout << " iTrkPt, iTrkPtMV = " << iTrkPt <<", " << iTrkPtMV << endl;
+	cout << " iTrkEta, iTrkEtaMV = " << iTrkEta <<", " << iTrkEtaMV << endl;
+      }
+
       uee->FindCone(iTrkPt, iTrkEta, iTrkPhi);
 
       float deltaRBkgr = uee->GetDeltaRToConeAxis();
@@ -1908,6 +1968,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	float newTrkP  = iTrkPt * cosh(newEta);
 	float newTrkE  = sqrt( newTrkP*newTrkP + _chParticleMassMeV*_chParticleMassMeV*0.000001);
 
+	float newTrkPxMV = iTrkPtMV * cos(newPhi);
+	float newTrkPyMV = iTrkPtMV * sin(newPhi);
+	float newTrkPzMV = iTrkPtMV * sinh(newEta);
+	float newTrkPMV  = iTrkPtMV * cosh(newEta);
+	float newTrkEMV  = sqrt( newTrkPMV*newTrkPMV + _chParticleMassMeV*_chParticleMassMeV*0.000001);
+
+
+
 	float newEta2 = rawEtaTrkSum + deltaEtaBkgr;
 	float newPhi2 = rawPhiTrkSum + deltaPhiBkgr;
 	float newTrkPx2 = iTrkPt * cos(newPhi2);
@@ -1920,6 +1988,14 @@ EL::StatusCode JetSubstructure :: execute ()
 	sumPyBkg = sumPyBkg + newTrkPy*w_bkgr ;  
 	sumPzBkg = sumPzBkg + newTrkPz*w_bkgr ;  
 	sumEBkg = sumEBkg + newTrkE*w_bkgr ;  
+
+	/// momentum variation 
+	sumPxBkgMV = sumPxBkgMV + newTrkPxMV*w_bkgr ;  
+	sumPyBkgMV = sumPyBkgMV + newTrkPyMV*w_bkgr ;  
+	sumPzBkgMV = sumPzBkgMV + newTrkPzMV*w_bkgr ;  
+	sumEBkgMV = sumEBkgMV + newTrkEMV*w_bkgr ;  
+      
+
 
 	if ( iTrkPt > 2) { 
 	  sumPxBkg2 = sumPxBkg2 + newTrkPx*w_bkgr ;  
@@ -1968,12 +2044,6 @@ EL::StatusCode JetSubstructure :: execute ()
 	  sumPzBkgEV = sumPzBkgEV + newTrkPz*w_bkgr ;  
 	  sumEBkgEV = sumEBkgEV + newTrkE*w_bkgr ;  
 	}
-	/// momentum variation 
-	sumPxBkgMV = sumPxBkgMV + newTrkPx*w_bkgr ;  
-	sumPyBkgMV = sumPyBkgMV + newTrkPy*w_bkgr ;  
-	sumPzBkgMV = sumPzBkgMV + newTrkPz*w_bkgr ;  
-	sumEBkgMV = sumEBkgMV + newTrkE*w_bkgr ;  
-
 
 
 
@@ -2121,6 +2191,8 @@ EL::StatusCode JetSubstructure :: execute ()
     vphi_reco.push_back(jet_phi);
     vptRc_reco.push_back(thePtrc);
     
+
+
     vSdmass_reco.push_back(thesdm);
     vSdpt_reco.push_back(thesdpt);
     vSdz_reco.push_back(thesdz);

@@ -45,6 +45,7 @@ int main(int argc, char *argv[])
 	int num_evt;
 	int jet_radius = 4;
 	int DxAODMode;
+	bool useUnbtMass=0;
 	string reco_jet_collection;
 	string test_reco_jet_collection;
 	string truth_jet_collection;
@@ -128,6 +129,7 @@ int main(int argc, char *argv[])
         ("isPP",boost::program_options::value<int>(&isPP)->default_value(0),"pp (1) or PbPb(0)")
 	("isMC",boost::program_options::value<int>(&isMC)->default_value(1),"MC or data mode")
 	("doJES",boost::program_options::value<bool>(&doJES)->default_value(false),"Do sys")
+        ("useUnbtMass",boost::program_options::value<bool>(&useUnbtMass)->default_value(false),"useUnbtMass")
 	("num_evt,n",boost::program_options::value<int>(&num_evt)->default_value(-1),"number of events, -1 runs all events")
 	("saveLog",boost::program_options::value<bool>(&saveLog)->default_value(false),"Save the log?")
         ("saveNtuple",boost::program_options::value<bool>(&saveNtuple)->default_value(true),"Save Ntuple?")
@@ -318,6 +320,7 @@ int main(int argc, char *argv[])
 	alg->_isPP = isPP;
 	alg->_isMC = isMC;
 	alg->_doJES = doJES;
+	alg->_useUnbtMass = useUnbtMass;
 	alg->_dataset = dataset;
 	alg->_GRL = grl;
 	alg->_reco_jet_collection=reco_jet_collection.c_str();
